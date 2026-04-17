@@ -1,0 +1,135 @@
+# Copyright 2022-2026 Aerospike, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Publish docs to GitHub Pages
+
+# Publishes the `docs/` tree as a static GitHub Pages site.
+# Uses GitHub's built-in Jekyll processing (no `_config.yml` required);
+# every `.md` file becomes a page under the same path.
+#
+# To actually go live, the repository's Settings → Pages → Source must
+# be set to "GitHub Actions".
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'aerospike-graph-api/src/main/java/**'
+      - 'aerospike-graph-api/pom.xml'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'aerospike-graph-api/src/main/java/**'
+      - 'aerospike-graph-api/pom.xml'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+# Avoid multiple in-flight deploys racing each other. `cancel-in-progress`
+# is false so an in-flight publish finishes cleanly even if a newer
+# commit lands.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build docs site
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+
+      # Java + Maven so we can generate the public API javadoc below.
+      # Only the `aerospike-graph-api` module is built (with -am for its
+      # internal prerequisites), so this stays well under the workflow's
+      # 10-minute budget.
+      - name: Set up JDK
+        uses: actions/setup-java@387ac29b308b003ca37ba93a6cab5eb57c8f5f93 # v4.0.0
+        with:
+          distribution: temurin
+          java-version: '11'
+          cache: maven
+
+      - name: Generate public API Javadoc
+        run: |
+          set -eo pipefail
+          # Only the aerospike-graph-api module has strict javadoc; the
+          # plugin is configured there with failOnWarnings=true so missing
+          # or malformed tags will break this build.
+          mvn -ntp -B -q \
+            -pl aerospike-graph-api -am \
+            -DskipTests \
+            -Dspotbugs.skip=true -Dcheckstyle.skip=true \
+            javadoc:javadoc
+
+      - name: Stage Javadoc under docs/api
+        run: |
+          set -eo pipefail
+          # The api/ tree is generated on every run; it is gitignored
+          # so local developers never check it in by accident.
+          rm -rf docs/api
+          mkdir -p docs/api
+          cp -R aerospike-graph-api/target/site/apidocs/. docs/api/
+          # Jekyll copies HTML without front-matter verbatim, which is
+          # exactly what we want for the generated javadoc.
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
+
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1.0.13
+        with:
+          source: ./docs
+          destination: ./_site
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          path: ./_site
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    # Only deploy on push to main; PRs build-only so the job provides
+    # validation without mutating the live site.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac1b179f12e # v4.0.5

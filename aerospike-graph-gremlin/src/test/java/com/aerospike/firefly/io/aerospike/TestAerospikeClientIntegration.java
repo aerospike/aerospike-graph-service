@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.Bin;
@@ -64,10 +80,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-/**
- * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
- * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
- */
 public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Override
@@ -526,9 +538,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void testDynamicEdgeCacheSizing() {
-        // TODO https://aerospike.atlassian.net/browse/GRAPH-982: When dynamic aerospike.conf is fixed for our CI
-        //  workflow, we can make this test better. For now just test it matches max-record-size=0 and
-        //  write-block-size=128k
+        // TODO: once our CI can render a dynamic aerospike.conf we can make this test broader.
+        //  For now it only covers the case where max-record-size=0 and write-block-size=128k.
         final Configuration configuration = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final AerospikeConnection db = AerospikeConnection.connect(configuration)) {
             Assert.assertEquals(6553, db.getConfig().onRecordIdLimit);

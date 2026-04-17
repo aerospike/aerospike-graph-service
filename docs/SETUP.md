@@ -1,15 +1,31 @@
-<img  src="img/firefly_10kft.drawio.png">
+# Setup
 
-Firefly is implemented as a JVM process. 
-Each Firefly node will establish a connection to one or more Aerospike nodes, by configuration.
+<img src="img/firefly_10kft.drawio.png" alt="Aerospike Graph Service 10kft architecture diagram" />
 
-Firefly is hosted by `gremlin-server` which exposes a Websocket endpoint for client applications
-to connect to. Traversals submitted to this `gremlin-server` socket will be invoked on the specific
-Firefly node being hosted by it, which will dispatch queries to the Aerospike cluster at large.
+> The image above and some identifiers in this document use the project
+> codename **`firefly`**. See [`index.md`](index.md) for context — it is
+> the same product as *Aerospike Graph Service*.
 
-In the configuration file for each Firefly node, you may specify one or more Aerospike servers to connect to
+## What it is
 
-#### One
+Aerospike Graph Service is a JVM process. Each instance opens one or
+more client connections to an Aerospike cluster (per its configuration)
+and hosts a TinkerPop `gremlin-server` endpoint over WebSocket. Client
+applications connect with a standard Gremlin driver
+(`gremlin-python`, `gremlin-javascript`,
+TinkerPop's Java `Client`, etc.) and issue normal Gremlin traversals;
+the service translates those into efficient Aerospike operations and
+streams results back.
+
+## Minimal configuration
+
+Your deployment needs two things:
+
+1. An Aerospike cluster with a namespace provisioned for graph storage.
+   The namespace must exist on the cluster *before* the service starts.
+2. A properties file the service reads at startup.
+
+### Single-node cluster
 
 ```properties
 gremlin.graph=com.aerospike.firefly.structure.FireflyGraph
@@ -18,22 +34,39 @@ aerospike.client.port=3000
 aerospike.client.namespace=test
 aerospike.graph.data.model=packed
 ```
-#### Many
+
+### Multi-node cluster
+
+Comma-separate seed addresses:
 
 ```properties
 gremlin.graph=com.aerospike.firefly.structure.FireflyGraph
 aerospike.client.host=172.18.0.3:3000,172.18.0.2:3000,172.18.0.4:3000
 aerospike.client.namespace=test
-firefly_data_model=packed
+aerospike.graph.data.model=packed
 ```
 
-In this configuration file, you will also specify the `data model` and Aerospike `namespace`
+## Choosing a data model
 
-currently supported data models are:
- - linked
- - packed
+The service supports two on-disk graph layouts. Pick one at deploy
+time; it cannot be changed after data has been written.
 
-The namespace must be configured on your Aerospike cluster ahead of time.
+- **`linked`** — vertex record with a per-vertex edge index; better for
+  high-fanout traversals across supernodes.
+- **`packed`** — edges packed into the vertex record up to a size
+  threshold; better for lower-fanout workloads with heavy write
+  amplification sensitivity.
 
-`gremlin-server` is configured via a yaml file, which specifies the properties file to use with Firefly. This is abstracted from the user. If it needs to be overwritten, a `aerospike-graph-service.yaml` can be placed at 
+See [`DATA_MODEL_DESIGN.md`](DATA_MODEL_DESIGN.md) for the trade-offs
+and [`CONFIG_OPTIONS.md`](CONFIG_OPTIONS.md) for every tunable.
+
+## Advanced: a custom `gremlin-server.yaml`
+
+The service wraps TinkerPop's Gremlin Server, so advanced users can
+supply a full `gremlin-server.yaml`. The container wires the properties
+file to Gremlin Server automatically; if you need to override the
+server config, drop a custom YAML at
 `/opt/aerospike-graph/custom/aerospike-graph-service.yaml`.
+
+See [`DOCKER_USER_DOCUMENTATION.md`](DOCKER_USER_DOCUMENTATION.md) for
+the Docker-specific version of this.

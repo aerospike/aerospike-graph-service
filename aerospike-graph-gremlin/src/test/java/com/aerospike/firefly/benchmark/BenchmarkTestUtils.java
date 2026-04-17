@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.benchmark;
 
 import com.aerospike.firefly.util.IOUtil;
@@ -10,7 +26,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.URL;
-import java.nio.file.Path;
 
 import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
 
@@ -19,14 +34,12 @@ import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
  */
 public class BenchmarkTestUtils {
     private static final String LOCALHOST = "127.0.0.1";
-    private static final String internaldataset = "/opt/internal dataset/internal dataset.graphml";
     private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTestUtils.class);
     private static final String DEFAULT_DATASET_SIZE = "1g";
     private static final String DEFAULT_STORAGE_TYPE = "mmd";
 
     enum DATASET {
-        FLIGHTS,
-        internaldataset
+        FLIGHTS
     }
 
     public static String getHost() {
@@ -91,43 +104,26 @@ public class BenchmarkTestUtils {
 
         LOG.info("Loading the graph with " + dataset);
 
-        String ioLocation = null;
-        String urlLocation = null;
-        File tempFile = null;
+        final String urlLocation;
         if (dataset == DATASET.FLIGHTS) {
-            ioLocation = null;
             urlLocation = AIR_ROUTES_50K_URL;
-        } else if (dataset == DATASET.internaldataset) {
-            ioLocation = internaldataset;
-            urlLocation = null;
-            tempFile = Path.of("../data/internal dataset.graphml").toFile();
         } else {
             throw new RuntimeException("Dataset not supported: " + dataset + ".");
         }
 
-        if (getRunningInDocker()) {
-            if (ioLocation == null) {
-                throw new RuntimeException("Failed to find location for " + dataset + " dataset in docker.");
-            }
-            g.io(internaldataset).with(IO.reader, IO.graphml).read().iterate();
-        } else if (getFireflyLocal(getHost())) {
-            if (urlLocation == null && tempFile == null) {
-                throw new RuntimeException("Failed to get url or file location for " + dataset + " dataset.");
-            }
-            if (tempFile == null) {
-                tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "air-routes50k.graphml");
-                try {
-                    if (!tempFile.exists())
-                        IOUtil.downloadFileFromURL(new URL(AIR_ROUTES_50K_URL), tempFile);
-                } catch (Exception e) {
-                    LOG.error("Failed to download graphml file", e);
-                    throw new RuntimeException(e);
-                }
-            }
-            g.io(tempFile.getAbsolutePath()).with(IO.reader, IO.graphml).read().iterate();
-        } else {
-            throw new RuntimeException("Firefly is not running in docker and not running locally, so the " + dataset + " dataset cannot be loaded.");
+        if (!getFireflyLocal(getHost())) {
+            throw new RuntimeException("Firefly is not running locally, so the " + dataset + " dataset cannot be loaded.");
         }
+
+        File tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "air-routes50k.graphml");
+        try {
+            if (!tempFile.exists())
+                IOUtil.downloadFileFromURL(new URL(urlLocation), tempFile);
+        } catch (Exception e) {
+            LOG.error("Failed to download graphml file", e);
+            throw new RuntimeException(e);
+        }
+        g.io(tempFile.getAbsolutePath()).with(IO.reader, IO.graphml).read().iterate();
     }
 
     public static void appendJmhOptionsBuilder(final ChainedOptionsBuilder optionsBuilder) {

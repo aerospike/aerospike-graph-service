@@ -162,7 +162,7 @@ A local example:
 # Docker run with files passed in.  
 docker run -p 8182:8182  \
             -v /<local path to root of a directory that contains 'sampledata/vertices' and 'sampledata/edges'>/:/opt/aerospike-graph/etc/ \
-            ghcr.io/citrusleaf/firefly
+            ghcr.io/aerospike/aerospike-graph-service
 
 # Invoke call API with path to files in docker container.
 g.call("aerospike.graphloader.bulk-load.load")
@@ -385,6 +385,8 @@ aerospike.graphloader.dataframe-storage-type = memory_and_disk
 
 #### Running the Bulk Loader in AWS
 
-Follow the
-link [here](https://aerospike.atlassian.net/wiki/spaces/PRODUCT/pages/2850324542/Bulk+Loading+Data+using+Firefly+to+Aerospike)
-to run the bulk loader in AWS
+Running the bulk loader against a Spark cluster on AWS (EMR or a
+self-managed cluster on EC2) uses the same `spark-submit` invocation
+as the local case above; swap `--master local[*]` for the Spark
+master URL of your cluster and make sure the output Aerospike
+cluster is reachable from the Spark workers.

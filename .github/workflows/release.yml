@@ -1,0 +1,177 @@
+# Copyright 2022-2026 Aerospike, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Release (Maven Central)
+
+# Releases a versioned artifact set to Maven Central (via the Sonatype
+# Central Portal) when a semver tag is pushed.
+#
+# STATUS: This workflow is wired up end-to-end but cannot succeed until
+# the operational prerequisites in
+# docs/open-source/OPEN_SOURCE_PLAN.md (§D1 / D2 / D3) are met:
+#
+#   - A Central Portal account under the `com.aerospike` namespace.
+#   - A GPG signing keypair whose public key is published to the Ubuntu
+#     keyserver (and whose fingerprint matches what Central Portal
+#     expects).
+#   - The following repository secrets exist:
+#       CENTRAL_USERNAME         Central Portal user-token username.
+#       CENTRAL_PASSWORD         Central Portal user-token password.
+#       CENTRAL_GPG_PRIVATE_KEY  ASCII-armored private key (full block).
+#       CENTRAL_GPG_PASSPHRASE   Passphrase for the private key.
+#
+# The workflow fails fast (preflight job) with a clear message if any
+# of the secrets are missing, so contributors who accidentally tag a
+# private fork see a useful error rather than a mid-deploy failure.
+
+on:
+  push:
+    tags:
+      # Match standard semver. Pre-release (`v1.2.3-rc1`) tags do NOT
+      # trigger here — they use the existing `publish-container.yml`
+      # for release-candidate container pushes.
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 1.2.3). The current HEAD is deployed as that version.'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Preflight — check release secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Assert required secrets are present
+        env:
+          HAS_USER: ${{ secrets.CENTRAL_USERNAME != '' }}
+          HAS_PASS: ${{ secrets.CENTRAL_PASSWORD != '' }}
+          HAS_KEY: ${{ secrets.CENTRAL_GPG_PRIVATE_KEY != '' }}
+          HAS_PHRASE: ${{ secrets.CENTRAL_GPG_PASSPHRASE != '' }}
+        run: |
+          set -eu
+          missing=0
+          for var in HAS_USER HAS_PASS HAS_KEY HAS_PHRASE; do
+            val="${!var}"
+            if [[ "$val" != "true" ]]; then
+              echo "::error::Required release secret is not set ($var)."
+              missing=1
+            fi
+          done
+          if [[ $missing -ne 0 ]]; then
+            echo ""
+            echo "See docs/open-source/OPEN_SOURCE_PLAN.md §D for the full"
+            echo "list of secrets and how to provision them."
+            exit 1
+          fi
+          echo "All four Central Portal secrets are present."
+
+  release:
+    name: Build, sign, deploy
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+          # `server-id` must match the `publishingServerId` in the root
+          # POM's `release` profile and the id configured in the
+          # generated ~/.m2/settings.xml below.
+          server-id: central
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_PASSWORD
+          gpg-private-key: ${{ secrets.CENTRAL_GPG_PRIVATE_KEY }}
+          gpg-passphrase: CENTRAL_GPG_PASSPHRASE
+
+      - name: Set up Maven
+        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        with:
+          maven-version: 3.9.5
+
+      - name: Resolve release version
+        id: ver
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          DISPATCH_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          set -eu
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            v="$DISPATCH_VERSION"
+          else
+            # Strip leading `v` from the tag, e.g. v1.2.3 -> 1.2.3
+            v="${TAG_NAME#v}"
+          fi
+          if [[ -z "$v" ]]; then
+            echo "::error::Could not resolve a release version."
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Releasing version: $v"
+
+      - name: Set Maven project version
+        run: mvn -ntp -B versions:set -DnewVersion=${{ steps.ver.outputs.version }} -DgenerateBackupPoms=false
+
+      - name: Build, sign, and deploy to Central Portal
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          CENTRAL_GPG_PASSPHRASE: ${{ secrets.CENTRAL_GPG_PASSPHRASE }}
+        run: |
+          mvn -ntp -B \
+            -Prelease \
+            -DskipTests \
+            -Denforcer.skip=true \
+            deploy
+
+      - name: Create draft GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
+        with:
+          draft: true
+          generate_release_notes: true
+          name: Aerospike Graph Service ${{ steps.ver.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          body: |
+            Draft release for version **${{ steps.ver.outputs.version }}**.
+
+            Maven Central artifacts are staged on the
+            [Sonatype Central Portal](https://central.sonatype.com/) and
+            require manual promotion (`autoPublish=false` in the release
+            profile) until the release flow is proven end-to-end.
+
+            Please replace this block with the user-facing changelog
+            before publishing.

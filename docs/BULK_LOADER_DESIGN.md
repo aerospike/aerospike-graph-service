@@ -1,4 +1,9 @@
-# Bulk Loader Design
+# Bulk loader design
+
+> This is an internal design document. It refers to source-level
+> identifiers such as `FireflyGraph` and "Firefly" — these are
+> codename-level names, not the product name. The product is
+> **Aerospike Graph Service**; see [`index.md`](index.md).
 
 ## Introduction
 

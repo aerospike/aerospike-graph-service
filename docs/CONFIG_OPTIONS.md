@@ -1,16 +1,20 @@
-# Configuration Options
-Configuration options are broken into 3 sections:
-- External configs
-  - These are configs that all customers should be aware of eventually, we will likely limit these to a subset for 1.0
-  - These are configs like `aerospike.client.host`
-- Hybrid configs
-  -  These are configs that _some_ customers should be aware of
-  - These are configs like `aerospike.graph.cache.weight` where some use cases may want a large cache
-- Internal configs
-  - These are configs that no customers should be aware of
-  - These are configs like what we name the bin which we place type hints
+# Configuration options
 
-## External Configs
+Every `aerospike.*` property recognized by the service. Options are
+grouped by audience:
+
+- **Common** — the options most deployments set. Start here.
+- **Gremlin Server** — knobs passed straight through to the embedded
+  Apache TinkerPop Gremlin Server.
+- **Advanced** — tunables where the default is usually right; change
+  them only if you have a concrete reason.
+
+> This doc intentionally does not list purely implementation-internal
+> switches (bin names, experimental feature flags, etc.). Those live
+> next to the code that reads them and should not be relied on by
+> user configuration — they can be renamed or removed without notice.
+
+## Common
 
 | Config                                     | Default        | Allowed Values                                               | Description                                                  |
 | ------------------------------------------ | -------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -41,7 +45,7 @@ Min and max heap can also be configured here.
 | aerospike.graph-service.idleConnectionTimeout | 0                     | Any Integer                                   | https://tinkerpop.apache.org/javadocs/current/full/org/apache/tinkerpop/gremlin/server/Settings.html#idleConnectionTimeout  |
 
 
-## Hybrid Configs
+## Advanced
 
 | Config                                                | Default | Description                                                  |
 | ----------------------------------------------------- | ------- | ------------------------------------------------------------ |
@@ -62,4 +66,4 @@ Min and max heap can also be configured here.
 | aerospike.graph.vertex.id.buffer.size                 | 1000    | Buffer size of id manager for vertices.                      |
 | aerospike.graph.edge.id.buffer.size                   | 10000   | Buffer size of id manager for edges.                         |
 | aerospike.graph.property.id.buffer.size               | 10000   | Buffer size of id manager for properties.                    |
-| aerospike.client.policy.maxRetries                    | 2       | (Currently internal until writes are idempotent) Max number of times to retry a write to the Aerospike cluster. |
+| aerospike.client.policy.maxRetries                    | 2       | Max number of times to retry a write to the Aerospike cluster. Use with care — graph writes are not all idempotent, so retries can produce duplicate edges in edge cases. |

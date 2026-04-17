@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.process.strategy;
 
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -47,22 +63,22 @@ public class TestFireflyDropStrategyIntegration {
     @Before
     public void beforeEach() {
         SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
-        List<Map.Entry<String, Object>> properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Simon"));
-        final FireflyVertex simon = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(1), "person", properties);
-        properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Lyndon"));
-        final FireflyVertex lyndon = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(2), "person", properties);
+        List<Map.Entry<String, Object>> properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Bob"));
+        final FireflyVertex bob = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(1), "person", properties);
+        properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Alice"));
+        final FireflyVertex alice = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(2), "person", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Vincent"));
         final FireflyVertex vincent = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(3), "cat", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Mycroft"));
         final FireflyVertex mycroft = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(4), "cat", properties);
         SETUP_GRAPH.getAerospikeOperations().writeEdgeWithNoTransaction(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "coworker", Collections.emptyList(),
-                lyndon, simon);
+                alice, bob);
         SETUP_GRAPH.getAerospikeOperations().writeEdgeWithNoTransaction(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "coworker", Collections.emptyList(),
-                simon, lyndon);
+                bob, alice);
         SETUP_GRAPH.getAerospikeOperations().writeEdgeWithNoTransaction(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "owns", Collections.emptyList(),
-                vincent, lyndon);
+                vincent, alice);
         SETUP_GRAPH.getAerospikeOperations().writeEdgeWithNoTransaction(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "owns", Collections.emptyList(),
-                mycroft, lyndon);
+                mycroft, alice);
         // Write a stray edge that normal drop traversal would not remove
         SETUP_GRAPH.bulkWriteEdge(getEdgeId(), "stray", Collections.emptyList(), 5, 5, false, false, 1);
     }
@@ -151,7 +167,7 @@ public class TestFireflyDropStrategyIntegration {
             Assert.assertEquals(4, vertexCount);
             long edgeCount = g.E().count().next();
             Assert.assertEquals(5, edgeCount);
-            g.V().has("name", "Simon").drop().iterate();
+            g.V().has("name", "Bob").drop().iterate();
             vertexCount = g.V().count().next();
             Assert.assertEquals(3, vertexCount);
             edgeCount = g.E().count().next();

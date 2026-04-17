@@ -1,3 +1,17 @@
+# Copyright 2022-2026 Aerospike, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 name: Snyk Vulnerability Check
 
 on:
@@ -5,7 +19,42 @@ on:
     branches: [main,3.x-snyk]
 
 jobs:
+  ci-guard:
+    # Fork-safe / label-gated gate. Downstream jobs depend on this via
+    # `needs: ci-guard`, so on fork PRs that lack the `trusted-ci`
+    # label this job fails fast and the rest of the workflow is
+    # skipped, keeping AWS/GCS/license secrets out of reach.
+    name: CI guard (fork + label check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Gate
+        env:
+          EVENT: ${{ github.event_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT" != "pull_request" ]]; then
+            echo "Non-PR event ($EVENT) — ci-guard allows."
+            exit 0
+          fi
+          if [[ "$HEAD_REPO" == "$BASE_REPO" ]]; then
+            echo "Same-repo PR ($HEAD_REPO) — ci-guard allows."
+            exit 0
+          fi
+          if grep -q '"trusted-ci"' <<<"$LABELS"; then
+            echo "Fork PR carries 'trusted-ci' label — ci-guard allows."
+            exit 0
+          fi
+          echo "::error::Fork PRs must carry the 'trusted-ci' label before"
+          echo "::error::CI with secrets will run. A maintainer will add the"
+          echo "::error::label after reviewing the diff. See CONTRIBUTING.md."
+          exit 1
+
   snyk-test:
+    needs: ci-guard
     name: Snyk Vulnerability Scan
     runs-on: ubuntu-latest
     steps:

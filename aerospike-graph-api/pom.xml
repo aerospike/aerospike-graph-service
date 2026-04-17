@@ -1,4 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright 2022-2026 Aerospike, Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -86,6 +101,42 @@
                             <aggregate>true</aggregate>
                             <alwaysGenerateSurefireReport>true</alwaysGenerateSurefireReport>
                         </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                Generates HTML API documentation for the public
+                `com.aerospike.graph.api` surface only (everything under
+                com.aerospike.firefly.* is internal). Bound to the
+                `package` phase so it runs during a normal `mvn package`
+                build, and emitted under target/reports/apidocs so the
+                docs.yml workflow can pick it up and publish it under
+                /api/ on the GitHub Pages site.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>${maven-javadoc-plugin.version}</version>
+                <configuration>
+                    <sourcepath>${basedir}/src/main/java</sourcepath>
+                    <subpackages>com.aerospike.graph.api</subpackages>
+                    <doctitle>Aerospike Graph Service API ${project.version}</doctitle>
+                    <windowtitle>Aerospike Graph Service API ${project.version}</windowtitle>
+                    <source>${java.version}</source>
+                    <quiet>true</quiet>
+                    <failOnError>true</failOnError>
+                    <failOnWarnings>true</failOnWarnings>
+                    <notimestamp>true</notimestamp>
+                    <show>public</show>
+                    <author>false</author>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>generate-javadoc</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>javadoc</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>

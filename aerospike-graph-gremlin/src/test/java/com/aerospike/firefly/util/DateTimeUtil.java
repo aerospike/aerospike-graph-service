@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.util;
 
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -149,7 +165,7 @@ public class DateTimeUtil {
         Assert.assertEquals(0, eResults.size());
 
         // Test vertex datetime property properties.
-        g.V().hasLabel("person").property("name", "simon").property("age", "trente").iterate();
+        g.V().hasLabel("person").property("name", "bob").property("age", "trente").iterate();
         g.V().hasLabel("person").properties("name")
                 .property("date", initD)
                 .property("dateTime", initDT)
@@ -164,21 +180,21 @@ public class DateTimeUtil {
                 g.V().properties().has("date", initD);
         Property<Object> name = initDVps.next();
         Assert.assertEquals("name", name.key());
-        Assert.assertEquals("simon", name.value());
+        Assert.assertEquals("bob", name.value());
         Assert.assertFalse(initDVps.hasNext());
         GraphTraversal<Vertex, ? extends Property<Object>> addedDTVps =
                 g.V().properties().has("dateTime", initDT);
         name = addedDTVps.next();
         Assert.assertEquals("name", name.key());
-        Assert.assertEquals("simon", name.value());
+        Assert.assertEquals("bob", name.value());
         Assert.assertFalse(addedDTVps.hasNext());
         GraphTraversal<Vertex, ? extends Property<Object>> vertexProperties =
                 g.V().properties().has("date");
         Property<Object> vertexProperty = vertexProperties.next();
-        Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("simon")) ||
+        Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("bob")) ||
                 (vertexProperty.key().equals("age") && vertexProperty.value().equals("trente")));
         vertexProperty = vertexProperties.next();
-        Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("simon")) ||
+        Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("bob")) ||
                 (vertexProperty.key().equals("age") && vertexProperty.value().equals("trente")));
         Assert.assertFalse(vertexProperties.hasNext());
     }

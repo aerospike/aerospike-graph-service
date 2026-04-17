@@ -1,4 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright 2022-2026 Aerospike, Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -10,20 +25,31 @@
     <!-- PROJECT DETAILS -->
     <name>Firefly</name>
     <description>Graph Computing On Aerospike</description>
-    <url>https://aerospike.com</url>
+    <url>https://github.com/aerospike/aerospike-graph-service</url>
     <inceptionYear>2022</inceptionYear>
+    <organization>
+        <name>Aerospike, Inc.</name>
+        <url>https://aerospike.com</url>
+    </organization>
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <scm>
+        <connection>scm:git:https://github.com/aerospike/aerospike-graph-service.git</connection>
+        <developerConnection>scm:git:git@github.com:aerospike/aerospike-graph-service.git</developerConnection>
+        <url>https://github.com/aerospike/aerospike-graph-service</url>
+        <tag>HEAD</tag>
+    </scm>
+    <issueManagement>
+        <system>GitHub</system>
+        <url>https://github.com/aerospike/aerospike-graph-service/issues</url>
+    </issueManagement>
     <!-- PRIMARY DEVELOPERS -->
     <developers>
-        <developer>
-            <name>Marko A. Rodriguez</name>
-            <email>marko@markorodriguez.com</email>
-            <organization>PhaseShift Studio</organization>
-        </developer>
-        <developer>
-            <name>Grant Haywood</name>
-            <email>grant@iowntheinter.net</email>
-            <organization>Aerospike</organization>
-        </developer>
         <developer>
             <name>Lyndon Bauto</name>
             <email>lyndonb@apache.org</email>
@@ -37,6 +63,11 @@
         <developer>
             <name>Valentyn Kahamlyk</name>
             <email>vkahamlyk@aerospike.com</email>
+            <organization>Aerospike</organization>
+        </developer>
+        <developer>
+            <name>Roi Menashe</name>
+            <email>rmenashe@aerospike.com</email>
             <organization>Aerospike</organization>
         </developer>
     </developers>
@@ -89,6 +120,10 @@
         <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
         <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
         <snyk-maven-plugin.version>2.3.0</snyk-maven-plugin.version>
+        <license-maven-plugin.version>2.5.0</license-maven-plugin.version>
+        <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
+        <maven-javadoc-plugin.version>3.8.0</maven-javadoc-plugin.version>
+        <spotless-maven-plugin.version>2.44.5</spotless-maven-plugin.version>
         <!-- SOURCE ENCODINGS -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -274,6 +309,133 @@
                     </execution>
                 </executions>
             </plugin>
+            <!--
+                maven-enforcer-plugin
+                  Supply-chain guardrail. `requireNoRepositories` forbids any
+                  POM in the reactor from declaring a `<repositories>` or
+                  `<pluginRepositories>` element other than Maven Central, so
+                  we can never silently resolve a dependency from a non-Central
+                  host (license posture, reproducibility, integrity).
+                  `requireNoSnapshots` keeps the reactor release-clean.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${maven-enforcer-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>enforce-supply-chain</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireNoRepositories>
+                                    <message>
+                                        Adding non-Central repositories is not allowed: all build-time
+                                        dependencies must resolve from Maven Central so that the
+                                        license/provenance posture declared in THIRD_PARTY.txt is the
+                                        full truth. Please propose upstreaming the artifact to Central
+                                        instead.
+                                    </message>
+                                    <banRepositories>true</banRepositories>
+                                    <banPluginRepositories>true</banPluginRepositories>
+                                    <allowedRepositories>
+                                        <id>central</id>
+                                    </allowedRepositories>
+                                    <allowedPluginRepositories>
+                                        <id>central</id>
+                                    </allowedPluginRepositories>
+                                    <allowSnapshotRepositories>false</allowSnapshotRepositories>
+                                    <allowSnapshotPluginRepositories>false</allowSnapshotPluginRepositories>
+                                </requireNoRepositories>
+                                <requireReleaseDeps>
+                                    <message>
+                                        Release builds cannot depend on -SNAPSHOT artifacts.
+                                        Pin to a released version before tagging.
+                                    </message>
+                                    <onlyWhenRelease>true</onlyWhenRelease>
+                                </requireReleaseDeps>
+                            </rules>
+                            <fail>true</fail>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                license-maven-plugin
+                  * Generates THIRD_PARTY.txt from the aggregate dependency graph.
+                  * Strict enforcement of an allowed-license allowlist is opt-in
+                    via the `license-check` profile (see <profiles/>), so the
+                    default `mvn verify` is unaffected while the migration is
+                    in progress. CI should run `mvn -ntp -Plicense-check verify`.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>${license-maven-plugin.version}</version>
+                <inherited>false</inherited>
+                <executions>
+                    <execution>
+                        <id>aggregate-third-party</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>aggregate-add-third-party</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.basedir}</outputDirectory>
+                            <thirdPartyFilename>THIRD_PARTY.txt</thirdPartyFilename>
+                            <useMissingFile>true</useMissingFile>
+                            <missingFile>${project.basedir}/.mvn/third-party-licenses.properties</missingFile>
+                            <excludedScopes>test,provided,system</excludedScopes>
+                            <sortArtifactByName>true</sortArtifactByName>
+                            <failIfWarning>false</failIfWarning>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                Lightweight style enforcement. Deliberately scoped to a
+                minimum safe ruleset today so the first enforcement
+                landing is a no-op diff-wise on the ~570 already-committed
+                Java files:
+
+                  * trimTrailingWhitespace + endWithNewline normalise
+                    whitespace hygiene.
+                  * removeUnusedImports removes dead `import` statements
+                    (low-risk, widely-wanted cleanup).
+
+                Explicitly NOT enabled yet:
+                  * Aggressive formatters (Google Java Format / Palantir)
+                    — they would reformat every file and destroy blame.
+                  * importOrder — our existing convention (single
+                    alphabetised block) is already consistent; enforcing
+                    a specific ordering spec can happen in a follow-up.
+
+                Run locally with:
+                    mvn spotless:check       # CI-safe, read-only
+                    mvn spotless:apply       # fix violations in place
+
+                CI enforcement lives in .github/workflows/license-check.yml
+                (the `spotless-check` job).
+            -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless-maven-plugin.version}</version>
+                <configuration>
+                    <java>
+                        <includes>
+                            <include>src/main/java/**/*.java</include>
+                            <include>src/test/java/**/*.java</include>
+                        </includes>
+                        <trimTrailingWhitespace/>
+                        <endWithNewline/>
+                        <removeUnusedImports/>
+                    </java>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
     <profiles>
@@ -302,6 +464,272 @@
                 <maxheap>20g</maxheap>
                 <minheap>4096m</minheap>
             </properties>
+        </profile>
+        <!--
+            license-check: strict allow-list enforcement for the aggregate
+            compile/runtime dependency graph. Activated in CI so PRs that
+            add a GPL/AGPL/SSPL dep (or anything else we haven't explicitly
+            allowed) fail the build. Kept opt-in for now so we can wire in
+            allow-listed exceptions for known-compatible edge cases
+            (e.g. logback's EPL-1.0 / LGPL-2.1 dual license) before it
+            blocks day-to-day development.
+        -->
+        <profile>
+            <id>license-check</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>license-maven-plugin</artifactId>
+                        <version>${license-maven-plugin.version}</version>
+                        <inherited>false</inherited>
+                        <executions>
+                            <execution>
+                                <id>enforce-allowed-licenses</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>aggregate-add-third-party</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.build.directory}</outputDirectory>
+                                    <thirdPartyFilename>THIRD_PARTY.enforce.txt</thirdPartyFilename>
+                                    <useMissingFile>true</useMissingFile>
+                                    <missingFile>${project.basedir}/.mvn/third-party-licenses.properties</missingFile>
+                                    <excludedScopes>test,provided,system</excludedScopes>
+                                    <failIfWarning>true</failIfWarning>
+                                    <failOnMissing>true</failOnMissing>
+                                    <failOnBlacklist>true</failOnBlacklist>
+                                    <failOnNotUptodateLicenses>false</failOnNotUptodateLicenses>
+                                    <!--
+                                        Allowlist rationale: every license below is either (a) already
+                                        Apache-2.0-compatible for our distribution model (we redistribute
+                                        unmodified JARs, we do not statically link or modify-and-redistribute),
+                                        or (b) a well-known string variant of a license that is itself in the
+                                        allowlist. We keep *all* the variants because the plugin does a
+                                        case-sensitive literal match against whatever string appears in the
+                                        upstream POM's <license><name>.
+
+                                        If a license is not explicitly listed here, the build fails. That is
+                                        the whole point — any new dep has to justify its place on this list.
+                                    -->
+                                    <includedLicenses>
+                                        <!-- Apache-2.0 and its many spelling variants -->
+                                        <includedLicense>Apache License, Version 2.0</includedLicense>
+                                        <includedLicense>Apache License Version 2.0</includedLicense>
+                                        <includedLicense>Apache License V2.0</includedLicense>
+                                        <includedLicense>Apache License, 2.0</includedLicense>
+                                        <includedLicense>Apache License 2.0</includedLicense>
+                                        <includedLicense>Apache 2</includedLicense>
+                                        <includedLicense>Apache 2.0</includedLicense>
+                                        <includedLicense>Apache-2.0</includedLicense>
+                                        <includedLicense>The Apache License, Version 2.0</includedLicense>
+                                        <includedLicense>The Apache Software License, Version 2.0</includedLicense>
+                                        <includedLicense>Apache Software License - Version 2.0</includedLicense>
+
+                                        <!-- Apache-1.1 (predecessor; forward-compatible with Apache-2.0) -->
+                                        <includedLicense>Apache License, Version 1.1</includedLicense>
+                                        <includedLicense>The Apache Software License, Version 1.1</includedLicense>
+
+                                        <!-- MIT -->
+                                        <includedLicense>MIT License</includedLicense>
+                                        <includedLicense>MIT license</includedLicense>
+                                        <includedLicense>The MIT License</includedLicense>
+                                        <includedLicense>The MIT License (MIT)</includedLicense>
+                                        <includedLicense>MIT</includedLicense>
+
+                                        <!-- BSD (all revisions and spellings) -->
+                                        <includedLicense>BSD License</includedLicense>
+                                        <includedLicense>BSD License 3</includedLicense>
+                                        <includedLicense>BSD-3-Clause</includedLicense>
+                                        <includedLicense>BSD 3-Clause</includedLicense>
+                                        <includedLicense>The BSD 3-Clause License</includedLicense>
+                                        <includedLicense>3-Clause BSD License</includedLicense>
+                                        <includedLicense>New BSD License</includedLicense>
+                                        <includedLicense>The New BSD License</includedLicense>
+                                        <includedLicense>BSD New license</includedLicense>
+                                        <includedLicense>Modified BSD</includedLicense>
+                                        <includedLicense>BSD 3-Clause "New" or "Revised" License (BSD-3-Clause)</includedLicense>
+                                        <includedLicense>BSD 2-Clause License</includedLicense>
+                                        <includedLicense>BSD-2-Clause</includedLicense>
+                                        <includedLicense>BSD 2-Clause</includedLicense>
+                                        <includedLicense>The BSD License</includedLicense>
+                                        <includedLicense>BSD 3-clause</includedLicense>
+                                        <!--
+                                          Bare "BSD" is ambiguous in principle, but in our graph it only
+                                          appears on ParaNamer, whose source repo ships a BSD-3-Clause LICENSE
+                                          file. Documenting here so future additions get scrutiny.
+                                        -->
+                                        <includedLicense>BSD</includedLicense>
+
+                                        <!-- Eclipse Public License 1.0 -->
+                                        <includedLicense>Eclipse Public License 1.0</includedLicense>
+                                        <includedLicense>Eclipse Public License - v 1.0</includedLicense>
+                                        <includedLicense>Eclipse Public License - Version 1.0</includedLicense>
+                                        <includedLicense>EPL-1.0</includedLicense>
+                                        <includedLicense>EPL 1.0</includedLicense>
+
+                                        <!-- Eclipse Public License 2.0 -->
+                                        <includedLicense>Eclipse Public License 2.0</includedLicense>
+                                        <includedLicense>Eclipse Public License - v 2.0</includedLicense>
+                                        <includedLicense>Eclipse Public License - Version 2.0</includedLicense>
+                                        <includedLicense>EPL-2.0</includedLicense>
+                                        <includedLicense>EPL 2.0</includedLicense>
+
+                                        <!--
+                                          Eclipse Distribution License (EDL) is BSD-3-Clause verbatim,
+                                          just under a different name; common on Jakarta / ee4j artifacts.
+                                        -->
+                                        <includedLicense>EDL 1.0</includedLicense>
+                                        <includedLicense>Eclipse Distribution License - v 1.0</includedLicense>
+
+                                        <!--
+                                          CDDL: OSI-approved, weak (file-level) copyleft, compatible with
+                                          Apache-2.0 for redistribution of unmodified binaries. Commonly seen
+                                          on javax.xml.bind / Jakarta XML Bind artifacts.
+                                        -->
+                                        <includedLicense>CDDL 1.0</includedLicense>
+                                        <includedLicense>CDDL 1.1</includedLicense>
+                                        <includedLicense>CDDL/GPLv2+CE</includedLicense>
+                                        <includedLicense>CDDL + GPLv2 with classpath exception</includedLicense>
+                                        <includedLicense>Common Development and Distribution License (CDDL) v1.0</includedLicense>
+                                        <includedLicense>Common Development and Distribution License (CDDL) v1.1</includedLicense>
+                                        <includedLicense>COMMON DEVELOPMENT AND DISTRIBUTION LICENSE (CDDL) Version 1.0</includedLicense>
+
+                                        <!--
+                                          GPL-2.0 with Classpath Exception is the standard license for
+                                          OpenJDK-adjacent code (JMH test-scope, Jersey's ee4j lineage). The
+                                          classpath exception makes this safe for us to redistribute.
+                                        -->
+                                        <includedLicense>GPL2 w/ CPE</includedLicense>
+                                        <includedLicense>The GNU General Public License (GPL), Version 2, With Classpath Exception</includedLicense>
+                                        <includedLicense>GPL-2.0-with-classpath-exception</includedLicense>
+
+                                        <!--
+                                          MPL 1.1 / 2.0 — file-level copyleft. Safe for redistribution
+                                          of unmodified binaries; Apache-2.0-compatible in practice.
+                                          Javassist is the main dep that pulls this (dual MPL-1.1/LGPL-2.1,
+                                          we rely on the MPL arm).
+                                        -->
+                                        <includedLicense>MPL 1.1</includedLicense>
+                                        <includedLicense>MPL 2.0</includedLicense>
+                                        <includedLicense>Mozilla Public License 1.1</includedLicense>
+                                        <includedLicense>Mozilla Public License Version 2.0</includedLicense>
+
+                                        <!-- Misc -->
+                                        <includedLicense>Bouncy Castle Licence</includedLicense>
+                                        <includedLicense>Public Domain</includedLicense>
+                                        <includedLicense>Unicode/ICU License</includedLicense>
+                                        <includedLicense>Unicode-DFS-2016</includedLicense>
+                                        <includedLicense>ISC License</includedLicense>
+                                        <includedLicense>ISC</includedLicense>
+                                        <!--
+                                          Go License = the 3-clause BSD license Google Go and RE2/J
+                                          ship under. The plugin sees whatever string is in the POM.
+                                        -->
+                                        <includedLicense>Go License</includedLicense>
+                                        <includedLicense>The Go license</includedLicense>
+                                        <!--
+                                          JDOM declares its license with this literal descriptive name in
+                                          its POM. The text is Apache-1.1 with the ad-clause removed, i.e.
+                                          strictly more permissive than Apache-1.1. BSD-like.
+                                          See https://github.com/hunterhacker/jdom/blob/master/LICENSE.txt
+                                        -->
+                                        <includedLicense>Similar to Apache License but with the acknowledgment clause removed</includedLicense>
+                                    </includedLicenses>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <!--
+            release: activated by the `release.yml` workflow on tag push.
+            Builds source and javadoc jars, GPG-signs every artifact, and
+            uploads to Maven Central via the new Central Portal. Not
+            activated by default so day-to-day `mvn install` does not need
+            a GPG key.
+
+            Prerequisites (all blocker tasks in docs/open-source/OPEN_SOURCE_PLAN.md):
+              - OSSRH / Central Portal account under `com.aerospike`.
+              - GPG signing key exported into CI secrets as
+                `CENTRAL_GPG_PRIVATE_KEY` + `CENTRAL_GPG_PASSPHRASE`.
+              - Central Portal token secrets
+                `CENTRAL_USERNAME` + `CENTRAL_PASSWORD`.
+        -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>${maven-javadoc-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                                <configuration>
+                                    <!-- Tolerate the mixed Javadoc quality we have today; we
+                                         care about publishability, not strictness, for v0. -->
+                                    <doclint>none</doclint>
+                                    <failOnError>false</failOnError>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.7</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                <configuration>
+                                    <!-- Pick up the in-memory private key configured by
+                                         release.yml; no on-disk keyring is written. -->
+                                    <gpgArguments>
+                                        <arg>--pinentry-mode</arg>
+                                        <arg>loopback</arg>
+                                    </gpgArguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.6.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <!-- Require an explicit release from the Central Portal UI
+                                 for v0; flip this once the release process is proven. -->
+                            <autoPublish>false</autoPublish>
+                            <waitUntil>published</waitUntil>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>

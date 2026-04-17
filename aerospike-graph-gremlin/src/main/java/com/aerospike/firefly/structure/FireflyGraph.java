@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.structure;
 
 import ch.qos.logback.classic.Level;
@@ -136,10 +152,6 @@ import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.QUERY_T
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.QUERY_TRACING_LOG_THRESHOLD;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.QUERY_TRACING_SAMPLE_PERCENT;
 
-/**
- * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
- * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
- */
 
 @Graph.OptIn(Graph.OptIn.SUITE_STRUCTURE_STANDARD)
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_STANDARD)
@@ -380,8 +392,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             this.db.setTransaction(this.transaction);
 
             if (!db.getConfig().warmupMode && !db.getBulkLoaderFlag() && !db.getOlapFlag()) {
-                // Create usage statistics background task. Only one per server
-                if (usageStats == null) {
+                // Create usage statistics background task. Only one per server,
+                // and only when the operator has not disabled it via the
+                // USAGE_STATS_ENABLED kill-switch.
+                if (db.getConfig().usageStatsEnabled && usageStats == null) {
                     synchronized (this) {
                         if (usageStats == null) {
                             usageStats = new FireflyUsageStats(db);

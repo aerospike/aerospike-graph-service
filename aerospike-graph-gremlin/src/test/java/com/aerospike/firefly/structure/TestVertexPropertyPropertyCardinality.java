@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.util.config.ConfigurationHelper;
@@ -43,7 +59,7 @@ public class TestVertexPropertyPropertyCardinality {
     @Test
     public void testVPP_SingleStartingValue_SingleMetaProperty() {
         final FireflyVertex v = (FireflyVertex) g.addV("testVPP_SingleStartingValue_SingleMetaProperty")
-                .property(VertexProperty.Cardinality.single, "name", "Simon", "age", 30)
+                .property(VertexProperty.Cardinality.single, "name", "Bob", "age", 30)
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(1L, propertyCount);
@@ -54,7 +70,7 @@ public class TestVertexPropertyPropertyCardinality {
         Assert.assertEquals(30, vp.value());
 
         final List<? extends Property<Object>> vpps2 = g.V().hasLabel("testVPP_SingleStartingValue_SingleMetaProperty").
-                has("name", "Simon").properties("name").properties("age").toList();
+                has("name", "Bob").properties("name").properties("age").toList();
         Assert.assertEquals(1, vpps2.size());
         Assert.assertEquals("age", vpps2.get(0).key());
         Assert.assertEquals(30, vpps2.get(0).value());
@@ -63,7 +79,7 @@ public class TestVertexPropertyPropertyCardinality {
     @Test
     public void testVPP_SingleStartingValue_DoubleMetaProperty() {
         final FireflyVertex v = (FireflyVertex) g.addV("testVPP_SingleStartingValue_DoubleMetaProperty")
-                .property(VertexProperty.Cardinality.single, "name", "Simon", "age", 30, "city", "London")
+                .property(VertexProperty.Cardinality.single, "name", "Bob", "age", 30, "city", "London")
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(1L, propertyCount);
@@ -78,7 +94,7 @@ public class TestVertexPropertyPropertyCardinality {
         Assert.assertEquals("London", vp2.value());
 
         final List<Map<Object, Object>> vpps2 = g.V().hasLabel("testVPP_SingleStartingValue_DoubleMetaProperty").
-                has("name", "Simon").properties("name").valueMap().toList();
+                has("name", "Bob").properties("name").valueMap().toList();
         Assert.assertEquals(1, vpps2.size());
         Assert.assertTrue(vpps2.get(0).containsKey("age"));
         Assert.assertEquals(30, vpps2.get(0).get("age"));
@@ -89,8 +105,8 @@ public class TestVertexPropertyPropertyCardinality {
     @Test
     public void testVPP_DuplicateStartingValue_DoubleMetaProperty() {
         final FireflyVertex v = (FireflyVertex) g.addV("testVPP_DuplicateStartingValue_DoubleMetaProperty")
-                .property(VertexProperty.Cardinality.list, "name", "Simon", "age", 30)
-                .property(VertexProperty.Cardinality.list, "name", "Simon", "city", "London")
+                .property(VertexProperty.Cardinality.list, "name", "Bob", "age", 30)
+                .property(VertexProperty.Cardinality.list, "name", "Bob", "city", "London")
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(2L, propertyCount);
@@ -123,7 +139,7 @@ public class TestVertexPropertyPropertyCardinality {
         }
 
         final List<? extends Property<Object>> vpps2 = g.V().hasLabel("testVPP_DuplicateStartingValue_DoubleMetaProperty").
-                has("name", "Simon").properties("name").properties().toList();
+                has("name", "Bob").properties("name").properties().toList();
         Assert.assertEquals(2, vpps2.size());
         Assert.assertTrue(vpps2.stream().anyMatch(p -> p.key().equals("age") && p.value().equals(30)));
         Assert.assertTrue(vpps2.stream().anyMatch(p -> p.key().equals("city") && p.value().equals("London")));
@@ -132,8 +148,8 @@ public class TestVertexPropertyPropertyCardinality {
     @Test
     public void testVPP_DoubleStartingValue_DoubleMetaProperty() {
         final FireflyVertex v = (FireflyVertex) g.addV("testVPP_DoubleStartingValue_DoubleMetaProperty")
-                .property(VertexProperty.Cardinality.list, "name", "Simon", "age", 30, "city", "London")
-                .property(VertexProperty.Cardinality.list, "name", "Simon")
+                .property(VertexProperty.Cardinality.list, "name", "Bob", "age", 30, "city", "London")
+                .property(VertexProperty.Cardinality.list, "name", "Bob")
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(2L, propertyCount);
@@ -152,7 +168,7 @@ public class TestVertexPropertyPropertyCardinality {
         }
 
         final List<Map<Object, Object>> vpps2 = g.V().hasLabel("testVPP_DoubleStartingValue_DoubleMetaProperty").
-                has("name", "Simon").properties("name").valueMap().toList();
+                has("name", "Bob").properties("name").valueMap().toList();
         Assert.assertEquals(2, vpps2.size());
         final Map<Object, Object> map = vpps2.get(0).isEmpty() ? vpps2.get(1) : vpps2.get(0);
         Assert.assertTrue(map.containsKey("age"));
@@ -164,7 +180,7 @@ public class TestVertexPropertyPropertyCardinality {
     @Test
     public void testVPP_SingleStartingValue_SingleMetaPropertyRemove() {
         final FireflyVertex v = (FireflyVertex) g.addV("testVPP_SingleStartingValue_SingleMetaPropertyRemove")
-                .property(VertexProperty.Cardinality.single, "name", "Simon", "age", 30)
+                .property(VertexProperty.Cardinality.single, "name", "Bob", "age", 30)
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(1L, propertyCount);
@@ -187,7 +203,7 @@ public class TestVertexPropertyPropertyCardinality {
     @Test
     public void testVPP_SingleStartingValue_DoubleMetaPropertySingleRemove() {
         final FireflyVertex v = (FireflyVertex) g.addV("testVPP_SingleStartingValue_DoubleMetaPropertyRemove")
-                .property(VertexProperty.Cardinality.single, "name", "Simon", "age", 30, "city", "London")
+                .property(VertexProperty.Cardinality.single, "name", "Bob", "age", 30, "city", "London")
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(1L, propertyCount);
@@ -234,7 +250,7 @@ public class TestVertexPropertyPropertyCardinality {
     @Test
     public void testVPP_SingleStartingValue_DoubleMetaPropertyDoubleRemove() {
         final FireflyVertex v = (FireflyVertex) g.addV("testVPP_SingleStartingValue_DoubleMetaPropertyDoubleRemove")
-                .property(VertexProperty.Cardinality.single, "name", "Simon", "age", 30, "city", "London")
+                .property(VertexProperty.Cardinality.single, "name", "Bob", "age", 30, "city", "London")
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(1L, propertyCount);
@@ -271,8 +287,8 @@ public class TestVertexPropertyPropertyCardinality {
     @Test
     public void testVPP_DoubleStartingValue_SingleMetaPropertySingleRemove() {
         final FireflyVertex v = (FireflyVertex) g.addV("testVPP_DoubleStartingValue_SingleMetaPropertySingleRemove")
-                .property(VertexProperty.Cardinality.list, "name", "Simon", "age", 30)
-                .property(VertexProperty.Cardinality.list, "name", "Simon", "city", "London")
+                .property(VertexProperty.Cardinality.list, "name", "Bob", "age", 30)
+                .property(VertexProperty.Cardinality.list, "name", "Bob", "city", "London")
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(2L, propertyCount);
@@ -304,8 +320,8 @@ public class TestVertexPropertyPropertyCardinality {
     @Test
     public void testVPP_DoubleStartingValue_SingleMetaPropertyDoubleRemove() {
         final FireflyVertex v = (FireflyVertex) g.addV("testVPP_SingleStartingValue_DoubleMetaPropertyDoubleRemove")
-                .property(VertexProperty.Cardinality.list, "name", "Simon", "age", 30)
-                .property(VertexProperty.Cardinality.list, "name", "Simon", "city", "London")
+                .property(VertexProperty.Cardinality.list, "name", "Bob", "age", 30)
+                .property(VertexProperty.Cardinality.list, "name", "Bob", "city", "London")
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(2L, propertyCount);

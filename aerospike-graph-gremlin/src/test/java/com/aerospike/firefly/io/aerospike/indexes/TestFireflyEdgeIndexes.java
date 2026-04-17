@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.io.aerospike.indexes;
 
 import com.aerospike.firefly.io.FireflyIndexMetadata;
@@ -42,17 +58,17 @@ public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
         setProperty("from,years");
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
-            Vertex lyndon = g.addV("person").
-                    property("name", "Lyndon").
+            Vertex alice = g.addV("person").
+                    property("name", "Alice").
                     property("age", 29).
                     next();
-            Vertex simon = g.addV("person").
-                    property("name", "Simon").
+            Vertex bob = g.addV("person").
+                    property("name", "Bob").
                     property("age", 14).
                     next();
             g.addE("knows").
-                    from(lyndon).
-                    to(simon).
+                    from(alice).
+                    to(bob).
                     property("from", "BitQuill").
                     property("years", 3).
                     property("location", "Canada").
@@ -97,17 +113,17 @@ public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
         setProperty("");
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
-            Vertex lyndon = g.addV("person").
-                    property("name", "Lyndon").
+            Vertex alice = g.addV("person").
+                    property("name", "Alice").
                     property("age", 29).
                     next();
-            Vertex simon = g.addV("person").
-                    property("name", "Simon").
+            Vertex bob = g.addV("person").
+                    property("name", "Bob").
                     property("age", 14).
                     next();
             g.addE("knows").
-                    from(lyndon).
-                    to(simon).
+                    from(alice).
+                    to(bob).
                     property("from", "BitQuill").
                     property("years", 3).
                     property("location", "Canada").

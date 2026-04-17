@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
@@ -79,9 +95,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
- */
 public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Override
@@ -1137,7 +1150,9 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     final String id1 = "< ID_1 >";
     final String entity2 = "< ENTITY_2 >";
 
-    public List<Vertex> executeanonymizedcustomer(final GraphTraversalSource g) {
+    // Three variants of the same upsert-with-tombstone traversal, kept so the
+    // testQueries() harness below can compare their behavior side-by-side.
+    public List<Vertex> executeVariantA(final GraphTraversalSource g) {
         return g.V(id1).
                 fold().coalesce(
                         __.unfold(),
@@ -1179,7 +1194,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                                 inE("identifies").as("edge").outV().hasId(id1).select("edge").properties("internal dataset").drop()).toList();
     }
 
-    List<Vertex> executeMarko(final GraphTraversalSource g) {
+    List<Vertex> executeVariantB(final GraphTraversalSource g) {
         return g.V(id1).
                 fold().coalesce(
                         __.unfold(),
@@ -1215,7 +1230,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                                                 drop())).toList();
     }
 
-    List<Vertex> executeLyndon(final GraphTraversalSource g) {
+    List<Vertex> executeVariantC(final GraphTraversalSource g) {
         return g.V(id1).
                 fold().coalesce(
                         __.unfold(),
@@ -1252,11 +1267,10 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     }
 
     @Test
-    public void testanonymizedcustomerQuery() {
+    public void testTraversalVariantA() {
         GraphTraversalSource g = graph.traversal();
         g.V().drop().iterate();
-        // g.addV("address").property(T.id, entity2).iterate();
-        List<Vertex> vertices = executeanonymizedcustomer(g);
+        List<Vertex> vertices = executeVariantA(g);
         List<Vertex> gV = g.V().toList();
         System.out.println("done");
     }
@@ -1265,14 +1279,14 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     public void testQueries() {
         GraphTraversalSource g = graph.traversal();
         g.V().drop().iterate();
-        List<Vertex> verticesMarko = executeMarko(g);
-        List<Vertex> gVMarko = g.V().toList();
+        List<Vertex> verticesB = executeVariantB(g);
+        List<Vertex> gVB = g.V().toList();
         g.V().drop().iterate();
-        List<Vertex> verticesanonymizedcustomer = executeanonymizedcustomer(g);
-        List<Vertex> gVanonymizedcustomer = g.V().toList();
+        List<Vertex> verticesA = executeVariantA(g);
+        List<Vertex> gVA = g.V().toList();
         g.V().drop().iterate();
-        List<Vertex> verticesLyndon = executeLyndon(g);
-        List<Vertex> gVLyndon = g.V().toList();
+        List<Vertex> verticesC = executeVariantC(g);
+        List<Vertex> gVC = g.V().toList();
         System.out.println("done");
     }
 
@@ -1369,4 +1383,3 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         g.variables().set("comment", "this graph was created to provide examples and test coverage for tinkerpop3 api advances");
     }
 }
-

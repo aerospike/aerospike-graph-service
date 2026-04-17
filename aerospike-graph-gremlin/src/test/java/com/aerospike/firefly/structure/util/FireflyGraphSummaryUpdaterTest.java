@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.structure.util;
 
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -63,10 +79,10 @@ public class FireflyGraphSummaryUpdaterTest {
              final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.getBaseGraph().dropDatabase(graph, false);
             final GraphTraversalSource g = graph.traversal();
-            final Vertex v1 = g.addV("person").property("~ttl", 100000).property("name", "simon").property("age", 12).next();
+            final Vertex v1 = g.addV("person").property("~ttl", 100000).property("name", "bob").property("age", 12).next();
             final Vertex v2 = g.addV("earthling").property("~ttl", 100000).property("name", "valentyn").property("status", "giga").next();
-            g.addV("human").property("name", "lyndon").property("height", "tall").next();
-            final Vertex v3 = g.V().has("name", "lyndon").property("~ttl", 100000).next();
+            g.addV("human").property("name", "alice").property("height", "tall").next();
+            final Vertex v3 = g.V().has("name", "alice").property("~ttl", 100000).next();
             g.addE("knows").property("duration", "years").property("~ttl", 100000).from(v1).to(v3).next();
             g.addE("manages").property("company", "aerospike").from(v3).to(v2).next();
             g.E().hasLabel("manages").property("~ttl", 100000).next();

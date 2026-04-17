@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.bulkloader.integration;
 
 import com.aerospike.client.Key;
@@ -557,15 +573,15 @@ public class TestBulkLoaderCallEntryPoint {
             waitForBulkLoad(g);
             Assert.assertEquals(12L, g.V().count().next().longValue());
             Assert.assertEquals(23L, g.E().count().next().longValue());
-            List<Map<Object, Object>> lyndon1 = g.V().has("name", "Lyndon").elementMap().toList();
-            Assert.assertEquals(1, lyndon1.size());
-            List<? extends Property> lyndonCompanies = g.V().has("name", "Lyndon").properties("companies").toList();
-            Assert.assertEquals(2, lyndonCompanies.size());
+            List<Map<Object, Object>> alice1 = g.V().has("name", "Alice").elementMap().toList();
+            Assert.assertEquals(1, alice1.size());
+            List<? extends Property> aliceCompanies = g.V().has("name", "Alice").properties("companies").toList();
+            Assert.assertEquals(2, aliceCompanies.size());
             Assert.assertEquals(Set.of("Apache TinkerPop", "Aerospike"),
-                    lyndonCompanies.stream().map(Property::value).collect(Collectors.toSet()));
-            List<Object> simonDrives1 = g.V("simon").out("drives").id().toList();
-            Assert.assertEquals(1, simonDrives1.size());
-            Assert.assertEquals("GR86", simonDrives1.get(0));
+                    aliceCompanies.stream().map(Property::value).collect(Collectors.toSet()));
+            List<Object> bobDrives1 = g.V("bob").out("drives").id().toList();
+            Assert.assertEquals(1, bobDrives1.size());
+            Assert.assertEquals("GR86", bobDrives1.get(0));
 
             // Identical vertex merge.
             RecoveryUtil.truncate(fireflyGraph);
@@ -576,9 +592,9 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(12L, g.V().count().next().longValue());
             Assert.assertEquals(46L, g.E().count().next().longValue());
 
-            List<Object> simonDrives2 = g.V("simon").out("drives").id().toList();
-            Assert.assertEquals(2, simonDrives2.size());
-            Assert.assertEquals(Set.of("GR86"), ((List) simonDrives2).stream().collect(Collectors.toSet()));
+            List<Object> bobDrives2 = g.V("bob").out("drives").id().toList();
+            Assert.assertEquals(2, bobDrives2.size());
+            Assert.assertEquals(Set.of("GR86"), ((List) bobDrives2).stream().collect(Collectors.toSet()));
 
             RecoveryUtil.truncate(fireflyGraph);
             g.call("aerospike.graphloader.admin.bulk-load.load").
@@ -587,17 +603,17 @@ public class TestBulkLoaderCallEntryPoint {
             waitForBulkLoad(g);
             Assert.assertEquals(13L, g.V().count().next().longValue());
             Assert.assertEquals(70L, g.E().count().next().longValue());
-            Assert.assertTrue(g.V().has("name", "simon").properties("isDope").toList().isEmpty());
+            Assert.assertTrue(g.V().has("name", "bob").properties("isDope").toList().isEmpty());
 
-            List<Object> simonDrives3 = g.V("simon").out("drives").id().toList();
-            Assert.assertEquals(4, simonDrives3.size());
-            Assert.assertEquals(Set.of("GR86", "f150"), ((List) simonDrives3).stream().collect(Collectors.toSet()));
-            final List<? extends Property> lyndon2 = g.V().has("name", "Lyndon1").properties("companies").toList();
-            Assert.assertEquals(6, lyndon2.size());
+            List<Object> bobDrives3 = g.V("bob").out("drives").id().toList();
+            Assert.assertEquals(4, bobDrives3.size());
+            Assert.assertEquals(Set.of("GR86", "f150"), ((List) bobDrives3).stream().collect(Collectors.toSet()));
+            final List<? extends Property> alice2 = g.V().has("name", "Alice1").properties("companies").toList();
+            Assert.assertEquals(6, alice2.size());
             int apacheTinkerPopCount = 0;
             int apacheTinkerPop1Count = 0;
             int aerospikeCount = 0;
-            for (final Property p : lyndon2) {
+            for (final Property p : alice2) {
                 if ("Apache TinkerPop".equals(p.value())) {
                     apacheTinkerPopCount++;
                 } else if ("Apache TinkerPop1".equals(p.value())) {
@@ -609,8 +625,8 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(2, apacheTinkerPopCount);
             Assert.assertEquals(1, apacheTinkerPop1Count);
             Assert.assertEquals(3, aerospikeCount);
-            Assert.assertTrue(g.V().has("name", "Lyndon").toList().isEmpty());
-            g.V("simon").properties("isDope").toList().forEach(p -> Assert.assertEquals("true", p.value()));
+            Assert.assertTrue(g.V().has("name", "Alice").toList().isEmpty());
+            g.V("bob").properties("isDope").toList().forEach(p -> Assert.assertEquals("true", p.value()));
             Assert.assertFalse(g.V().has(BULK_LOAD_VERTEX_ADD_KEY).hasNext());
         }
     }

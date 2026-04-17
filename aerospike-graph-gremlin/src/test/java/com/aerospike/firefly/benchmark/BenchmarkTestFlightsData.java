@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.benchmark;
 
 import org.apache.tinkerpop.gremlin.driver.Client;
@@ -83,7 +99,7 @@ public class BenchmarkTestFlightsData {
             Map.entry("benchmark_g_V_hasxcode_LHRx_outxroutex_hasxcountry_USx_valuesxcodex", "g.V().has(\"code\", \"LHR\").out(\"route\").has(\"country\", \"US\").values(\"code\")"),
             Map.entry("benchmark_g_V_hasLabelxairportx_count", "g.V().hasLabel(\"airport\").count()"),
             Map.entry("benchmark_g_addV_10", "g.addV().next() * 10"),
-            Map.entry("benchmark_g_addVxperson_namexLyndon_agex29_10", "g.addV(\"person\").property(\"name\", \"Lyndon\").property(\"age\", 29).next() * 10"),
+            Map.entry("benchmark_g_addVxperson_namexAlice_agex29_10", "g.addV(\"person\").property(\"name\", \"Alice\").property(\"age\", 29).next() * 10"),
             Map.entry("benchmark_g_addE_axa_10", "a.addEdge(\"knows\").from(a).to(a)*10"),
             Map.entry("benchmark_g_addE_axb_10", "a.addEdge(\"knows\").from(a).to(b)*10")
     );
@@ -287,9 +303,9 @@ public class BenchmarkTestFlightsData {
     }
 
     @Benchmark
-    public void benchmark_g_addVxperson_namexLyndon_agex29_10(final Blackhole blackhole) {
+    public void benchmark_g_addVxperson_namexAlice_agex29_10(final Blackhole blackhole) {
         for (int i = 0; i < 10; i++) {
-            g.addV("person").property("name", "Lyndon").property("age", 29).iterate();
+            g.addV("person").property("name", "Alice").property("age", 29).iterate();
         }
     }
 

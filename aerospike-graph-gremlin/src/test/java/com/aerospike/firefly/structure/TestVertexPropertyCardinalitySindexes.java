@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.util.config.ConfigurationHelper;
@@ -94,54 +110,54 @@ public class TestVertexPropertyCardinalitySindexes {
     @Test
     public void testVPSindex_MultipleWrittenWithVertex_StringType() {
         final Vertex actualVertex = g.addV("testVPSindex_MultipleWrittenWithVertex_StringType").next();
-        actualVertex.property(VertexProperty.Cardinality.list, "name", "Simon");
-        actualVertex.property(VertexProperty.Cardinality.list, "name", "Lyndon");
+        actualVertex.property(VertexProperty.Cardinality.list, "name", "Bob");
+        actualVertex.property(VertexProperty.Cardinality.list, "name", "Alice");
 
-        final Vertex lyndonVertex = g.V().has("name", "Lyndon").next();
-        final Vertex simonVertex = g.V().has("name", "Simon").next();
-        final Vertex simonLyndonVertex3 = g.V().has("name", "Simon").has("name", "Lyndon").next();
-        final TraversalMetrics simonVertexMetrics = g.V().has("name", "Simon").profile().next();
-        final TraversalMetrics lyndonVertexMetrics = g.V().has("name", "Lyndon").profile().next();
-        final TraversalMetrics simonLyndonVertex3Metrics = g.V().has("name", "Simon").has("name", "Lyndon").profile().next();
+        final Vertex aliceVertex = g.V().has("name", "Alice").next();
+        final Vertex bobVertex = g.V().has("name", "Bob").next();
+        final Vertex bobAliceVertex3 = g.V().has("name", "Bob").has("name", "Alice").next();
+        final TraversalMetrics bobVertexMetrics = g.V().has("name", "Bob").profile().next();
+        final TraversalMetrics aliceVertexMetrics = g.V().has("name", "Alice").profile().next();
+        final TraversalMetrics bobAliceVertex3Metrics = g.V().has("name", "Bob").has("name", "Alice").profile().next();
 
-        final Metrics simonVertexMetricsFireflyMetric = (Metrics) simonVertexMetrics.getMetrics().toArray()[1];
-        Assert.assertEquals(0, simonVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
-        final Metrics lyndonVertexMetricsFireflyMetric = (Metrics) lyndonVertexMetrics.getMetrics().toArray()[1];
-        Assert.assertEquals(0, lyndonVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
-        final Metrics simonLyndonVertex3MetricsFireflyMetric = (Metrics) simonLyndonVertex3Metrics.getMetrics().toArray()[1];
-        Assert.assertEquals(0, simonLyndonVertex3MetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
+        final Metrics bobVertexMetricsFireflyMetric = (Metrics) bobVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertEquals(0, bobVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
+        final Metrics aliceVertexMetricsFireflyMetric = (Metrics) aliceVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertEquals(0, aliceVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
+        final Metrics bobAliceVertex3MetricsFireflyMetric = (Metrics) bobAliceVertex3Metrics.getMetrics().toArray()[1];
+        Assert.assertEquals(0, bobAliceVertex3MetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
 
-        Assert.assertEquals(actualVertex, simonVertex);
-        Assert.assertEquals(actualVertex, lyndonVertex);
-        Assert.assertEquals(actualVertex, simonLyndonVertex3);
+        Assert.assertEquals(actualVertex, bobVertex);
+        Assert.assertEquals(actualVertex, aliceVertex);
+        Assert.assertEquals(actualVertex, bobAliceVertex3);
     }
 
     @Test
     public void testVPSindex_MultipleWrittenWithVertex_DuplicateSingleReturn() {
         final Vertex actualVertex = g.addV("testVPSindex_MultipleWrittenWithVertex_StringType").
-                property(VertexProperty.Cardinality.list, "name", "Lyndon").
-                property(VertexProperty.Cardinality.list, "name", "Lyndon").
+                property(VertexProperty.Cardinality.list, "name", "Alice").
+                property(VertexProperty.Cardinality.list, "name", "Alice").
                 next();
-        final List<Vertex> vertices = g.V().has("name", "Lyndon").toList();
+        final List<Vertex> vertices = g.V().has("name", "Alice").toList();
         Assert.assertEquals(1, vertices.size());
         Assert.assertEquals(actualVertex, vertices.get(0));
         final List<? extends Property<Object>> properties = g.V(actualVertex.id()).properties("name").toList();
         Assert.assertEquals(2, properties.size());
-        Assert.assertTrue(properties.stream().allMatch(p -> p.value().equals("Lyndon")));
+        Assert.assertTrue(properties.stream().allMatch(p -> p.value().equals("Alice")));
     }
 
     @Test
     public void testVPSindex_MultipleAppendedToVertex_DuplicateSingleReturn() {
         final Vertex actualVertex = g.addV("testVPSindex_MultipleWrittenWithVertex_StringType").
-                property(VertexProperty.Cardinality.list, "name", "Lyndon").
-                property(VertexProperty.Cardinality.list, "name", "Lyndon").
+                property(VertexProperty.Cardinality.list, "name", "Alice").
+                property(VertexProperty.Cardinality.list, "name", "Alice").
                 next();
-        final List<Vertex> vertices = g.V().has("name", "Lyndon").toList();
+        final List<Vertex> vertices = g.V().has("name", "Alice").toList();
         Assert.assertEquals(1, vertices.size());
         Assert.assertEquals(actualVertex, vertices.get(0));
         final List<? extends Property<Object>> properties = g.V(actualVertex.id()).properties("name").toList();
         Assert.assertEquals(2, properties.size());
-        Assert.assertTrue(properties.stream().allMatch(p -> p.value().equals("Lyndon")));
+        Assert.assertTrue(properties.stream().allMatch(p -> p.value().equals("Alice")));
     }
 
     @Test
@@ -150,11 +166,11 @@ public class TestVertexPropertyCardinalitySindexes {
         actualVertex.property(VertexProperty.Cardinality.list, "age", 10);
         actualVertex.property(VertexProperty.Cardinality.list, "age", 31);
 
-        final Vertex lyndonVertex = g.V().has("age", P.lte(50)).next();
-        final Vertex simonVertex = g.V().has("age", P.lt(11)).next();
-        final Vertex simonVertex1 = g.V().has("age", P.lte(10)).next();
-        final Vertex simonVertex2 = g.V().has("age", P.gt(9)).next();
-        final Vertex simonVertex3 = g.V().has("age", P.gte(10)).next();
+        final Vertex aliceVertex = g.V().has("age", P.lte(50)).next();
+        final Vertex bobVertex = g.V().has("age", P.lt(11)).next();
+        final Vertex bobVertex1 = g.V().has("age", P.lte(10)).next();
+        final Vertex bobVertex2 = g.V().has("age", P.gt(9)).next();
+        final Vertex bobVertex3 = g.V().has("age", P.gte(10)).next();
         Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.gt(31)).next());
         Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.gte(32)).next());
         Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.lt(10)).next());

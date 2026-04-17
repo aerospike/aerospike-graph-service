@@ -1,35 +1,63 @@
-# Usage Stats
+# Usage stats
 
-Usage stats are collected by default and cannot be disabled.
+> **TL;DR — nothing is reported externally.** Aerospike Graph Service
+> does not send telemetry, crash reports, or any other data off-box.
+> The "usage stats" described here are a self-instrumentation feature:
+> the service periodically writes its own resource-usage numbers
+> (vCPU count, memory size, epoch timestamps) into a metadata set in
+> the same Aerospike namespace it is serving graph data out of. You
+> query those stats yourself, from your own cluster, with a Gremlin
+> call. There is no external endpoint involved.
 
-Each time Aerospike Graph Service is started, it will record the start time and periodically record the current time.
-The vcpu and memory size are also collected. By doing this we can get a rough idea of the resource usage of the service.
+## What is collected
 
-The usage stats can be collected by invoking the follow command in gremlin:
+Each running instance of the service writes, at startup and periodically
+thereafter, a record to a metadata set inside your Aerospike cluster
+containing:
+
+| Field            | Value                                                          |
+|------------------|----------------------------------------------------------------|
+| `uuid`           | Random UUID generated at process start (per-instance)          |
+| `epoch-ms-start` | Wall-clock time the instance started                           |
+| `epoch-ms-final` | Wall-clock time of the most recent ticker update               |
+| `vcpus`          | Number of vCPUs the JVM reports as available                   |
+| `memory-gb`      | JVM heap size in gigabytes                                     |
+
+Nothing else. No query content, no schema, no IP addresses, no
+user-identifying information, no hostnames.
+
+## Where it is stored
+
+In the same Aerospike namespace configured via
+`aerospike.client.namespace`, under a metadata set that the graph
+service uses for its own bookkeeping. The records live and die with
+your cluster. If you drop the namespace, they are gone.
+
+## Querying the stats
+
+The stats are surfaced through a Gremlin call step. Across all
+instances that have ever written to this namespace:
 
 ```
 g.call("aerospike.graph.metadata.usage").next()
 ```
 
-This will return a Map<String, Object> that contains the following fields:
-- raw: the raw usage stats data
-- total-vcpu: the total vcpu years used by all services
+Returns a `Map<String, Object>` with:
 
-The usage stats from a specific date can also be collected by invoking the follow command in gremlin:
+- `raw` — the raw per-instance stats records.
+- `total-vcpu` — aggregated vCPU-years across all instances.
 
-```
-g.call("aerospike.graph.metadata.usage").with("since", "yyyy-mm-dd").next()
-```
-example:
+Filtering by start date:
+
 ```
 g.call("aerospike.graph.metadata.usage").with("since", "2023-03-30").next()
 ```
 
-This will return a Map<String, Object> that contains the following fields:
-- raw: the raw usage stats data
-- total-vcpu: the total vcpu years used by all services since the provided date
+Returns the same shape, but aggregated only over instances whose
+`epoch-ms-start` is on or after the `since` date.
 
 Example output:
+
 ```
 {   'raw': [   {   'epoch-ms-final': 1702327851857,
                    'epoch-ms-start': 1702326901857,
@@ -40,16 +68,24 @@ Example output:
                    'epoch-ms-start': 1702327148084,
                    'memory-gb': 9,
                    'uuid': 'c924f45e-886d-4c04-8039-292d56ea037c',
-                   'vcpus': 16},
-               {   'epoch-ms-final': 1702325278838,
-                   'epoch-ms-start': 1702325278838,
-                   'memory-gb': 9,
-                   'uuid': '45daadf4-0cdb-49e8-b6aa-2aae7bf489b0',
-                   'vcpus': 16},
-               {   'epoch-ms-final': 1702323995477,
-                   'epoch-ms-start': 1702323995477,
-                   'memory-gb': 9,
-                   'uuid': '3dfb41cf-0ce1-4326-a2f9-730f63a46db5',
                    'vcpus': 16}],
-    'total-vcpu': 0.0004819888381532217}
+    'total-vcpu': 0.0004819888381532217 }
 ```
+
+## Can I disable the writer?
+
+Yes. Set the following configuration value:
+
+```
+aerospike.graph.usage.enabled=false
+```
+
+When this is `false` the background timer is never scheduled and no
+records are written to the usage-stats set. The default is `true` so
+existing deployments keep working unchanged. Since the writer only
+touches your own cluster, it cannot be used for external telemetry
+regardless of how this flag is set.
+
+If you also want to remove previously-written records, drop the
+metadata set once: the service will not re-create it until the flag
+is flipped back on.

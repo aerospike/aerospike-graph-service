@@ -1,0 +1,113 @@
+# Copyright 2022-2026 Aerospike, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Secret Scan (gitleaks)
+
+# Runs a gitleaks scan on every PR + every push to a protected branch
+# (working-tree scope, fast), and once a week over the full history as a
+# belt-and-braces check. Uses the repo-local `.gitleaks.toml`, which
+# allow-lists the committed test-only TLS fixtures and their historical
+# paths.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - opensource-ready
+  schedule:
+    # Sundays at 09:17 UTC
+    - cron: '17 9 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GITLEAKS_VERSION: '8.30.1'
+
+jobs:
+  working-tree:
+    name: Working-tree scan
+    if: github.event_name == 'pull_request' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d)
+          url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL "$url" -o "$tmp/gitleaks.tar.gz"
+          tar -xzf "$tmp/gitleaks.tar.gz" -C "$tmp"
+          sudo install -m 0755 "$tmp/gitleaks" /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Scan working tree
+        run: gitleaks detect --config=.gitleaks.toml --no-git --redact --verbose --exit-code=1 --report-format=sarif --report-path=gitleaks-working-tree.sarif
+
+      - name: Upload SARIF
+        if: always()
+        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+        with:
+          name: gitleaks-working-tree-sarif
+          path: gitleaks-working-tree.sarif
+          if-no-files-found: ignore
+          retention-days: 14
+
+  full-history:
+    name: Full-history scan
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d)
+          url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL "$url" -o "$tmp/gitleaks.tar.gz"
+          tar -xzf "$tmp/gitleaks.tar.gz" -C "$tmp"
+          sudo install -m 0755 "$tmp/gitleaks" /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Scan full git history
+        # Allowed to "fail" with known history-only findings until the
+        # §2.4 filter-repo pass lands. Remove `|| true` at that point so
+        # the scheduled scan becomes load-bearing. Until then the SARIF
+        # artifact is the surface for triage.
+        run: gitleaks detect --config=.gitleaks.toml --redact --verbose --report-format=sarif --report-path=gitleaks-history.sarif || true
+
+      - name: Upload SARIF
+        if: always()
+        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+        with:
+          name: gitleaks-history-sarif
+          path: gitleaks-history.sarif
+          if-no-files-found: ignore
+          retention-days: 30

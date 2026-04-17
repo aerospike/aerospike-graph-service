@@ -1,22 +1,24 @@
-# Query Tracing
+# Query tracing
 
-Reference for quick start and things that will need to be documented.
+Aerospike Graph Service can emit OpenTelemetry spans to a Zipkin
+collector for slow-query analysis.
 
-### Quickstart
+## Quickstart
 
-To set up Zipkin to enable query tracing:
+Stand up a local Zipkin:
 
-```
+```bash
 docker run -d -p 9411:9411 openzipkin/zipkin
 ```
 
-Default configurations will work for Firefly in JVM and Zipkin in Docker. If running in an AGS instance change the host 
-to the IP of the Zipkin docker image. Can access the Zipkin UI to see slow query logs at localhost:9411.
+When Aerospike Graph Service runs in the host JVM alongside Zipkin in
+Docker, the defaults (below) will work out of the box. When the graph
+service itself runs in a container, set
+`aerospike.graph.query-tracing.opentelemetry-host` to the IP of the
+Zipkin container (on Linux bridged Docker, `172.17.0.1`). Open the
+Zipkin UI at <http://localhost:9411> to browse traced queries.
 
-### Configurations
-
-#TODO:
-<send video recording of this feature to prd-graph for feedback | explicitly ask Zohar if he doesn't look>
+## Configuration
 
 `aerospike.graph.script-logging.redact-literals`
 

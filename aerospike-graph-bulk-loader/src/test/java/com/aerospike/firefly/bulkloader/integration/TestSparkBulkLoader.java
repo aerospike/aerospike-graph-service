@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.bulkloader.integration;
 
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
@@ -211,7 +227,7 @@ public class TestSparkBulkLoader {
         final GraphTraversalSource g = graph.traversal();
         waitForBulkLoad(g);
 
-        final Edge e = g.V().has("name", "Simon").outE("drives").next();
+        final Edge e = g.V().has("name", "Bob").outE("drives").next();
         final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
         Assert.assertFalse(providedId.isPresent());
     }
@@ -221,7 +237,7 @@ public class TestSparkBulkLoader {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getKeepIdAsPropertyTrueConfig()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
         waitForBulkLoad(g);
-        final Edge e = g.V().has("name", "Simon").outE("drives").next();
+        final Edge e = g.V().has("name", "Bob").outE("drives").next();
         Property providedId = e.property("~providedId");
         Assert.assertFalse(providedId.isPresent());
         providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
@@ -243,7 +259,7 @@ public class TestSparkBulkLoader {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfigArtificialSupernode()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
         waitForBulkLoad(g);
-        final Edge e = g.V().has("name", "Simon").outE("drives").next();
+        final Edge e = g.V().has("name", "Bob").outE("drives").next();
         final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
         Assert.assertFalse(providedId.isPresent());
         testSupernodes();
@@ -254,7 +270,7 @@ public class TestSparkBulkLoader {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getKeepIdAsPropertyTrueConfigArtificialSupernode()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
         waitForBulkLoad(g);
-        final Edge e = g.V().has("name", "Simon").outE("drives").next();
+        final Edge e = g.V().has("name", "Bob").outE("drives").next();
         Property providedId = e.property("~providedId");
         Assert.assertFalse(providedId.isPresent());
         providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
@@ -267,7 +283,7 @@ public class TestSparkBulkLoader {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
         waitForBulkLoad(g);
-        final Set<Object> expectedIds = Set.of(2L, 3L, 4L, 5L, 6L, 7L, "lyndon", "grant", "simon", "joe", "GR86", "f150");
+        final Set<Object> expectedIds = Set.of(2L, 3L, 4L, 5L, 6L, 7L, "alice", "carol", "bob", "joe", "GR86", "f150");
         final Set<Object> stringIds = Set.of("2", "3", "4", "5", "6", "7");
         final List<Vertex> vertexIds = g.V().toList();
         Assert.assertEquals(expectedIds.size(), vertexIds.size());
@@ -804,8 +820,8 @@ public class TestSparkBulkLoader {
 
     private void testTypeMappings(final GraphTraversalSource g) {
         // This also implicitly checks the proper truncation of type specifiers on property names
-        final Vertex person = g.V().has("name", "Simon").next();
-        Assert.assertEquals("Simon", person.value("name"));
+        final Vertex person = g.V().has("name", "Bob").next();
+        Assert.assertEquals("Bob", person.value("name"));
         Assert.assertEquals(28, (int) person.value("age"));
         Assert.assertFalse(person.value("glasses"));
         final Iterator<? extends Property<Object>> properties = person.properties("companies");
@@ -829,45 +845,45 @@ public class TestSparkBulkLoader {
     }
 
     private void testDrives(final GraphTraversalSource g) {
-        List<Vertex> vehicles = g.V().has("name", "Simon").out("drives").toList();
+        List<Vertex> vehicles = g.V().has("name", "Bob").out("drives").toList();
         Assert.assertEquals(1, vehicles.size());
         Assert.assertEquals("GR86", vehicles.get(0).value("model"));
-        vehicles = g.V().has("name", "Lyndon").out("drives").toList();
+        vehicles = g.V().has("name", "Alice").out("drives").toList();
         Assert.assertEquals(1, vehicles.size());
         Assert.assertEquals("F150", vehicles.get(0).value("model"));
         // Check there's no writes in the wrong direction
-        vehicles = g.V().has("name", "Simon").in("drives").toList();
+        vehicles = g.V().has("name", "Bob").in("drives").toList();
         Assert.assertEquals(0, vehicles.size());
-        vehicles = g.V().has("name", "Lyndon").in("drives").toList();
+        vehicles = g.V().has("name", "Alice").in("drives").toList();
         Assert.assertEquals(0, vehicles.size());
     }
 
     private void testManagedBy(final GraphTraversalSource g) {
-        List<Vertex> managers = g.V().has("name", "Simon").out("managedBy").toList();
+        List<Vertex> managers = g.V().has("name", "Bob").out("managedBy").toList();
         Assert.assertEquals(1, managers.size());
         Assert.assertEquals("Joe", managers.get(0).value("name"));
-        managers = g.V().has("name", "Lyndon").out("managedBy").toList();
+        managers = g.V().has("name", "Alice").out("managedBy").toList();
         Assert.assertEquals(1, managers.size());
         Assert.assertEquals("Joe", managers.get(0).value("name"));
         // Check vertex IN edge listings
         final Set<Vertex> peons = g.V().has("name", "Joe").in("managedBy").toSet();
         Assert.assertEquals(2, peons.size());
         final Set<String> peonNames = peons.stream().map(v -> (String) v.value("name")).collect(Collectors.toSet());
-        Assert.assertTrue((peonNames.contains("Simon") && peonNames.contains("Lyndon")));
+        Assert.assertTrue((peonNames.contains("Bob") && peonNames.contains("Alice")));
 
     }
 
     private void testWorksWith(final GraphTraversalSource g) {
-        List<Vertex> vehicles = g.V().has("name", "Simon").out("drives").toList();
+        List<Vertex> vehicles = g.V().has("name", "Bob").out("drives").toList();
         Assert.assertEquals(1, vehicles.size());
         Assert.assertEquals("GR86", vehicles.get(0).value("model"));
-        vehicles = g.V().has("name", "Lyndon").out("drives").toList();
+        vehicles = g.V().has("name", "Alice").out("drives").toList();
         Assert.assertEquals(1, vehicles.size());
         Assert.assertEquals("F150", vehicles.get(0).value("model"));
         // Check there's no writes in the wrong direction
-        vehicles = g.V().has("name", "Simon").in("drives").toList();
+        vehicles = g.V().has("name", "Bob").in("drives").toList();
         Assert.assertEquals(0, vehicles.size());
-        vehicles = g.V().has("name", "Lyndon").in("drives").toList();
+        vehicles = g.V().has("name", "Alice").in("drives").toList();
         Assert.assertEquals(0, vehicles.size());
     }
 }

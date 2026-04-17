@@ -5,9 +5,9 @@
 5,worksWith,4,5
 6,worksWith,5,3
 7,worksWith,5,4
-12,worksWith,"grant","lyndon"
-13,worksWith,"grant","simon"
-14,worksWith,"simon","lyndon"
-15,worksWith,"simon","grant"
-16,worksWith,"lyndon","simon"
-17,worksWith,"lyndon","grant"
+12,worksWith,"carol","alice"
+13,worksWith,"carol","bob"
+14,worksWith,"bob","alice"
+15,worksWith,"bob","carol"
+16,worksWith,"alice","bob"
+17,worksWith,"alice","carol"

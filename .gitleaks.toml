@@ -1,0 +1,59 @@
+# gitleaks configuration for AerospikeGraphService
+#
+# Extends gitleaks' built-in default rule set (AWS keys, GH tokens, GCP
+# service-account JSON, PEM-encoded private keys, etc.) and adds a
+# narrowly-scoped allowlist for known test-only material that would
+# otherwise produce false-positive findings.
+#
+# Golden rule for anything added to [allowlist]: the file must be
+# demonstrably test-only, must not be usable against any real Aerospike
+# cluster or service, and must be documented in a sibling README.md.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test-only fixtures that are committed intentionally."
+
+paths = [
+    # --- Committed test-only TLS material (current paths) -------------
+    # Used exclusively by CI and integration tests.
+    # See .github/aerospike/tls/README.md and
+    # aerospike-graph-gremlin/src/test/resources/tls/README.md for why
+    # these are safe to publish.
+    '''^\.github/aerospike/tls/.*$''',
+    '''^aerospike-graph-gremlin/src/test/resources/tls/.*$''',
+
+    # --- Committed test-only TLS material (historical paths) ----------
+    # Needed because `gitleaks detect` walks every commit, not just
+    # HEAD. Before the module rename ("firefly-gremlin" ->
+    # "aerospike-graph-gremlin") and before the tls material was moved
+    # under its own subdirectory under .github/aerospike, the same test
+    # fixtures lived at these paths. Allow-listing them keeps the
+    # history-wide scan free of false positives for test fixtures the
+    # team has decided to keep.
+    #
+    # Historical module name.
+    '''^firefly-gremlin/src/test/resources/tls/.*$''',
+    # Pre-reorg location of the test Aerospike server key/cert,
+    # directly under .github/aerospike/.
+    '''^\.github/aerospike/aerospike_server\.(key|crt|pem)$''',
+    '''^\.github/aerospike/client\.(key|crt|pem)$''',
+    '''^\.github/aerospike/ca\.(key|crt|pem)$''',
+
+    # --- Test-secret-masking fixtures --------------------------------
+    # Contains obviously-synthetic strings ("MASKME*") that the masking
+    # integration test greps for in log output. Committing these is
+    # the entire point of the test.
+    '''^conf/test-secret-masking/aerospike-graph\.properties$''',
+    '''^scripts/test-secret-masking\.sh$''',
+
+    # --- This config file itself ------------------------------------
+    '''^\.gitleaks\.toml$''',
+]
+
+# Regex allowlist is empty on purpose. If a CI scanner later flags
+# something that is genuinely safe to commit (e.g. the RSA public half
+# of a test CA), add a narrowly-scoped path entry above rather than a
+# broad regex here.
+regexes = []

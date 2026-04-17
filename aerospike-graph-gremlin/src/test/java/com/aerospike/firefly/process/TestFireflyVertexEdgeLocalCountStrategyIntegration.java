@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.process;
 
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -47,28 +63,28 @@ public class TestFireflyVertexEdgeLocalCountStrategyIntegration {
     @Before
     public void beforeEach() {
         SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
-        List<Map.Entry<String, Object>> properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Simon"));
-        final FireflyVertex simon = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(1), "person", properties);
-        properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Lyndon"));
-        final FireflyVertex lyndon = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(2), "person", properties);
-        properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Grant"));
-        final FireflyVertex grant = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(3), "person", properties);
+        List<Map.Entry<String, Object>> properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Bob"));
+        final FireflyVertex bob = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(1), "person", properties);
+        properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Alice"));
+        final FireflyVertex alice = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(2), "person", properties);
+        properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Carol"));
+        final FireflyVertex carol = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(3), "person", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Joe"));
         final FireflyVertex joe = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(4), "person", properties);
         SETUP_GRAPH.getAerospikeOperations().writeEdgeWithNoTransaction(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
-                simon, joe);
+                bob, joe);
         SETUP_GRAPH.getAerospikeOperations().writeEdgeWithNoTransaction(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
-                lyndon, joe);
+                alice, joe);
         SETUP_GRAPH.getAerospikeOperations().writeEdgeWithNoTransaction(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
-                grant, joe);
+                carol, joe);
         SETUP_GRAPH.getAerospikeOperations().writeEdgeWithNoTransaction(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
-                simon, lyndon);
+                bob, alice);
         SETUP_GRAPH.getAerospikeOperations().writeEdgeWithNoTransaction(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
-                grant, lyndon);
+                carol, alice);
         SETUP_GRAPH.getAerospikeOperations().writeEdgeWithNoTransaction(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
-                grant, simon);
+                carol, bob);
         SETUP_GRAPH.getAerospikeOperations().writeEdgeWithNoTransaction(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "foo", Collections.emptyList(),
-                lyndon, simon);
+                alice, bob);
     }
 
     @After

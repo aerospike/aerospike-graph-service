@@ -1,6 +1,6 @@
 ~id,~label,~from,~to,isDope
 10,drives,4,6,"yes"
 11,drives,5,7,"yes"
-18,drives,"lyndon","f150","no"
-19,drives,"simon","GR86","no"
-20,drives,"simon","f150","yes"
+18,drives,"alice","f150","no"
+19,drives,"bob","GR86","no"
+20,drives,"bob","f150","yes"

@@ -5,9 +5,9 @@ worksWith,4,3
 worksWith,4,5
 worksWith,5,3
 worksWith,5,4
-worksWith,"grant","lyndon"
-worksWith,"grant","simon"
-worksWith,"simon","lyndon"
-worksWith,"simon","grant"
-worksWith,"lyndon","simon"
-worksWith,"lyndon","grant"
+worksWith,"carol","alice"
+worksWith,"carol","bob"
+worksWith,"bob","alice"
+worksWith,"bob","carol"
+worksWith,"alice","bob"
+worksWith,"alice","carol"

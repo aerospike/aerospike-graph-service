@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.io.aerospike.indexes;
 
 import com.aerospike.client.Record;
@@ -87,36 +103,36 @@ public class TestAdjacencySindexFilters {
     @Test
     public void testPropertyEqPushdown() {
         GraphTraversalSource g = graph.traversal();
-        g.addE("e1").property("foo", "Simon").from(v1).to(v2).iterate();
-        g.addE("e2").property("foo", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e1").property("foo", "Bob").from(v1).to(v2).iterate();
+        g.addE("e2").property("foo", "Alice").from(v1).to(v2).iterate();
         g.addE("e3").property("foo", 100).from(v1).to(v2).iterate();
         g.addE("e4").property("foo", 100).from(v1).to(v2).iterate();
         g.addE("e5").property("foo", 200).from(v1).to(v2).iterate();
-        g.addE("e6").property("bar", "Lyndon").from(v1).to(v2).iterate();
-        g.addE("e7").property("foo", 100).property("bar", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e6").property("bar", "Alice").from(v1).to(v2).iterate();
+        g.addE("e7").property("foo", 100).property("bar", "Alice").from(v1).to(v2).iterate();
         String e7id = (String) g.E().hasLabel("e7").next().id();
         String e8id = (String) g.addE("e8").from(v1).to(v2).next().id();
         g.E().hasLabel("e8").drop().iterate();
 
-        HasContainer hasSimon = new HasContainer("foo", P.eq("Simon"));
-        HasContainer hasLyndon = new HasContainer("bar", P.eq("Lyndon"));
+        HasContainer hasBob = new HasContainer("foo", P.eq("Bob"));
+        HasContainer hasAlice = new HasContainer("bar", P.eq("Alice"));
         HasContainer has100 = new HasContainer("foo", P.eq(100));
         HasContainer hasId = new HasContainer(T.id.getAccessor(), P.eq(e7id));
         HasContainer hasIdFalse = new HasContainer(T.id.getAccessor(), P.eq(e8id));
 
         FireflyVertex v1 = (FireflyVertex) g.V().hasLabel("v1").next();
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
         Assert.assertEquals(3, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
-        Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
+        Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
         Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasId))));
         Assert.assertEquals(0, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasIdFalse))));
 
         FireflyVertex v2 = (FireflyVertex) g.V().hasLabel("v2").next();
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
         Assert.assertEquals(3, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
-        Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
+        Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
         Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasId))));
         Assert.assertEquals(0, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasIdFalse))));
     }
@@ -124,48 +140,48 @@ public class TestAdjacencySindexFilters {
     @Test
     public void testPropertyAndLabelPushdown() {
         GraphTraversalSource g = graph.traversal();
-        g.addE("e1").property("foo", "Simon").from(v1).to(v2).iterate();
-        g.addE("e2").property("foo", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e1").property("foo", "Bob").from(v1).to(v2).iterate();
+        g.addE("e2").property("foo", "Alice").from(v1).to(v2).iterate();
         g.addE("e3").property("foo", 100).from(v1).to(v2).iterate();
         g.addE("e4").property("foo", 100).from(v1).to(v2).iterate();
         g.addE("e5").property("foo", 200).from(v1).to(v2).iterate();
-        g.addE("e6").property("bar", "Lyndon").from(v1).to(v2).iterate();
-        g.addE("e7").property("foo", 100).property("bar", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e6").property("bar", "Alice").from(v1).to(v2).iterate();
+        g.addE("e7").property("foo", 100).property("bar", "Alice").from(v1).to(v2).iterate();
 
-        HasContainer hasSimon = new HasContainer("foo", P.eq("Simon"));
-        HasContainer hasLyndon = new HasContainer("bar", P.eq("Lyndon"));
+        HasContainer hasBob = new HasContainer("foo", P.eq("Bob"));
+        HasContainer hasAlice = new HasContainer("bar", P.eq("Alice"));
         HasContainer has100 = new HasContainer("foo", P.eq(100));
 
         FireflyVertex v1 = (FireflyVertex) g.V().hasLabel("v1").next();
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e1", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
-        Assert.assertEquals(0, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e1", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
+        Assert.assertEquals(0, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
         Assert.assertEquals(3, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e3", "e4", "e7", "e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
         Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e3", "e7"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e7", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasLyndon))));
-        Assert.assertEquals(0, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e3", "e4", "e6"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e7"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e7", "e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e7", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasAlice))));
+        Assert.assertEquals(0, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e3", "e4", "e6"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e7"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e7", "e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
 
         FireflyVertex v2 = (FireflyVertex) g.V().hasLabel("v2").next();
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e1", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
-        Assert.assertEquals(0, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e1", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
+        Assert.assertEquals(0, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
         Assert.assertEquals(3, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e3", "e4", "e7", "e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
         Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e3", "e7"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e7", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasLyndon))));
-        Assert.assertEquals(0, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e3", "e4", "e6"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e7"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e7", "e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e7", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasAlice))));
+        Assert.assertEquals(0, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e3", "e4", "e6"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e7"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e7", "e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
     }
 
     @Test
     public void testPropertyAndLabelPushdownPropertyAddedAfterCreation() {
         GraphTraversalSource g = graph.traversal();
         g.addE("e1").from(v1).to(v2).iterate();
-        g.E().hasLabel("e1").property("foo", "Simon").iterate();
+        g.E().hasLabel("e1").property("foo", "Bob").iterate();
         g.addE("e2").from(v1).to(v2).iterate();
-        g.E().hasLabel("e2").property("foo", "Lyndon").iterate();
+        g.E().hasLabel("e2").property("foo", "Alice").iterate();
         g.addE("e3").from(v1).to(v2).iterate();
         g.E().hasLabel("e3").property("foo", 100).iterate();
         g.addE("e4").from(v1).to(v2).iterate();
@@ -173,35 +189,35 @@ public class TestAdjacencySindexFilters {
         g.addE("e5").from(v1).to(v2).iterate();
         g.E().hasLabel("e5").property("foo", 200).iterate();
         g.addE("e6").from(v1).to(v2).iterate();
-        g.E().hasLabel("e6").property("bar", "Lyndon").iterate();
+        g.E().hasLabel("e6").property("bar", "Alice").iterate();
         g.addE("e7").from(v1).to(v2).iterate();
-        g.E().hasLabel("e7").property("foo", 100).property("bar", "Lyndon").iterate();
+        g.E().hasLabel("e7").property("foo", 100).property("bar", "Alice").iterate();
 
-        HasContainer hasSimon = new HasContainer("foo", P.eq("Simon"));
-        HasContainer hasLyndon = new HasContainer("bar", P.eq("Lyndon"));
+        HasContainer hasBob = new HasContainer("foo", P.eq("Bob"));
+        HasContainer hasAlice = new HasContainer("bar", P.eq("Alice"));
         HasContainer has100 = new HasContainer("foo", P.eq(100));
 
         FireflyVertex v1 = (FireflyVertex) g.V().hasLabel("v1").next();
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e1", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
-        Assert.assertEquals(0, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e1", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
+        Assert.assertEquals(0, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
         Assert.assertEquals(3, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e3", "e4", "e7", "e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
         Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e3", "e7"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e7", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasLyndon))));
-        Assert.assertEquals(0, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e3", "e4", "e6"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e7"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e7", "e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e7", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasAlice))));
+        Assert.assertEquals(0, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e3", "e4", "e6"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e7"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Set.of("e7", "e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
 
         FireflyVertex v2 = (FireflyVertex) g.V().hasLabel("v2").next();
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e1", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
-        Assert.assertEquals(0, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e1", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
+        Assert.assertEquals(0, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
         Assert.assertEquals(3, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e3", "e4", "e7", "e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
         Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e3", "e7"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e7", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasLyndon))));
-        Assert.assertEquals(0, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e3", "e4", "e6"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e7"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e7", "e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e7", "e2"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasAlice))));
+        Assert.assertEquals(0, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e3", "e4", "e6"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e7"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Set.of("e7", "e1"), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
     }
 
     @Test
@@ -257,123 +273,123 @@ public class TestAdjacencySindexFilters {
     @Test
     public void testPropertyRemovePushdown() {
         GraphTraversalSource g = graph.traversal();
-        g.addE("e1").property("foo", "Simon").from(v1).to(v2).iterate();
-        g.addE("e2").property("foo", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e1").property("foo", "Bob").from(v1).to(v2).iterate();
+        g.addE("e2").property("foo", "Alice").from(v1).to(v2).iterate();
         g.addE("e3").property("foo", 100).from(v1).to(v2).iterate();
         g.addE("e4").property("foo", 100).from(v1).to(v2).iterate();
         g.E().hasLabel("e4").properties("foo").drop().iterate();
         g.addE("e5").property("foo", 200).from(v1).to(v2).iterate();
-        g.addE("e6").property("bar", "Lyndon").from(v1).to(v2).iterate();
-        g.addE("e7").property("foo", 100).property("bar", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e6").property("bar", "Alice").from(v1).to(v2).iterate();
+        g.addE("e7").property("foo", 100).property("bar", "Alice").from(v1).to(v2).iterate();
 
-        HasContainer hasSimon = new HasContainer("foo", P.eq("Simon"));
-        HasContainer hasLyndon = new HasContainer("bar", P.eq("Lyndon"));
+        HasContainer hasBob = new HasContainer("foo", P.eq("Bob"));
+        HasContainer hasAlice = new HasContainer("bar", P.eq("Alice"));
         HasContainer has100 = new HasContainer("foo", P.eq(100));
 
         FireflyVertex v1 = (FireflyVertex) g.V().hasLabel("v1").next();
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
         Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
-        Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
+        Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
 
         FireflyVertex v2 = (FireflyVertex) g.V().hasLabel("v2").next();
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
         Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
-        Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
+        Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
     }
 
     @Test
     public void testPropertyUpdatePushdown() {
         GraphTraversalSource g = graph.traversal();
-        g.addE("e1").property("foo", "Simon").from(v1).to(v2).iterate();
-        g.addE("e2").property("foo", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e1").property("foo", "Bob").from(v1).to(v2).iterate();
+        g.addE("e2").property("foo", "Alice").from(v1).to(v2).iterate();
         g.addE("e3").property("foo", 100).from(v1).to(v2).iterate();
         g.addE("e4").property("foo", 100).from(v1).to(v2).iterate();
         g.E().hasLabel("e4").property("foo", 200).iterate();
         g.addE("e5").property("foo", 200).from(v1).to(v2).iterate();
-        g.addE("e6").property("bar", "Lyndon").from(v1).to(v2).iterate();
-        g.addE("e7").property("foo", 100).property("bar", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e6").property("bar", "Alice").from(v1).to(v2).iterate();
+        g.addE("e7").property("foo", 100).property("bar", "Alice").from(v1).to(v2).iterate();
 
-        HasContainer hasSimon = new HasContainer("foo", P.eq("Simon"));
-        HasContainer hasLyndon = new HasContainer("bar", P.eq("Lyndon"));
+        HasContainer hasBob = new HasContainer("foo", P.eq("Bob"));
+        HasContainer hasAlice = new HasContainer("bar", P.eq("Alice"));
         HasContainer has100 = new HasContainer("foo", P.eq(100));
         HasContainer has200 = new HasContainer("foo", P.eq(200));
 
         FireflyVertex v1 = (FireflyVertex) g.V().hasLabel("v1").next();
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
         Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
         Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has200))));
-        Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
+        Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
 
         FireflyVertex v2 = (FireflyVertex) g.V().hasLabel("v2").next();
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
         Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
         Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has200))));
-        Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
+        Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
     }
 
     @Test
     public void testPropertyUpdatePushdownInvalidPushdown() {
         GraphTraversalSource g = graph.traversal();
-        g.addE("e1").property("foo", "Simon").from(v1).to(v2).iterate();
-        g.addE("e2").property("foo", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e1").property("foo", "Bob").from(v1).to(v2).iterate();
+        g.addE("e2").property("foo", "Alice").from(v1).to(v2).iterate();
         g.addE("e3").property("foo", 100).from(v1).to(v2).iterate();
         g.addE("e4").property("foo", 100).from(v1).to(v2).iterate();
         g.E().hasLabel("e4").property("foo", false).iterate();
         g.addE("e5").property("foo", 200).from(v1).to(v2).iterate();
-        g.addE("e6").property("bar", "Lyndon").from(v1).to(v2).iterate();
-        g.addE("e7").property("foo", 100).property("bar", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e6").property("bar", "Alice").from(v1).to(v2).iterate();
+        g.addE("e7").property("foo", 100).property("bar", "Alice").from(v1).to(v2).iterate();
 
-        HasContainer hasSimon = new HasContainer("foo", P.eq("Simon"));
-        HasContainer hasLyndon = new HasContainer("bar", P.eq("Lyndon"));
+        HasContainer hasBob = new HasContainer("foo", P.eq("Bob"));
+        HasContainer hasAlice = new HasContainer("bar", P.eq("Alice"));
         HasContainer has100 = new HasContainer("foo", P.eq(100));
         HasContainer has200 = new HasContainer("foo", P.eq(200));
 
         FireflyVertex v1 = (FireflyVertex) g.V().hasLabel("v1").next();
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
         Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
         Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has200))));
-        Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
+        Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
 
         FireflyVertex v2 = (FireflyVertex) g.V().hasLabel("v2").next();
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
         Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
         Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has200))));
-        Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
+        Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
     }
 
     @Test
     public void testPropertyNullPushdown() {
         GraphTraversalSource g = graph.traversal();
-        g.addE("e1").property("foo", "Simon").from(v1).to(v2).iterate();
-        g.addE("e2").property("foo", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e1").property("foo", "Bob").from(v1).to(v2).iterate();
+        g.addE("e2").property("foo", "Alice").from(v1).to(v2).iterate();
         g.addE("e3").property("foo", 100).from(v1).to(v2).iterate();
         g.addE("e4").property("foo", 100).from(v1).to(v2).iterate();
         g.E().hasLabel("e4").property("foo", null).iterate();
         g.addE("e5").property("foo", 200).from(v1).to(v2).iterate();
-        g.addE("e6").property("bar", "Lyndon").from(v1).to(v2).iterate();
-        g.addE("e7").property("foo", 100).property("bar", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e6").property("bar", "Alice").from(v1).to(v2).iterate();
+        g.addE("e7").property("foo", 100).property("bar", "Alice").from(v1).to(v2).iterate();
 
-        HasContainer hasSimon = new HasContainer("foo", P.eq("Simon"));
-        HasContainer hasLyndon = new HasContainer("bar", P.eq("Lyndon"));
+        HasContainer hasBob = new HasContainer("foo", P.eq("Bob"));
+        HasContainer hasAlice = new HasContainer("bar", P.eq("Alice"));
         HasContainer has100 = new HasContainer("foo", P.eq(100));
 
         FireflyVertex v1 = (FireflyVertex) g.V().hasLabel("v1").next();
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
         Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
-        Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
+        Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
 
         FireflyVertex v2 = (FireflyVertex) g.V().hasLabel("v2").next();
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasSimon))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBob))));
         Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100))));
-        Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasLyndon))));
-        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasLyndon))));
+        Assert.assertEquals(2, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasAlice))));
+        Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(has100, hasAlice))));
     }
 
     @Test
@@ -553,33 +569,33 @@ public class TestAdjacencySindexFilters {
     @Test
     public void testContainsWithinPushdown() {
         GraphTraversalSource g = graph.traversal();
-        g.addE("e1").property("foo", "Simon").from(v1).to(v2).iterate();
-        g.addE("e2").property("foo", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e1").property("foo", "Bob").from(v1).to(v2).iterate();
+        g.addE("e2").property("foo", "Alice").from(v1).to(v2).iterate();
         g.addE("e3").property("foo", 100).from(v1).to(v2).iterate();
         g.addE("e4").property("foo", 200).from(v1).to(v2).iterate();
         g.addE("e5").property("foo", "Valentyn").property("bar", 200).from(v1).to(v2).iterate();
-        g.addE("e6").property("foo", 100).property("bar", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e6").property("foo", 100).property("bar", "Alice").from(v1).to(v2).iterate();
 
-        HasContainer hasFooSimon100 = new HasContainer("foo", P.within("Simon", 100));
-        HasContainer hasBarLyndon = new HasContainer("bar", P.within("Lyndon"));
+        HasContainer hasFooBob100 = new HasContainer("foo", P.within("Bob", 100));
+        HasContainer hasBarAlice = new HasContainer("bar", P.within("Alice"));
         HasContainer hasFooValentyn200Ishaan = new HasContainer("foo", P.within("Valentyn", 200, "Ishaan"));
-        HasContainer compoundWithinHasBarLyndon = new HasContainer("foo", P.within(100, 200));
-        HasContainer compoundEqHasBarLyndon = new HasContainer("foo", P.eq(100));
-        HasContainer compoundNomatchHasBarLyndon = new HasContainer("foo", P.within(200, "Simon"));
+        HasContainer compoundWithinHasBarAlice = new HasContainer("foo", P.within(100, 200));
+        HasContainer compoundEqHasBarAlice = new HasContainer("foo", P.eq(100));
+        HasContainer compoundNomatchHasBarAlice = new HasContainer("foo", P.within(200, "Bob"));
 
         final FireflyVertex v1 = (FireflyVertex) g.V().hasLabel("v1").next();
-        Assert.assertEquals(3, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasFooSimon100))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarLyndon))));
+        Assert.assertEquals(3, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasFooBob100))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarAlice))));
         Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasFooValentyn200Ishaan))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarLyndon, compoundWithinHasBarLyndon))));
-        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarLyndon, compoundEqHasBarLyndon))));
-        Assert.assertEquals(0, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarLyndon, compoundNomatchHasBarLyndon))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarAlice, compoundWithinHasBarAlice))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarAlice, compoundEqHasBarAlice))));
+        Assert.assertEquals(0, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarAlice, compoundNomatchHasBarAlice))));
 
-        Assert.assertEquals(3, Iterators.size(g.V(v1.id()).outE().has("foo", P.within("Simon", 100))));
-        Assert.assertEquals(1, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Lyndon"))));
+        Assert.assertEquals(3, Iterators.size(g.V(v1.id()).outE().has("foo", P.within("Bob", 100))));
+        Assert.assertEquals(1, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Alice"))));
         Assert.assertEquals(2, Iterators.size(g.V(v1.id()).outE().has("foo", P.within("Valentyn", "Ishaan", 200))));
-        Assert.assertEquals(1, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Lyndon")).has("foo", P.within(100, 200))));
-        Assert.assertEquals(1, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Lyndon")).has("foo", 100)));
-        Assert.assertEquals(0, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Lyndon")).has("foo", P.within(200, "Simon"))));
+        Assert.assertEquals(1, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Alice")).has("foo", P.within(100, 200))));
+        Assert.assertEquals(1, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Alice")).has("foo", 100)));
+        Assert.assertEquals(0, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Alice")).has("foo", P.within(200, "Bob"))));
     }
 }

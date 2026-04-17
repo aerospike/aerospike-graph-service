@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.util.config.ConfigurationHelper;
@@ -8,7 +24,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Property;
-import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.AfterClass;
@@ -377,44 +392,44 @@ public class TestVertexPropertyCardinality {
     @Test
     public void testVP_SingleStartingValue_PropertyList() {
         final FireflyVertex v = (FireflyVertex) g.addV("testVP_SingleStartingValue_PropertyList")
-                .property(VertexProperty.Cardinality.single, "name", "Simon")
+                .property(VertexProperty.Cardinality.single, "name", "Bob")
                 .next();
 
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(1L, propertyCount);
 
-        g.V(v.id()).property(VertexProperty.Cardinality.list, "name", "Lyndon").iterate();
+        g.V(v.id()).property(VertexProperty.Cardinality.list, "name", "Alice").iterate();
 
         final FireflyVertex vAfter = (FireflyVertex) g.V(v.id()).next();
         final long propertyCountAfter = IteratorUtils.count(vAfter.properties());
         Assert.assertEquals(2L, propertyCountAfter);
         final List<? extends Property> properties = g.V(v.id()).properties("name").toList();
         Assert.assertEquals(2, properties.size());
-        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Simon")));
-        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Lyndon")));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Bob")));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Alice")));
     }
 
     @Test
     public void testVP_SingleStartingValue_PropertySingle() {
         final FireflyVertex v = (FireflyVertex) g.addV("testVP_SingleStartingValue_PropertySingle")
-                .property(VertexProperty.Cardinality.single, "name", "Simon")
+                .property(VertexProperty.Cardinality.single, "name", "Bob")
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(1L, propertyCount);
 
-        g.V(v.id()).property(VertexProperty.Cardinality.single, "name", "Lyndon").iterate();
+        g.V(v.id()).property(VertexProperty.Cardinality.single, "name", "Alice").iterate();
 
         final FireflyVertex vAfter = (FireflyVertex) g.V(v.id()).next();
         final long propertyCountAfter = IteratorUtils.count(vAfter.properties());
         Assert.assertEquals(1L, propertyCountAfter);
         final VertexProperty remainingProperty = vAfter.property("name");
-        Assert.assertEquals("Lyndon", remainingProperty.value());
+        Assert.assertEquals("Alice", remainingProperty.value());
     }
 
     @Test
     public void testVP_SingleStartingValue_NullInsert() {
         final FireflyVertex v = (FireflyVertex) g.addV("testVP_SingleStartingValue_NullInsert")
-                .property(VertexProperty.Cardinality.single, "name", "Simon")
+                .property(VertexProperty.Cardinality.single, "name", "Bob")
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(1L, propertyCount);
@@ -426,7 +441,7 @@ public class TestVertexPropertyCardinality {
         final long propertyCountAfter = IteratorUtils.count(vAfter.properties());
         Assert.assertEquals(1L, propertyCountAfter);
         final VertexProperty vp = vAfter.property("name");
-        Assert.assertEquals("Simon", vp.value());
+        Assert.assertEquals("Bob", vp.value());
     }
 
     @Test
@@ -435,23 +450,23 @@ public class TestVertexPropertyCardinality {
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(0L, propertyCount);
 
-        g.V(v.id()).property(VertexProperty.Cardinality.list, "name", "Lyndon").iterate();
+        g.V(v.id()).property(VertexProperty.Cardinality.list, "name", "Alice").iterate();
 
         final FireflyVertex vAfter = (FireflyVertex) g.V(v.id()).next();
         final long propertyCountAfter = IteratorUtils.count(vAfter.properties());
         Assert.assertEquals(1L, propertyCountAfter);
         final VertexProperty vp = vAfter.property("name");
-        Assert.assertEquals("Lyndon", vp.value());
+        Assert.assertEquals("Alice", vp.value());
 
-        g.V(v.id()).property(VertexProperty.Cardinality.list, "name", "Simon").iterate();
+        g.V(v.id()).property(VertexProperty.Cardinality.list, "name", "Bob").iterate();
 
         final FireflyVertex vAfter2 = (FireflyVertex) g.V(v.id()).next();
         final long propertyCountAfter2 = IteratorUtils.count(vAfter2.properties());
         Assert.assertEquals(2L, propertyCountAfter2);
         final List<? extends Property> properties = g.V(v.id()).properties("name").toList();
         Assert.assertEquals(2, properties.size());
-        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Lyndon")));
-        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Simon")));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Alice")));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Bob")));
     }
 
     @Test
@@ -460,36 +475,36 @@ public class TestVertexPropertyCardinality {
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(0L, propertyCount);
 
-        g.V(v.id()).property(VertexProperty.Cardinality.single, "name", "Lyndon").iterate();
+        g.V(v.id()).property(VertexProperty.Cardinality.single, "name", "Alice").iterate();
 
         final FireflyVertex vAfter = (FireflyVertex) g.V(v.id()).next();
         final long propertyCountAfter = IteratorUtils.count(vAfter.properties());
         Assert.assertEquals(1L, propertyCountAfter);
         final VertexProperty vp = vAfter.property("name");
-        Assert.assertEquals("Lyndon", vp.value());
+        Assert.assertEquals("Alice", vp.value());
     }
 
 
     @Test
     public void testVPC_MultipleStartingValues_DoubleValueCheck() {
         g.addV("testVPC_MultipleStartingValues_ValueCheck")
-                .property(VertexProperty.Cardinality.list, "name", "Lyndon")
-                .property(VertexProperty.Cardinality.list,"name", "Simon")
+                .property(VertexProperty.Cardinality.list, "name", "Alice")
+                .property(VertexProperty.Cardinality.list,"name", "Bob")
                 .next();
         final long propertyCount = IteratorUtils.count(g.V().hasLabel("testVPC_MultipleStartingValues_ValueCheck").properties());
         Assert.assertEquals(2L, propertyCount);
 
         final List<? extends Property> properties = g.V().hasLabel("testVPC_MultipleStartingValues_ValueCheck").properties("name").toList();
         Assert.assertEquals(2, properties.size());
-        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Lyndon")));
-        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Simon")));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Alice")));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Bob")));
     }
 
     @Test
     public void testVPC_MultipleStartingValues_SingleValueCheckSingle() {
         g.addV("testVPC_MultipleStartingValues_SingleValueCheckSingle")
-                .property(VertexProperty.Cardinality.single,"name", "Simon")
-                .property(VertexProperty.Cardinality.list, "name", "Lyndon")
+                .property(VertexProperty.Cardinality.single,"name", "Bob")
+                .property(VertexProperty.Cardinality.list, "name", "Alice")
                 .property(VertexProperty.Cardinality.list, "name", "Connor")
                 .next();
         long propertyCount = IteratorUtils.count(g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheckSingle").properties());
@@ -497,8 +512,8 @@ public class TestVertexPropertyCardinality {
 
         List<? extends Property> properties = g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheckSingle").properties("name").toList();
         Assert.assertEquals(3, properties.size());
-        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Simon")));
-        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Lyndon")));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Bob")));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Alice")));
         Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Connor")));
 
         g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheckSingle").property(VertexProperty.Cardinality.single, "name", "Valentyn").iterate();
@@ -513,51 +528,51 @@ public class TestVertexPropertyCardinality {
     @Test
     public void testVPC_MultipleStartingValues_DoubleValueSingleList() {
         g.addV("testVPC_MultipleStartingValues_DoubleValueSingleList")
-                .property(VertexProperty.Cardinality.single, "name", "Simon")
-                .property(VertexProperty.Cardinality.list, "name", "Lyndon")
+                .property(VertexProperty.Cardinality.single, "name", "Bob")
+                .property(VertexProperty.Cardinality.list, "name", "Alice")
                 .next();
         final long propertyCount = IteratorUtils.count(g.V().hasLabel("testVPC_MultipleStartingValues_DoubleValueSingleList").properties());
         Assert.assertEquals(2L, propertyCount);
 
         final List<? extends Property> properties = g.V().hasLabel("testVPC_MultipleStartingValues_DoubleValueSingleList").properties("name").toList();
         Assert.assertEquals(2, properties.size());
-        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Lyndon")));
-        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Simon")));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Alice")));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Bob")));
     }
 
     @Test
     public void testVPC_MultipleStartingValues_DoubleValueListSingle() {
         g.addV("testVPC_MultipleStartingValues_DoubleValueListSingle")
-                .property(VertexProperty.Cardinality.list, "name", "Lyndon")
-                .property(VertexProperty.Cardinality.single, "name", "Simon")
+                .property(VertexProperty.Cardinality.list, "name", "Alice")
+                .property(VertexProperty.Cardinality.single, "name", "Bob")
                 .next();
         final long propertyCount = IteratorUtils.count(g.V().hasLabel("testVPC_MultipleStartingValues_DoubleValueListSingle").properties());
         Assert.assertEquals(1L, propertyCount);
 
         final List<? extends Property> properties = g.V().hasLabel("testVPC_MultipleStartingValues_DoubleValueListSingle").properties("name").toList();
         Assert.assertEquals(1, properties.size());
-        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Simon")));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Bob")));
     }
 
     @Test
     public void testVPC_MultipleStartingValues_SingleValueCheckList() {
         g.addV("testVPC_MultipleStartingValues_SingleValueCheckList")
-                .property(VertexProperty.Cardinality.list, "name", "Lyndon")
+                .property(VertexProperty.Cardinality.list, "name", "Alice")
                 .next();
         final long propertyCount = IteratorUtils.count(g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheckList").properties());
         Assert.assertEquals(1L, propertyCount);
 
         final List<? extends Property> properties = g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheckList").properties("name").toList();
         Assert.assertEquals(1, properties.size());
-        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Lyndon")));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Alice")));
     }
 
 
     @Test
     public void testVPC_MultipleStartingValues_SinglePropertyNull() {
         g.addV("testVPC_MultipleStartingValues_SinglePropertyNull")
-                .property(VertexProperty.Cardinality.list, "name", "Lyndon")
-                .property(VertexProperty.Cardinality.list,"name", "Simon")
+                .property(VertexProperty.Cardinality.list, "name", "Alice")
+                .property(VertexProperty.Cardinality.list,"name", "Bob")
                 .next();
         final long propertyCount = IteratorUtils.count(g.V().hasLabel("testVPC_MultipleStartingValues_SinglePropertyNull").properties());
         Assert.assertEquals(2L, propertyCount);
@@ -576,8 +591,8 @@ public class TestVertexPropertyCardinality {
     @Test
     public void testVPC_MultipleStartingValues_ListPropertyNull() {
         g.addV("testVPC_MultipleStartingValues_ListPropertyNull")
-                .property(VertexProperty.Cardinality.list, "name", "Lyndon")
-                .property(VertexProperty.Cardinality.list,"name", "Simon")
+                .property(VertexProperty.Cardinality.list, "name", "Alice")
+                .property(VertexProperty.Cardinality.list,"name", "Bob")
                 .next();
         final long propertyCount = IteratorUtils.count(g.V().hasLabel("testVPC_MultipleStartingValues_ListPropertyNull").properties());
         Assert.assertEquals(2L, propertyCount);
@@ -595,8 +610,8 @@ public class TestVertexPropertyCardinality {
     @Test
     public void testVPC_MultipleStartingValues_PropertiesDrop() {
         final FireflyVertex v = (FireflyVertex) g.addV("testVPC_MultipleStartingValues_PropertiesDrop")
-                .property(VertexProperty.Cardinality.list, "name", "Lyndon")
-                .property(VertexProperty.Cardinality.list,"name", "Simon")
+                .property(VertexProperty.Cardinality.list, "name", "Alice")
+                .property(VertexProperty.Cardinality.list,"name", "Bob")
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(2L, propertyCount);
@@ -614,59 +629,59 @@ public class TestVertexPropertyCardinality {
     @Test
     public void testVPC_MultipleStartingValues_HasIdDrop() {
         final FireflyVertex v = (FireflyVertex) g.addV("testVPC_MultipleStartingValues_HasIdDrop")
-                .property(VertexProperty.Cardinality.list, "name", "Lyndon")
-                .property(VertexProperty.Cardinality.list,"name", "Simon")
+                .property(VertexProperty.Cardinality.list, "name", "Alice")
+                .property(VertexProperty.Cardinality.list,"name", "Bob")
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(2L, propertyCount);
 
-        VertexProperty dropLyndon = null;
+        VertexProperty dropAlice = null;
         final Iterator<VertexProperty<Object>> it = v.properties("name");
         while (it.hasNext()) {
             final VertexProperty vp = it.next();
-            if (vp.value().equals("Lyndon")) {
-                dropLyndon = vp;
+            if (vp.value().equals("Alice")) {
+                dropAlice = vp;
                 break;
             }
         }
-        Assert.assertNotNull(dropLyndon);
+        Assert.assertNotNull(dropAlice);
         g.V().hasLabel("testVPC_MultipleStartingValues_HasIdDrop").
-                properties("name").hasId(dropLyndon.id()).drop().iterate();
+                properties("name").hasId(dropAlice.id()).drop().iterate();
 
         final FireflyVertex vAfter = (FireflyVertex) g.V(v.id()).next();
         final long propertyCountAfter = IteratorUtils.count(vAfter.properties());
         Assert.assertEquals(1L, propertyCountAfter);
         final VertexProperty remainingProperty = vAfter.properties("name").next();
-        Assert.assertEquals("Simon", remainingProperty.value());
+        Assert.assertEquals("Bob", remainingProperty.value());
         final VertexProperty remainingProperty2 = vAfter.property("name");
-        Assert.assertEquals("Simon", remainingProperty2.value());
+        Assert.assertEquals("Bob", remainingProperty2.value());
         final List<? extends Property> remainingProperty3 = g.V(v.id()).properties("name").toList();
         Assert.assertEquals(1, remainingProperty3.size());
-        Assert.assertEquals("Simon", remainingProperty3.get(0).value());
+        Assert.assertEquals("Bob", remainingProperty3.get(0).value());
     }
 
     @Test
     public void testVPC_MultipleStartingValues_WhereValuesDrop() {
         final FireflyVertex v = (FireflyVertex) g.addV("testVPC_MultipleStartingValues_WhereValuesDrop")
-                .property(VertexProperty.Cardinality.list, "name", "Lyndon")
-                .property(VertexProperty.Cardinality.list,"name", "Simon")
+                .property(VertexProperty.Cardinality.list, "name", "Alice")
+                .property(VertexProperty.Cardinality.list,"name", "Bob")
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(2L, propertyCount);
 
         g.V().hasLabel("testVPC_MultipleStartingValues_WhereValuesDrop").
-                properties("name").where(__.value().is(P.eq("Lyndon"))).drop().iterate();
+                properties("name").where(__.value().is(P.eq("Alice"))).drop().iterate();
 
         final FireflyVertex vAfter = (FireflyVertex) g.V(v.id()).next();
         final long propertyCountAfter = IteratorUtils.count(vAfter.properties());
         Assert.assertEquals(1L, propertyCountAfter);
         final VertexProperty remainingProperty = vAfter.properties("name").next();
-        Assert.assertEquals("Simon", remainingProperty.value());
+        Assert.assertEquals("Bob", remainingProperty.value());
         final VertexProperty remainingProperty2 = vAfter.property("name");
-        Assert.assertEquals("Simon", remainingProperty2.value());
+        Assert.assertEquals("Bob", remainingProperty2.value());
         final List<? extends Property> remainingProperty3 = g.V(v.id()).properties("name").toList();
         Assert.assertEquals(1, remainingProperty3.size());
-        Assert.assertEquals("Simon", remainingProperty3.get(0).value());
+        Assert.assertEquals("Bob", remainingProperty3.get(0).value());
     }
 
     @Test

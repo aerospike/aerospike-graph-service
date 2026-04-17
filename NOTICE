@@ -1,0 +1,88 @@
+AerospikeGraphService
+Copyright 2022-2026 Aerospike, Inc.
+
+This product includes software developed at Aerospike, Inc.
+(https://www.aerospike.com/).
+
+--------------------------------------------------------------------------------
+Third-party software
+--------------------------------------------------------------------------------
+
+This product redistributes, or depends at runtime on, software developed by
+third parties and licensed under terms compatible with Apache-2.0. The
+authoritative inventory is generated from the Maven dependency graph via
+`mvn license:aggregate-third-party-report` and is checked into this
+repository as `THIRD_PARTY.txt`. The summary below calls out the most
+significant components; see that file for the complete list and license texts.
+
+Apache License, Version 2.0 (Apache-2.0):
+  - Apache TinkerPop (gremlin-core, gremlin-server, gremlin-driver,
+    tinkergraph-gremlin, spark-gremlin), (c) Apache Software Foundation.
+  - Apache Spark, (c) Apache Software Foundation.
+  - Netty, (c) The Netty Project.
+  - Google Guava, (c) Google LLC.
+  - resilience4j, (c) resilience4j contributors.
+  - Vert.x (vertx-core, vertx-web, vertx-dropwizard-metrics),
+    (c) Red Hat, Inc. and others.
+  - Jackson (jackson-core, jackson-databind), (c) FasterXML, LLC.
+  - Apache Commons Configuration2, Apache Commons BeanUtils,
+    (c) Apache Software Foundation.
+  - AWS SDK for Java v1, (c) Amazon.com, Inc. or its affiliates.
+  - Prometheus simpleclient, (c) The Prometheus Authors.
+  - Aerospike Java client, (c) Aerospike, Inc. The specific artifact variant
+    (default vs. BouncyCastle-backed) is tracked in the root pom.xml and
+    will be pinned to the BouncyCastle variant (MIT-licensed transitive
+    crypto) before first OSS release, so that no reachable commit declares
+    a GPL-transitive crypto dependency.
+
+MIT:
+  - SLF4J API, (c) QOS.ch.
+
+Eclipse Public License 1.0 (EPL-1.0) and GNU Lesser General Public License
+2.1 (LGPL-2.1), dually licensed:
+  - Logback (logback-core, logback-classic), (c) QOS.ch. Redistributed
+    unmodified as a standard Maven artifact; see logback's own LICENSE and
+    NOTICE for the authoritative terms. Downstream users may substitute
+    any SLF4J-compatible binding.
+
+BSD 3-Clause:
+  - Hamcrest, (c) Hamcrest contributors (test scope).
+
+Eclipse Public License 1.0 (EPL-1.0):
+  - JUnit 4, (c) JUnit contributors (test scope).
+
+GPL v2 with Classpath Exception (GPL-2.0-with-classpath-exception):
+  - OpenJDK JMH (jmh-core, jmh-generator-annprocess), (c) Oracle and/or its
+    affiliates. Used for micro-benchmarking only; the pending scope
+    normalization will ensure it is declared `<scope>test</scope>` in every
+    reachable commit so it is not shipped in any released binary. The
+    Classpath Exception permits redistribution regardless.
+
+--------------------------------------------------------------------------------
+Third-party data
+--------------------------------------------------------------------------------
+
+This product bundles the following third-party datasets under the
+`data/` directory for use by the test suite, benchmarks, and
+documentation:
+
+  - `data/air-routes-small.{graphml,json,kryo}` — derived from the
+    *Air Routes* graph by Kelvin R. Lawrence, distributed as part of
+    the *Practical Gremlin* book and its companion repository at
+    https://github.com/krlawrence/graph. Redistributed with
+    attribution as a fixture for this project's tests and tutorials.
+    See `data/README.md` for details.
+
+--------------------------------------------------------------------------------
+
+Trademarks
+--------------------------------------------------------------------------------
+
+"Aerospike" is a registered trademark of Aerospike, Inc. Use of the mark is
+governed by the Aerospike trademark policy
+(https://aerospike.com/legal/trademarks). The Apache-2.0 license granted
+for the source and binaries of this project does not convey any trademark
+license.
+
+Other product and company names mentioned herein may be the trademarks of
+their respective owners.

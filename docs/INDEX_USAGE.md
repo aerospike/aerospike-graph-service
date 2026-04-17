@@ -76,7 +76,7 @@ Single indexed vertex property:
        |                       _______________ None of these steps are impacted by the index
        |                      |    |     |     because they are not at the start of a traversal
        v                      V    v     v
-g.V().has("name", "Lyndon").out().in().has("name", "Simon").toList()
+g.V().has("name", "Alice").out().in().has("name", "Bob").toList()
 ```
 
 Single non-indexed vertex property:
@@ -87,20 +87,20 @@ Single non-indexed vertex property:
        |                      __________ None of these steps are impacted by the index
        |                     |     |     because they are not at the start of a traversal
        v                     V     v
-g.V().has("country", "USA").out().has("name", "Lyndon").toList()
+g.V().has("country", "USA").out().has("name", "Alice").toList()
 ```
 
 One vertex property index and one non-indexed vertex property:
 ```
         _________________________ Firefly can compound has steps together at the start of a traversal, and even
-       |                     |    though the has("name", "Lyndon") is not at the start of the traversal, it will
+       |                     |    though the has("name", "Alice") is not at the start of the traversal, it will
        |                     |    be reordered to run first as an index and have the has("country", "USA") step
        |                     |    run after it, giving index performance.
        |                     |    
        |                     |                      __________ None of these steps are impacted by the index
        |                     |                     |     |     because they are not at the start of a traversal
        v                     v                     V     v
-g.V().has("country", "USA").has("name", "Lyndon").out().has("name", "Simon").toList()
+g.V().has("country", "USA").has("name", "Alice").out().has("name", "Bob").toList()
 ```
 
 Two vertex property indexes:
@@ -114,7 +114,7 @@ Two vertex property indexes:
        |                     |                      __________ None of these steps are impacted by the index
        |                     |                     |     |     because they are not at the start of a traversal
        v                     v                     V     v
-g.V().has("age", 29).has("name", "Lyndon").out().has("name", "Simon").toList()
+g.V().has("age", 29).has("name", "Alice").out().has("name", "Bob").toList()
 ```
 
 Label index and vertex property index:
@@ -126,7 +126,7 @@ Label index and vertex property index:
        |                     |                      __________ None of these steps are impacted by the index
        |                     |                     |     |     because they are not at the start of a traversal
        v                     v                     V     v
-g.V().hasLabel("Person").has("name", "Lyndon").out().has("name", "Simon").toList()
+g.V().hasLabel("Person").has("name", "Alice").out().has("name", "Bob").toList()
 ```
 
 Label index and non-indexed vertex property:
@@ -138,5 +138,5 @@ Label index and non-indexed vertex property:
        |                     |                      __________ None of these steps are impacted by the index
        |                     |                     |     |     because they are not at the start of a traversal
        v                     v                     V     v
-g.V().hasLabel("Person").has("country", "USA").out().has("name", "Simon").toList()
+g.V().hasLabel("Person").has("country", "USA").out().has("name", "Bob").toList()
 ```

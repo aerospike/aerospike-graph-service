@@ -1,3 +1,17 @@
+# Copyright 2022-2026 Aerospike, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 name: Build and Test Firefly
 
 on:
@@ -5,7 +19,42 @@ on:
     branches: [main,3.x-dev]
 
 jobs:
+  ci-guard:
+    # Fork-safe / label-gated gate. Downstream jobs depend on this via
+    # `needs: ci-guard`, so on fork PRs that lack the `trusted-ci`
+    # label this job fails fast and the rest of the workflow is
+    # skipped, keeping AWS/GCS/license secrets out of reach.
+    name: CI guard (fork + label check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Gate
+        env:
+          EVENT: ${{ github.event_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT" != "pull_request" ]]; then
+            echo "Non-PR event ($EVENT) — ci-guard allows."
+            exit 0
+          fi
+          if [[ "$HEAD_REPO" == "$BASE_REPO" ]]; then
+            echo "Same-repo PR ($HEAD_REPO) — ci-guard allows."
+            exit 0
+          fi
+          if grep -q '"trusted-ci"' <<<"$LABELS"; then
+            echo "Fork PR carries 'trusted-ci' label — ci-guard allows."
+            exit 0
+          fi
+          echo "::error::Fork PRs must carry the 'trusted-ci' label before"
+          echo "::error::CI with secrets will run. A maintainer will add the"
+          echo "::error::label after reviewing the diff. See CONTRIBUTING.md."
+          exit 1
+
   build-firefly-maven:
+    needs: ci-guard
     name: Build Firefly Maven
     timeout-minutes: 120
     runs-on: ubuntu-latest
@@ -31,6 +80,7 @@ jobs:
         run: |
           mvn clean package -DskipTests --no-transfer-progress
   start-chainable-maven-runner:
+    needs: ci-guard
     name: Start Chainable Maven Runner
     runs-on: ubuntu-latest
     outputs:
@@ -67,6 +117,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-structure:
+    needs: ci-guard
     name: Start Runner Structure
     runs-on: ubuntu-latest
     outputs:
@@ -103,6 +154,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-process-1:
+    needs: ci-guard
     name: Start Runner Process 1
     runs-on: ubuntu-latest
     outputs:
@@ -139,6 +191,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-process-2:
+    needs: ci-guard
     name: Start Runner Process 2
     runs-on: ubuntu-latest
     outputs:
@@ -175,6 +228,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-process-3:
+    needs: ci-guard
     name: Start Runner Process 3
     runs-on: ubuntu-latest
     outputs:
@@ -211,6 +265,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-local-computer-process-1:
+    needs: ci-guard
     name: Start Runner Local Computer Process 1
     runs-on: ubuntu-latest
     outputs:
@@ -247,6 +302,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-local-computer-process-2:
+    needs: ci-guard
     name: Start Runner Local Computer Process 2
     runs-on: ubuntu-latest
     outputs:
@@ -283,6 +339,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-local-computer-process-3:
+    needs: ci-guard
     name: Start Runner Local Computer Process 3
     runs-on: ubuntu-latest
     outputs:
@@ -319,6 +376,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-local-computer-process-4:
+    needs: ci-guard
     name: Start Runner Local Computer Process 4
     runs-on: ubuntu-latest
     outputs:
@@ -355,6 +413,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly:
+    needs: ci-guard
     name: Start Firefly Test Runner
     runs-on: ubuntu-latest
     outputs:
@@ -391,6 +450,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-movielens:
+    needs: ci-guard
     name: Start Movielens Runner
     runs-on: ubuntu-latest
     outputs:
@@ -425,6 +485,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   negative-test-bulk-loader-call-docker:
+    needs: ci-guard
     name: Bulk Loader Call without Spark Fails
     timeout-minutes: 120
     runs-on: ubuntu-latest
@@ -473,7 +534,7 @@ jobs:
   test-firefly-chainable-maven:
     name: Test Chainable Maven
     timeout-minutes: 120
-    needs: start-chainable-maven-runner
+    needs: [ci-guard, start-chainable-maven-runner]
     runs-on: ${{ needs.start-chainable-maven-runner.outputs.label }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -534,7 +595,7 @@ jobs:
   test-firefly:
     name: Test Firefly
     timeout-minutes: 120
-    needs: start-runner-test-firefly
+    needs: [ci-guard, start-runner-test-firefly]
     runs-on: ${{ needs.start-runner-test-firefly.outputs.label }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -572,7 +633,7 @@ jobs:
   test-firefly-structure:
     name: Test Packed Structure Tests
     timeout-minutes: 120
-    needs: start-runner-test-firefly-structure
+    needs: [ci-guard, start-runner-test-firefly-structure]
     runs-on: ${{ needs.start-runner-test-firefly-structure.outputs.label }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -608,6 +669,7 @@ jobs:
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphStructureStandardTest --no-transfer-progress
   test-nsup-disabled:
+    needs: ci-guard
     name: Test nsup Disabled
     timeout-minutes: 30
     runs-on: ubuntu-latest
@@ -639,6 +701,7 @@ jobs:
           bash -x scripts/start_aerospike_nsup.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepNSupDisabledTest --no-transfer-progress
   test-mrt:
+    needs: ci-guard
     name: Test MRT
     timeout-minutes: 30
     runs-on: ubuntu-latest
@@ -674,6 +737,7 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxFeatureTest --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxMRTFeatureTest --no-transfer-progress
   test-tinkerpop-tx:
+    needs: ci-guard
     name: Test Tinkerpop Transactions
     timeout-minutes: 30
     runs-on: ubuntu-latest
@@ -744,7 +808,7 @@ jobs:
   test-firefly-process-1:
     name: Test Firefly Process Tests 1
     timeout-minutes: 120
-    needs: start-runner-test-firefly-process-1
+    needs: [ci-guard, start-runner-test-firefly-process-1]
     runs-on: ${{ needs.start-runner-test-firefly-process-1.outputs.label }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -782,7 +846,7 @@ jobs:
   test-firefly-process-2:
     name: Test Firefly Process Tests 2
     timeout-minutes: 120
-    needs: start-runner-test-firefly-process-2
+    needs: [ci-guard, start-runner-test-firefly-process-2]
     runs-on: ${{ needs.start-runner-test-firefly-process-2.outputs.label }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -820,7 +884,7 @@ jobs:
   test-firefly-process-3:
     name: Test Firefly Process Tests 3
     timeout-minutes: 120
-    needs: start-runner-test-firefly-process-3
+    needs: [ci-guard, start-runner-test-firefly-process-3]
     runs-on: ${{ needs.start-runner-test-firefly-process-3.outputs.label }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -858,7 +922,7 @@ jobs:
   test-local-computer-process-1:
     name: Test Local Computer Process Tests 1
     timeout-minutes: 120
-    needs: start-runner-test-local-computer-process-1
+    needs: [ci-guard, start-runner-test-local-computer-process-1]
     runs-on: ${{ needs.start-runner-test-local-computer-process-1.outputs.label }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -898,7 +962,7 @@ jobs:
   test-local-computer-process-2:
     name: Test Local Computer Process Tests 2 (map)
     timeout-minutes: 120
-    needs: start-runner-test-local-computer-process-2
+    needs: [ci-guard, start-runner-test-local-computer-process-2]
     runs-on: ${{ needs.start-runner-test-local-computer-process-2.outputs.label }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -937,7 +1001,7 @@ jobs:
   test-local-computer-process-3:
     name: Test Local Computer Process Tests 3 (filter)
     timeout-minutes: 120
-    needs: start-runner-test-local-computer-process-3
+    needs: [ci-guard, start-runner-test-local-computer-process-3]
     runs-on: ${{ needs.start-runner-test-local-computer-process-3.outputs.label }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -976,7 +1040,7 @@ jobs:
   test-local-computer-process-4:
     name: Test Local Computer Process Tests 4 (branch)
     timeout-minutes: 120
-    needs: start-runner-test-local-computer-process-4
+    needs: [ci-guard, start-runner-test-local-computer-process-4]
     runs-on: ${{ needs.start-runner-test-local-computer-process-4.outputs.label }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -1015,7 +1079,7 @@ jobs:
   test-firefly-movielens:
     name: Test Movielens
     timeout-minutes: 120
-    needs: start-runner-movielens
+    needs: [ci-guard, start-runner-movielens]
     runs-on: ${{ needs.start-runner-movielens.outputs.label }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -1046,6 +1110,7 @@ jobs:
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=TestMovielens1M  -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-aerospike-version-minimum:
+    needs: ci-guard
     name: Test Aerospike Version Minimum
     timeout-minutes: 120
     runs-on: ubuntu-latest
@@ -1077,6 +1142,7 @@ jobs:
           bash -x scripts/start_aerospike.sh --aerospike_version 6.2.0.3
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeVersionCheckTest  -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-invalid-feature-key:
+    needs: ci-guard
     name: Test Aerospike Invalid Feature Key
     timeout-minutes: 120
     runs-on: ubuntu-latest
@@ -1108,6 +1174,7 @@ jobs:
           bash -x scripts/start_aerospike.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeGraphServiceCheckTest  -Dintegration.test.properties=packed --no-transfer-progress
   test-aerospike-graph-api:
+    needs: ci-guard
     name: Test Aerospike Graph API
     timeout-minutes: 15
     runs-on: ubuntu-latest
@@ -1149,6 +1216,7 @@ jobs:
           cd aerospike-graph-api
           mvn test --no-transfer-progress
   test-chainable-docker:
+    needs: ci-guard
     name: Test Chainable Docker
     timeout-minutes: 60
     runs-on: ubuntu-latest
@@ -1202,7 +1270,7 @@ jobs:
         # This test does not need to stop the image because SSL is not configured properly, so it errors and exits but the test serves its purpose regardless.
         run: |
           echo "Running docker image with secrets"
-          docker run -d --name firefly -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-secret-masking/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -e JAVA_OPTIONS="-Djavax.net.ssl.trustStore=/root/aerospike/truststore.jks -Djavax.net.ssl.keyStore=/root/aerospike/keystore.jks -Djavax.net.ssl.trustStorePassword=simon123 -Djavax.net.ssl.keyStorePassword=simon123" firefly
+          docker run -d --name firefly -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-secret-masking/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -e JAVA_OPTIONS="-Djavax.net.ssl.trustStore=/root/aerospike/truststore.jks -Djavax.net.ssl.keyStore=/root/aerospike/keystore.jks -Djavax.net.ssl.trustStorePassword=MASKME123 -Djavax.net.ssl.keyStorePassword=MASKME123" firefly
           echo "Sleeping for 10 seconds while gremlin-server starts"
           sleep 10
 
@@ -1303,6 +1371,7 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=TestSlimVsFat --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerShutdown --no-transfer-progress
   test-tls-docker:
+    needs: ci-guard
     name: Test TLS Docker
     timeout-minutes: 15
     runs-on: ubuntu-latest
@@ -1352,6 +1421,7 @@ jobs:
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)
   test-aerospike-ttl:
+    needs: ci-guard
     name: Test Aerospike TTL Fails
     timeout-minutes: 30
     runs-on: ubuntu-latest
@@ -1385,6 +1455,7 @@ jobs:
           bash -x scripts/start_aerospike_default_ttl.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeTTL --no-transfer-progress
   snyk-test:
+    needs: ci-guard
     name: Snyk Vulnerability Scan
     runs-on: ubuntu-latest
     if: github.head_ref == '3.x-snyk'
@@ -1415,6 +1486,7 @@ jobs:
   stop-runner-movielens:
     name: Stop Movielens Runner
     needs:
+      - ci-guard
       - test-firefly-movielens
       - start-runner-movielens
     runs-on: ubuntu-latest
@@ -1441,6 +1513,7 @@ jobs:
   stop-chainable-maven-runner:
     name: Stop Chainable Runner
     needs:
+      - ci-guard
       - start-chainable-maven-runner
       - test-firefly-chainable-maven
     runs-on: ubuntu-latest
@@ -1467,6 +1540,7 @@ jobs:
   stop-runner-test-firefly:
     name: Stop Runner
     needs:
+      - ci-guard
       - test-firefly
       - start-runner-test-firefly
     runs-on: ubuntu-latest
@@ -1493,6 +1567,7 @@ jobs:
   stop-runner-test-firefly-process-1:
     name: Stop Process Runner 1
     needs:
+      - ci-guard
       - test-firefly-process-1
       - start-runner-test-firefly-process-1
     runs-on: ubuntu-latest
@@ -1519,6 +1594,7 @@ jobs:
   stop-runner-test-firefly-process-2:
     name: Stop Process Runner 2
     needs:
+      - ci-guard
       - test-firefly-process-2
       - start-runner-test-firefly-process-2
     runs-on: ubuntu-latest
@@ -1545,6 +1621,7 @@ jobs:
   stop-runner-test-firefly-process-3:
     name: Stop Process Runner 3
     needs:
+      - ci-guard
       - test-firefly-process-3
       - start-runner-test-firefly-process-3
     runs-on: ubuntu-latest
@@ -1571,6 +1648,7 @@ jobs:
   stop-runner-test-local-computer-process-1:
     name: Stop Local Computer Process Runner 1
     needs:
+      - ci-guard
       - test-local-computer-process-1
       - start-runner-test-local-computer-process-1
     runs-on: ubuntu-latest
@@ -1597,6 +1675,7 @@ jobs:
   stop-runner-test-local-computer-process-2:
     name: Stop Local Computer Process Runner 2
     needs:
+      - ci-guard
       - test-local-computer-process-2
       - start-runner-test-local-computer-process-2
     runs-on: ubuntu-latest
@@ -1623,6 +1702,7 @@ jobs:
   stop-runner-test-local-computer-process-3:
     name: Stop Local Computer Process Runner 3
     needs:
+      - ci-guard
       - test-local-computer-process-3
       - start-runner-test-local-computer-process-3
     runs-on: ubuntu-latest
@@ -1649,6 +1729,7 @@ jobs:
   stop-runner-test-local-computer-process-4:
     name: Stop Local Computer Process Runner 4
     needs:
+      - ci-guard
       - test-local-computer-process-4
       - start-runner-test-local-computer-process-4
     runs-on: ubuntu-latest
@@ -1675,6 +1756,7 @@ jobs:
   stop-runner-test-firefly-structure:
     name: Stop Structure Runner
     needs:
+      - ci-guard
       - test-firefly-structure
       - start-runner-test-firefly-structure
     runs-on: ubuntu-latest
@@ -1699,6 +1781,7 @@ jobs:
           label: ${{ needs.start-runner-test-firefly-structure.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-test-firefly-structure.outputs.ec2-instance-id }}
   test-configure_graph_scripts:
+    needs: ci-guard
     name: Test Configure Aerospike Graph Python Scripts
     timeout-minutes: 5
     runs-on: ubuntu-latest

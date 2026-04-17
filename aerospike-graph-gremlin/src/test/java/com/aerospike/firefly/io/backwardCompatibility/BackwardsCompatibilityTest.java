@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.io.backwardCompatibility;
 
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -25,9 +41,6 @@ import static com.aerospike.firefly.util.DockerUtil.AEROSPIKE_GRAPH_SERVICE;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 import static org.junit.Assert.fail;
 
-/**
- * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
- */
 public class BackwardsCompatibilityTest {
     private static FireflyGraph graph;
     private static final DockerUtil dockerUtil = new DockerUtil();
@@ -58,8 +71,8 @@ public class BackwardsCompatibilityTest {
         final GraphTraversalSource g1 = graph.traversal();
         final GraphTraversalSource g2 = traversal().withRemote(DriverRemoteConnection.using("localhost", port, "g"));
 
-        final Vertex v1_1 = g1.addV("person").property("name", "Lyndon1").next();
-        final Vertex v2_1 = g2.addV("person").property("name", "Lyndon2").next();
+        final Vertex v1_1 = g1.addV("person").property("name", "Alice1").next();
+        final Vertex v2_1 = g2.addV("person").property("name", "Alice2").next();
 
         final Vertex v1_2 = g2.V(v1_1.id()).next();
         final Vertex v2_2 = g1.V(v2_1.id()).next();
@@ -87,34 +100,34 @@ public class BackwardsCompatibilityTest {
     public void testVersionCompatibility() {
         final GraphTraversalSource g2 = traversal().withRemote(DriverRemoteConnection.using("localhost", port, "g"));
         g2.V().drop().iterate();
-        final Vertex lyndon = g2.addV("person").property("name", "Lyndon").next();
-        final Vertex simon = g2.addV("person").property("name", "Simon").next();
-        final Vertex grant = g2.addV("person").property("name", "Grant").next();
+        final Vertex alice = g2.addV("person").property("name", "Alice").next();
+        final Vertex bob = g2.addV("person").property("name", "Bob").next();
+        final Vertex carol = g2.addV("person").property("name", "Carol").next();
         final Vertex joe = g2.addV("person").property("name", "joe").next();
         final Vertex rahul = g2.addV("person").property("name", "Rahul").next();
         final Vertex ishaan = g2.addV("person").property("name", "Ishaan").next();
 
         // Try adding different types of properties.
-        g2.V(lyndon.id()).property("isDope", true).iterate();
-        g2.V(simon.id()).property("isDope", "true").property(VertexProperty.Cardinality.list, "foo", "baz").iterate();
-        g2.V(grant.id()).property("isDope", 1).iterate();
+        g2.V(alice.id()).property("isDope", true).iterate();
+        g2.V(bob.id()).property("isDope", "true").property(VertexProperty.Cardinality.list, "foo", "baz").iterate();
+        g2.V(carol.id()).property("isDope", 1).iterate();
         g2.V(joe.id()).property("isDope", 1.0).iterate();
         g2.V(rahul.id()).property("isDope", 1.0).iterate();
         g2.V(ishaan.id()).property("isDope", 1L).iterate();
 
-        // Create some edges from lyndon to everyone.
-        g2.addE("knows").from(lyndon).to(simon).property("foo", "bar").iterate();
-        g2.addE("knows").from(lyndon).to(grant).property("foo", false).property("foo", "baz").iterate();
-        g2.addE("knows").from(lyndon).to(joe).property("foo", 25).iterate();
-        g2.addE("knows").from(lyndon).to(rahul).property("foo", 25.0).iterate();
-        g2.addE("knows").from(lyndon).to(ishaan).property("foo", 25.0).iterate();
+        // Create some edges from alice to everyone.
+        g2.addE("knows").from(alice).to(bob).property("foo", "bar").iterate();
+        g2.addE("knows").from(alice).to(carol).property("foo", false).property("foo", "baz").iterate();
+        g2.addE("knows").from(alice).to(joe).property("foo", 25).iterate();
+        g2.addE("knows").from(alice).to(rahul).property("foo", 25.0).iterate();
+        g2.addE("knows").from(alice).to(ishaan).property("foo", 25.0).iterate();
 
-        // Create an edge from simon to everyone.
-        g2.addE("knows").from(simon).to(lyndon).property("foo", 25L).iterate();
-        g2.addE("knows").from(simon).to(grant).iterate();
-        g2.addE("knows").from(simon).to(joe).property("foo", "baz").iterate();
-        g2.addE("knows").from(simon).to(rahul).iterate();
-        g2.addE("knows").from(simon).to(ishaan).iterate();
+        // Create an edge from bob to everyone.
+        g2.addE("knows").from(bob).to(alice).property("foo", 25L).iterate();
+        g2.addE("knows").from(bob).to(carol).iterate();
+        g2.addE("knows").from(bob).to(joe).property("foo", "baz").iterate();
+        g2.addE("knows").from(bob).to(rahul).iterate();
+        g2.addE("knows").from(bob).to(ishaan).iterate();
 
         // Create two graph traversal sources, one for the local graph and one for the remote graph.
         final GraphTraversalSource g1 = graph.traversal();

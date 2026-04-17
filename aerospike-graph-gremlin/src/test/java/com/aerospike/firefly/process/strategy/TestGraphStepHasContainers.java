@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.process.strategy;
 
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
@@ -37,26 +53,26 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
 
     private void loadTestData() {
         final GraphTraversalSource g = graph.traversal();
-        g.addV("person").property("isCool", "sometimes").property("firstName", "simon").property("age", 16).next();
-        g.addV("person").property("isCool", "sometimes").property("firstName", "simon").property("age", 17).next();
-        g.addV("person").property("isCool", "sometimes").property("firstName", "simon").property("age", 18).next();
-        g.addV("person").property("isCool", "sometimes").property("firstName", "simon").property("age", 19).next();
-        g.addV("person").property("isCool", "sometimes").property("firstName", "simon").property("age", 20).next();
-        g.addV("person").property("isCool", "sometimes").property("firstName", "simon").property("age", 21).next();
-        g.addV("person").property("isCool", "sometimes").property("firstName", "simon").property("age", 22).next();
-        g.addV("person").property("isCool", "exceptionally").property("firstName", "grant").property("age", 23).next();
-        g.addV("person").property("isCool", "exceptionally").property("firstName", "grant").property("age", 24).next();
-        g.addV("person").property("isCool", "exceptionally").property("firstName", "grant").property("age", 25).next();
-        g.addV("person").property("isCool", "exceptionally").property("firstName", "grant").property("age", 26).next();
-        g.addV("person").property("isCool", "exceptionally").property("firstName", "grant").property("age", 27).next();
-        g.addV("person").property("isCool", "exceptionally").property("firstName", "grant").property("age", 28).next();
-        g.addV("person").property("isCool", "yes").property("firstName", "lyndon").property("age", 29).next();
-        g.addV("person").property("isCool", "yes").property("firstName", "lyndon").property("age", 30).next();
-        g.addV("person").property("isCool", "yes").property("firstName", "lyndon").property("age", 31).next();
-        g.addV("person").property("isCool", "no").property("firstName", "lyndon").property("age", 32).next();
-        g.addV("person").property("isCool", "no").property("firstName", "lyndon").property("age", 33).next();
-        g.addV("person").property("isCool", "no").property("firstName", "lyndon").property("age", 34).next();
-        g.addV("person").property("isCool", "sometimes").property("firstName", "lyndon").property("age", 35).next();
+        g.addV("person").property("isCool", "sometimes").property("firstName", "bob").property("age", 16).next();
+        g.addV("person").property("isCool", "sometimes").property("firstName", "bob").property("age", 17).next();
+        g.addV("person").property("isCool", "sometimes").property("firstName", "bob").property("age", 18).next();
+        g.addV("person").property("isCool", "sometimes").property("firstName", "bob").property("age", 19).next();
+        g.addV("person").property("isCool", "sometimes").property("firstName", "bob").property("age", 20).next();
+        g.addV("person").property("isCool", "sometimes").property("firstName", "bob").property("age", 21).next();
+        g.addV("person").property("isCool", "sometimes").property("firstName", "bob").property("age", 22).next();
+        g.addV("person").property("isCool", "exceptionally").property("firstName", "carol").property("age", 23).next();
+        g.addV("person").property("isCool", "exceptionally").property("firstName", "carol").property("age", 24).next();
+        g.addV("person").property("isCool", "exceptionally").property("firstName", "carol").property("age", 25).next();
+        g.addV("person").property("isCool", "exceptionally").property("firstName", "carol").property("age", 26).next();
+        g.addV("person").property("isCool", "exceptionally").property("firstName", "carol").property("age", 27).next();
+        g.addV("person").property("isCool", "exceptionally").property("firstName", "carol").property("age", 28).next();
+        g.addV("person").property("isCool", "yes").property("firstName", "alice").property("age", 29).next();
+        g.addV("person").property("isCool", "yes").property("firstName", "alice").property("age", 30).next();
+        g.addV("person").property("isCool", "yes").property("firstName", "alice").property("age", 31).next();
+        g.addV("person").property("isCool", "no").property("firstName", "alice").property("age", 32).next();
+        g.addV("person").property("isCool", "no").property("firstName", "alice").property("age", 33).next();
+        g.addV("person").property("isCool", "no").property("firstName", "alice").property("age", 34).next();
+        g.addV("person").property("isCool", "sometimes").property("firstName", "alice").property("age", 35).next();
     }
 
     private static class KeyValuePair {
@@ -70,7 +86,7 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
     }
 
     public GraphTraversal<Vertex, Vertex> getTraversal(final GraphTraversalSource g) {
-        return g.V().hasLabel("person").has("isCool", "sometimes").has("firstName", "lyndon").has("age", 35);
+        return g.V().hasLabel("person").has("isCool", "sometimes").has("firstName", "alice").has("age", 35);
     }
 
     private GraphTraversal<Vertex, Vertex> setupTest(final String indexes, final boolean labelIndex) {
@@ -99,7 +115,7 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
         final List<KeyValuePair> expectedOrder = List.of(
                 new KeyValuePair("age", 35),
                 new KeyValuePair("isCool", "sometimes"),
-                new KeyValuePair("firstName", "lyndon"),
+                new KeyValuePair("firstName", "alice"),
                 new KeyValuePair("~label", "person")
         );
 
@@ -125,7 +141,7 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
 
         final List<KeyValuePair> expectedOrder = List.of(
                 new KeyValuePair("age", 35),
-                new KeyValuePair("firstName", "lyndon"),
+                new KeyValuePair("firstName", "alice"),
                 new KeyValuePair("isCool", "sometimes"),
                 new KeyValuePair("~label", "person")
         );
@@ -141,7 +157,7 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
         final List<KeyValuePair> expectedOrder = List.of(
                 new KeyValuePair("age", 35),
                 new KeyValuePair("isCool", "sometimes"),
-                new KeyValuePair("firstName", "lyndon"),
+                new KeyValuePair("firstName", "alice"),
                 new KeyValuePair("~label", "person")
         );
 
@@ -155,7 +171,7 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
 
         final List<KeyValuePair> expectedOrder = List.of(
                 new KeyValuePair("isCool", "sometimes"),
-                new KeyValuePair("firstName", "lyndon"),
+                new KeyValuePair("firstName", "alice"),
                 new KeyValuePair("age", 35),
                 new KeyValuePair("~label", "person")
         );
@@ -170,7 +186,7 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
 
         final List<KeyValuePair> expectedOrder = List.of(
                 new KeyValuePair("age", 35),
-                new KeyValuePair("firstName", "lyndon"),
+                new KeyValuePair("firstName", "alice"),
                 new KeyValuePair("~label", "person"),
                 new KeyValuePair("isCool", "sometimes")
         );
@@ -187,7 +203,7 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
                 new KeyValuePair("age", 35),
                 new KeyValuePair("isCool", "sometimes"),
                 new KeyValuePair("~label", "person"),
-                new KeyValuePair("firstName", "lyndon")
+                new KeyValuePair("firstName", "alice")
         );
 
         // Test that the order is correct.
@@ -200,7 +216,7 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
 
         final List<KeyValuePair> expectedOrder = List.of(
                 new KeyValuePair("isCool", "sometimes"),
-                new KeyValuePair("firstName", "lyndon"),
+                new KeyValuePair("firstName", "alice"),
                 new KeyValuePair("~label", "person"),
                 new KeyValuePair("age", 35)
         );
@@ -216,7 +232,7 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
         final List<KeyValuePair> expectedOrder = List.of(
                 new KeyValuePair("age", 35),
                 new KeyValuePair("isCool", "sometimes"),
-                new KeyValuePair("firstName", "lyndon"),
+                new KeyValuePair("firstName", "alice"),
                 new KeyValuePair("~label", "person")
         );
 
@@ -288,27 +304,27 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
     public void testHasContainerResults() {
         setupTest("isCool,firstName,age", true);
         final GraphTraversalSource g = graph.traversal();
-        List<Vertex> v = g.V().hasLabel("person").has("isCool", "sometimes").has("firstName", "lyndon").has("age", 35).toList();
+        List<Vertex> v = g.V().hasLabel("person").has("isCool", "sometimes").has("firstName", "alice").has("age", 35).toList();
         Assert.assertEquals(1, v.size());
-        Assert.assertEquals("lyndon", v.get(0).value("firstName"));
+        Assert.assertEquals("alice", v.get(0).value("firstName"));
         Assert.assertEquals((Integer) 35, v.get(0).value("age"));
         Assert.assertEquals("sometimes", v.get(0).value("isCool"));
 
-        v = g.V().hasLabel("person").has("isCool", "sometimes").has("firstName", "notlyndon").has("age", 35).toList();
+        v = g.V().hasLabel("person").has("isCool", "sometimes").has("firstName", "notalice").has("age", 35).toList();
         Assert.assertTrue(v.isEmpty());
 
-        v = g.V().hasLabel("person").has("isCool", "sometimes").has("firstName", "lyndon").has("age", 100).toList();
+        v = g.V().hasLabel("person").has("isCool", "sometimes").has("firstName", "alice").has("age", 100).toList();
         Assert.assertTrue(v.isEmpty());
 
-        v = g.V().hasLabel("person").has("isCool", "always").has("firstName", "lyndon").has("age", 35).toList();
+        v = g.V().hasLabel("person").has("isCool", "always").has("firstName", "alice").has("age", 35).toList();
         Assert.assertTrue(v.isEmpty());
 
-        v = g.V().hasLabel("pearson").has("isCool", "sometimes").has("firstName", "lyndon").has("age", 35).toList();
+        v = g.V().hasLabel("pearson").has("isCool", "sometimes").has("firstName", "alice").has("age", 35).toList();
         Assert.assertTrue(v.isEmpty());
 
-        v = g.V().hasLabel("person").has("isCool", TextP.endingWith("times")).has("firstName", "lyndon").has("age", 35).toList();
+        v = g.V().hasLabel("person").has("isCool", TextP.endingWith("times")).has("firstName", "alice").has("age", 35).toList();
         Assert.assertEquals(1, v.size());
-        Assert.assertEquals("lyndon", v.get(0).value("firstName"));
+        Assert.assertEquals("alice", v.get(0).value("firstName"));
         Assert.assertEquals((Integer) 35, v.get(0).value("age"));
         Assert.assertEquals("sometimes", v.get(0).value("isCool"));
     }

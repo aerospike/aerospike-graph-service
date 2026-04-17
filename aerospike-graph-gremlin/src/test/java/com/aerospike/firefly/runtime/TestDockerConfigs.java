@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.runtime;
 
 import com.aerospike.firefly.util.DockerUtil;
@@ -145,14 +161,14 @@ public class TestDockerConfigs {
     public void testInvalidMetricType() throws InterruptedException {
         final String[] environmentVariables = new String[]{
                 "aerospike.client.host=172.17.0.1:3000",
-                "aerospike.graph-service.metrics.simonReporter.interval=170000"
+                "aerospike.graph-service.metrics.bobReporter.interval=170000"
         };
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundErrorMsg = false;
         for (final String line : log) {
             LOG.warn(line);
-            if (line.contains("simonReporter is not a valid metrics type.")) {
+            if (line.contains("bobReporter is not a valid metrics type.")) {
                 foundErrorMsg = true;
                 break;
             }
@@ -164,14 +180,14 @@ public class TestDockerConfigs {
     public void testInvalidMetricConfigKey() throws InterruptedException {
         final String[] environmentVariables = new String[]{
                 "aerospike.client.host=172.17.0.1:3000",
-                "aerospike.graph-service.metrics.slf4jReporter.simon=over9000"
+                "aerospike.graph-service.metrics.slf4jReporter.bob=over9000"
         };
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundErrorMsg = false;
         for (final String line : log) {
             LOG.warn(line);
-            if (line.contains("simon is not a valid configuration for metrics of type slf4jReporter.")) {
+            if (line.contains("bob is not a valid configuration for metrics of type slf4jReporter.")) {
                 foundErrorMsg = true;
                 break;
             }

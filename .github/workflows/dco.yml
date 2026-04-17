@@ -1,0 +1,97 @@
+# Copyright 2022-2026 Aerospike, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: DCO
+
+# Enforce the Developer Certificate of Origin on every commit in every
+# pull request. Contributors must sign off each commit with either
+# `git commit -s` or an explicit `Signed-off-by: Name <email>` trailer
+# matching the commit author.
+#
+# The check runs against all commits that would land in the base branch
+# after merge, not just the PR tip.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  # Allow re-running from the Actions tab if a contributor amends their
+  # history after the PR was first opened.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  dco:
+    name: DCO sign-off check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Verify Signed-off-by on every PR commit
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # Collect the list of commits that would merge into the base.
+          mapfile -t commits < <(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA")
+
+          if [[ ${#commits[@]} -eq 0 ]]; then
+            echo "No non-merge commits to check; skipping."
+            exit 0
+          fi
+
+          failed=()
+          for sha in "${commits[@]}"; do
+            author_name=$(git show -s --format='%an' "$sha")
+            author_email=$(git show -s --format='%ae' "$sha")
+            expected="Signed-off-by: ${author_name} <${author_email}>"
+
+            # Pull all Signed-off-by trailers on this commit; case-insensitive
+            # so `signed-off-by:` also matches, which matches git's own
+            # tolerance.
+            signoffs=$(git show -s --format='%B' "$sha" | grep -i '^Signed-off-by:' || true)
+
+            if [[ -z "$signoffs" ]] || ! grep -Fqx "$expected" <<<"$signoffs"; then
+              failed+=("$sha — missing or mismatched sign-off (expected: ${expected})")
+            fi
+          done
+
+          if [[ ${#failed[@]} -gt 0 ]]; then
+            echo ""
+            echo "✗ DCO check failed. The following commits are missing a"
+            echo "  matching 'Signed-off-by:' trailer:"
+            echo ""
+            for line in "${failed[@]}"; do
+              echo "    $line"
+            done
+            echo ""
+            echo "Fix with: git rebase --signoff ${BASE_SHA} && git push --force-with-lease"
+            echo "See CONTRIBUTING.md for details."
+            exit 1
+          fi
+
+          echo "✓ All ${#commits[@]} commit(s) carry a matching Signed-off-by trailer."

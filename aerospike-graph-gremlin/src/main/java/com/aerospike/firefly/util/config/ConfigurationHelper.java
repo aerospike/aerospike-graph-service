@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.util.config;
 
 import ch.qos.logback.classic.Level;
@@ -38,9 +54,6 @@ import java.util.stream.Collectors;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getDefaultThreadPoolSize;
 import static com.aerospike.firefly.util.WarmupUtil.getWarmupArenaName;
 
-/**
- * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
- */
 public final class ConfigurationHelper {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
     private static final IntegerConfigValidator INTEGER_CONFIG_VALIDATOR = new IntegerConfigValidator();
@@ -221,6 +234,11 @@ public final class ConfigurationHelper {
         public static final String JWT_ALGORITHM = "aerospike.graph-service.auth.jwt.algorithm";
         public static final String AUTHENTICATION_ENABLED = "aerospike.graph-service.auth.enabled";
         public static final String USAGE_STATS_SET_INDEX_ENABLED = "aerospike.graph.usage.index.enabled";
+        // Master kill-switch for the local usage-stats writer. Default: true
+        // (enabled). When false, no background timer is scheduled and no
+        // records are written to the USAGE_STATS set. Useful for operators
+        // who want to run Aerospike Graph Service with zero self-instrumentation.
+        public static final String USAGE_STATS_ENABLED = "aerospike.graph.usage.enabled";
         public static final String AUDIT_LOG_ENABLED = "aerospike.graph.audit.log.enabled";
 
         public static final String EVENT_LOOP_TYPE = "aerospike.client.clientPolicy.eventLoops.type";
@@ -488,6 +506,7 @@ public final class ConfigurationHelper {
         put(Keys.JWT_ALGORITHM, "HMAC256");
         put(Keys.AUTHENTICATION_ENABLED, "false");
         put(Keys.USAGE_STATS_SET_INDEX_ENABLED, "true");
+        put(Keys.USAGE_STATS_ENABLED, "true");
         put(Keys.AUDIT_LOG_ENABLED, "false");
         put(Keys.SCAN_TOTAL_TIMEOUT, "0");
         put(Keys.SCAN_SOCKET_TIMEOUT, "30000");

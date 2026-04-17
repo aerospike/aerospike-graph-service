@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.io;
 
 import com.aerospike.client.Key;
@@ -41,9 +57,6 @@ import java.util.Set;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.DateTimeUtil.testDateTimePropertiesCases;
 
-/**
- * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
- */
 public class TestProperties {
     @Rule
     public TestName testName = new TestName();
@@ -93,28 +106,28 @@ public class TestProperties {
         final GraphTraversalSource g = graph.traversal();
         g.V().drop().iterate();
 
-        g.addV("person").property("name", "Lyndon").iterate();
-        g.addV("person").property("name", "Simon").iterate();
+        g.addV("person").property("name", "Alice").iterate();
+        g.addV("person").property("name", "Bob").iterate();
         g.addE("knows").property("weight", 0.5).
-                from(__.V().has("name", "Lyndon")).
-                to(__.V().has("name", "Simon")).iterate();
-        List<Vertex> v = g.V().has("name", "Lyndon").toList();
-        List<Edge> e = g.V().has("name", "Lyndon").outE("knows").toList();
+                from(__.V().has("name", "Alice")).
+                to(__.V().has("name", "Bob")).iterate();
+        List<Vertex> v = g.V().has("name", "Alice").toList();
+        List<Edge> e = g.V().has("name", "Alice").outE("knows").toList();
         Traversal<Vertex, Vertex> traversal = g.V().
-                has("name", "Lyndon").
+                has("name", "Alice").
                 property("weight",
                         __.outE("knows").
                                 values("weight").sum(),
                         "acl", "private");
 
-        Vertex lyndon = traversal.next();
+        Vertex alice = traversal.next();
         Assert.assertFalse(traversal.hasNext());
-        Assert.assertEquals("person", lyndon.label());
-        Assert.assertEquals("Lyndon", lyndon.value("name"));
-        Assert.assertEquals(0.5, lyndon.value("weight"), 0.01);
-        Assert.assertEquals("private", lyndon.property("weight").value("acl"));
-        Assert.assertEquals(2L, IteratorUtils.count(lyndon.properties()));
-        Assert.assertEquals(1L, IteratorUtils.count(lyndon.property("weight").properties()));
+        Assert.assertEquals("person", alice.label());
+        Assert.assertEquals("Alice", alice.value("name"));
+        Assert.assertEquals(0.5, alice.value("weight"), 0.01);
+        Assert.assertEquals("private", alice.property("weight").value("acl"));
+        Assert.assertEquals(2L, IteratorUtils.count(alice.properties()));
+        Assert.assertEquals(1L, IteratorUtils.count(alice.property("weight").properties()));
     }
 
     @Test
@@ -162,7 +175,7 @@ public class TestProperties {
         final GraphTraversalSource g = graph.traversal();
 
         // Test adding and filtering
-        g.V().hasLabel("person").property("name", "simon").property("age", "trente").iterate();
+        g.V().hasLabel("person").property("name", "bob").property("age", "trente").iterate();
         g.V().hasLabel("person").properties("name")
                 .property("language", "english")
                 .property("length", "five")
@@ -174,19 +187,19 @@ public class TestProperties {
         var englishVps = g.V().properties().has("language", "english");
         var name = englishVps.next();
         Assert.assertEquals("name", name.key());
-        Assert.assertEquals("simon", name.value());
+        Assert.assertEquals("bob", name.value());
         Assert.assertFalse(englishVps.hasNext());
         var lengthFive = g.V().properties().has("length", "five");
         name = lengthFive.next();
         Assert.assertEquals("name", name.key());
-        Assert.assertEquals("simon", name.value());
+        Assert.assertEquals("bob", name.value());
         Assert.assertFalse(lengthFive.hasNext());
         var vertexProperties = g.V().properties().has("language");
         var vertexProperty = vertexProperties.next();
-        Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("simon")) ||
+        Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("bob")) ||
                 (vertexProperty.key().equals("age") && vertexProperty.value().equals("trente")));
         vertexProperty = vertexProperties.next();
-        Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("simon")) ||
+        Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("bob")) ||
                 (vertexProperty.key().equals("age") && vertexProperty.value().equals("trente")));
         Assert.assertFalse(vertexProperties.hasNext());
 
@@ -199,10 +212,10 @@ public class TestProperties {
         Assert.assertFalse(vpsWithALanguage.hasNext());
         var vpsWithALength = g.V().properties().has("length");
         vertexProperty = vpsWithALength.next();
-        Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("simon")) ||
+        Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("bob")) ||
                 (vertexProperty.key().equals("age") && vertexProperty.value().equals("trente")));
         vertexProperty = vpsWithALength.next();
-        Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("simon")) ||
+        Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("bob")) ||
                 (vertexProperty.key().equals("age") && vertexProperty.value().equals("trente")));
         Assert.assertFalse(vpsWithALength.hasNext());
 
@@ -213,7 +226,7 @@ public class TestProperties {
         // Ensure the VP still exists
         var names = g.V().hasLabel("person").properties("name");
         name = names.next();
-        Assert.assertEquals("simon", name.value());
+        Assert.assertEquals("bob", name.value());
         Assert.assertFalse(names.hasNext());
 
         // Test adding a property to a now empty vertex property"s property map
@@ -221,7 +234,7 @@ public class TestProperties {
         var vpsWithLength5 = g.V().properties().has("length", 5);
         name = vpsWithLength5.next();
         Assert.assertEquals("name", name.key());
-        Assert.assertEquals("simon", name.value());
+        Assert.assertEquals("bob", name.value());
         Assert.assertFalse(vpsWithLength5.hasNext());
 
         // Test type hint for a shared key of the VP and its property
@@ -257,10 +270,10 @@ public class TestProperties {
         Assert.assertEquals(2, (long) g.V().count().next());
 
         // Check that multiple properties can be added properly to a vertex property.
-        g.V().hasLabel("person").property("name", "simon", "since", 1994, "language", "english").iterate();
+        g.V().hasLabel("person").property("name", "bob", "since", 1994, "language", "english").iterate();
         var nameTraversal = g.V().properties().has("since", 1994).has("language", "english");
         var name = nameTraversal.next();
-        Assert.assertEquals("simon", name.value());
+        Assert.assertEquals("bob", name.value());
         Assert.assertFalse(nameTraversal.hasNext());
         var namePropertiesTraversal = g.V().properties("name").properties();
         int expectedCount = 2;
@@ -314,7 +327,7 @@ public class TestProperties {
         g.V().hasLabel("person").property("age", 500, "since", 1500, "language", "english").iterate();
         nameTraversal = g.V().properties().has("since", "1994").has("language", "english");
         name = nameTraversal.next();
-        Assert.assertEquals("simon", name.value());
+        Assert.assertEquals("bob", name.value());
         Assert.assertFalse(nameTraversal.hasNext());
         var ageTraversal = g.V().properties().has("since", 1500).has("language", "english");
         var age = ageTraversal.next();
@@ -326,7 +339,7 @@ public class TestProperties {
         g.V().hasLabel("person").properties("age").drop().iterate();
         nameTraversal = g.V().properties().has("since", "1994").has("language", "english");
         name = nameTraversal.next();
-        Assert.assertEquals("simon", name.value());
+        Assert.assertEquals("bob", name.value());
         Assert.assertFalse(nameTraversal.hasNext());
 
         // Assert that vertex property properties did not leak into a different record.
@@ -382,7 +395,7 @@ public class TestProperties {
         final GraphTraversalSource g = graph.traversal();
 
         // "person" vertex
-        g.V().hasLabel("person").property("name", "Simon").property("age", 12).iterate();
+        g.V().hasLabel("person").property("name", "Bob").property("age", 12).iterate();
         GraphTraversal traversal = g.V().hasLabel("person").properties().count();
         long propertiesCount = (long) traversal.next();
         Assert.assertEquals(2, propertiesCount);
@@ -408,15 +421,15 @@ public class TestProperties {
         Assert.assertFalse(g.V().hasLabel("person").has("notExistingKey").hasNext());
 
         final Set<String> names = new HashSet<>();
-        names.add("simon");
+        names.add("bob");
         names.add("bauto");
         g.V().hasLabel("person").properties().drop().iterate();
-        g.V().hasLabel("person").property("age", 12).property(VertexProperty.Cardinality.list, "name", "simon").property(VertexProperty.Cardinality.list, "name", "bauto").iterate();
+        g.V().hasLabel("person").property("age", 12).property(VertexProperty.Cardinality.list, "name", "bob").property(VertexProperty.Cardinality.list, "name", "bauto").iterate();
         traversal = g.V().hasLabel("person").properties().count();
         propertiesCount = (long) traversal.next();
         Assert.assertEquals(3, propertiesCount);
         Assert.assertFalse(traversal.hasNext());
-        traversal = g.V().hasLabel("person").has("name", "simon").has("name", "bauto");
+        traversal = g.V().hasLabel("person").has("name", "bob").has("name", "bauto");
         vertex = (Vertex) traversal.next();
         Assert.assertFalse(traversal.hasNext());
         Iterator<VertexProperty<Object>> properties = vertex.properties("name");
@@ -433,7 +446,7 @@ public class TestProperties {
         final GraphTraversalSource g = graph.traversal();
 
         // "name" vertex property
-        g.V().hasLabel("person").property("name", "Simon").properties("name").property("language", "english").property("addedYear", 2000).iterate();
+        g.V().hasLabel("person").property("name", "Bob").properties("name").property("language", "english").property("addedYear", 2000).iterate();
         GraphTraversal traversal = g.V().hasLabel("person").properties("name").properties().count();
         long propertiesCount = (long) traversal.next();
         Assert.assertEquals(2, propertiesCount);

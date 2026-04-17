@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.bulkloader.integration.util;
 
 import com.aerospike.client.AerospikeException;
@@ -22,8 +38,7 @@ import java.util.concurrent.TimeUnit;
  * <p/>
  * Failures can be done randomly using probabilities, or specifically at set
  * points in a transaction.
- * 
- * @author timfaulkes
+ *
  *
  */
 public class FailureProfile {
@@ -33,8 +48,7 @@ public class FailureProfile {
 
     /**
      * A callback when a call is forced to fail. This can be used for logging, etc.
-     * 
-     * @author timfaulkes
+     *
      */
     public interface FailureCallback {
         public void failureOccurred(FailureType type, boolean beforeCall);
@@ -53,7 +67,7 @@ public class FailureProfile {
      * inDoubt being true, rang e[0,1]
      */
     private double chanceOfPreTimeoutBeingInDoubt = 0.95;
-    
+
     /** If disabled, the failure profile will just pass through */
     private volatile boolean enabled = false;
 
@@ -137,15 +151,15 @@ public class FailureProfile {
     public void enable() {
         this.enabled = true;
     }
-    
+
     public void disable() {
         this.enabled = false;
     }
-    
+
     public boolean isEnabled() {
         return enabled;
     }
-    
+
     protected void preReadTxn() {
         if (enabled) {
             applyActionsForCurrentStep();

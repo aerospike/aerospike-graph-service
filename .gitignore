@@ -48,3 +48,15 @@ datageneratoroutput/
 *.iml
 /aerospike-graph-bulk-loader/src/test/resources/recoverydata/vertices/vertexList.csv
 /aerospike-graph-bulk-loader/src/test/resources/recoverydata/edges/edgeList.csv
+
+# Internal planning scratchpad — must never ship in public history.
+# The open-sourcing playbook is tracked in internal tickets; this path
+# is kept gitignored so the working copy can live in the repo root
+# without risk of being committed.
+docs/open-source/
+
+# Generated Javadoc output staged for the docs.yml GitHub Pages
+# workflow. Always rebuilt from aerospike-graph-api/ on push; there
+# is no reason to check this into the source tree.
+docs/api/
+

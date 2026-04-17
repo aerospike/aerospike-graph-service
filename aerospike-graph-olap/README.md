@@ -14,7 +14,7 @@ Aerospike Graph Service, which provides a distributed graph database that can st
 - A configuration file for Aerospike Graph OLAP that specifies the Aerospike DB connection details.
 - Having a vertex label secondary indexes is strongly recommended.
 - Configuring Aerospike to handle a lot of secondary indexes is also strongly recommended.
-  - Example for setting single-query-threads: `aerolab attach shell -n lyndon-olap-229g -l all -- asinfo -v '"set-config:context=namespace;id=test;single-query-threads=4"'`
+  - Example for setting single-query-threads: `aerolab attach shell -n "$name" -l all -- asinfo -v '"set-config:context=namespace;id=test;single-query-threads=4"'`
   - Example for setting query-threads-limit: `aerolab attach shell -n "$name" -l all -- asinfo -v '"set-config:context=service;query-threads-limit=1024"'`
   - Max secondary indexes that can be run is query-threads-limit / single-query-threads, which is also how many spark executors can work in parallel without errors.
 

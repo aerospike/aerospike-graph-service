@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.olap;
 
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
@@ -16,19 +32,14 @@ import java.util.function.Function;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
 public class PerformanceTest {
-    //a customer dataset queries
-    //    private final static List<Function<GraphTraversalSource, GraphTraversal>> queries = new ArrayList<>() {{
-    //        add(null); // for counting %)
-    //        add(g -> g.V().hasLabel(":InternalId").count()); //1
-    //        add(g -> g.V().hasLabel(":InternalLabel").where(__.inE().count().is(P.gte(3))).count()); //2
-    //        add(g -> g.V().hasLabel(":InternalLabel").groupCount().by(__.in().count())); //3
-    //        add(g -> g.V().groupCount().by(__.out().count())); //4
-    //        add(g -> g.V().hasLabel(":InternalLabel").in("HAS_RELATION").count()); //5
-    //        add(g -> g.E().hasLabel("STRICT").count()); //6
-    //        add(g -> g.V().hasLabel(":InternalLabel").has("value", TextP.startingWith("380")).
-    //                where(__.in().count().is(P.gte(5)))); //7
-    //        add(g -> g.V().hasLabel(":InternalId").out().groupCount().by(__.out().count())); //8
-    //    }};
+
+    // Ad-hoc performance harness. All tests here are @Ignore'd and require a
+    // running Gremlin Server reachable at the host/port below; override via the
+    // GREMLIN_HOST / GREMLIN_PORT environment variables when running locally.
+    private static final String GREMLIN_HOST =
+            System.getenv().getOrDefault("GREMLIN_HOST", "localhost");
+    private static final int GREMLIN_PORT = Integer.parseInt(
+            System.getenv().getOrDefault("GREMLIN_PORT", "8182"));
 
     private final static List<Function<GraphTraversalSource, GraphTraversal>> queries = new ArrayList<>() {{
         add(null); // for counting %)
@@ -45,7 +56,7 @@ public class PerformanceTest {
     @Ignore
     @Test
     public void performanceTest() {
-        try (GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using("127.0.0.1", 8182))) {
+        try (GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(GREMLIN_HOST, GREMLIN_PORT))) {
             for (int i = 1; i < 6; i++) {
                 final long start = Instant.now().toEpochMilli();
 
@@ -68,7 +79,7 @@ public class PerformanceTest {
     @Ignore
     @Test
     public void top100Test() {
-        try (GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using("127.0.0.1", 8182))) {
+        try (GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(GREMLIN_HOST, GREMLIN_PORT))) {
             for (int i = 2; i < 6; i++) {
                 final long start = Instant.now().toEpochMilli();
 
@@ -91,7 +102,7 @@ public class PerformanceTest {
     @Ignore
     @Test
     public void algorithmTest() {
-        try (GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using("127.0.0.1", 8182))) {
+        try (GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(GREMLIN_HOST, GREMLIN_PORT))) {
             final long start = Instant.now().toEpochMilli();
 
             // with("aerospike.graph.analytics.debug.df", "true")

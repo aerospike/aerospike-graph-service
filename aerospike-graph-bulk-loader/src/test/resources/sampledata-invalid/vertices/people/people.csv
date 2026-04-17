@@ -1,10 +1,10 @@
 ~id,~label,name:string,age:int,companies:string:list,glasses:boolean
 2,person,Joe,31,Aerospike,true
-3,person,Grant,30,PhaseShift Studio;Aerospike,false
-4,person,Lyndon,29,Apache TinkerPop;Aerospike,false
-5,person,Simon,28,Apache TinkerPop;Aerospike,false
+3,person,Carol,30,Acme Corp;Aerospike,false
+4,person,Alice,29,Apache TinkerPop;Aerospike,false
+5,person,Bob,28,Apache TinkerPop;Aerospike,false
 "joe",personn,Joee,310,Aerospikee,true
-"grant",personn,Grantt,300,PhaseShift Studioo;Aerospikes,false
-"lyndon",personn,Lyndonn,290,Apache TinkerPopp;Aerospikes,false
-"simon",personn,Simonn,280,Apache TinkerPopp;Aerospikes,false
+"carol",personn,Caroll,300,Acme Corpp;Aerospikes,false
+"alice",personn,Alicee,290,Apache TinkerPopp;Aerospikes,false
+"bob",personn,Bobb,280,Apache TinkerPopp;Aerospikes,false
 "imposter",person,Marko,notAnInt,Aerospike,false

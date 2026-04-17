@@ -1,0 +1,101 @@
+# Copyright 2022-2026 Aerospike, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Bug report
+description: Report a reproducible bug in AerospikeGraphService.
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. The clearer the
+        reproduction, the faster we can fix it. Please read through the
+        fields below and fill in everything you can.
+
+        **If you suspect a security issue, stop here** and follow
+        [SECURITY.md](https://github.com/aerospike/aerospike-graph-service/blob/main/SECURITY.md)
+        instead.
+  - type: checkboxes
+    id: prechecks
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I searched existing issues and discussions and did not find a duplicate.
+          required: true
+        - label: I am on a supported version (see SECURITY.md).
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release tag or commit SHA you reproduced on.
+      placeholder: "v3.3.0 / commit 777541400"
+    validations:
+      required: true
+  - type: input
+    id: aerospike-version
+    attributes:
+      label: Aerospike server version
+      description: Output of `asinfo -v build` on the backing cluster.
+      placeholder: "7.2.0.4"
+    validations:
+      required: true
+  - type: input
+    id: java-version
+    attributes:
+      label: Java version
+      description: Output of `java -version`.
+      placeholder: "OpenJDK 17.0.9"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: what-expected
+    attributes:
+      label: What did you expect?
+      description: Describe the behavior you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: |
+        Exact commands, traversal queries, and inputs. A minimal
+        standalone reproduction is best; a link to a public repo with
+        one is also great.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / stack traces
+      description: |
+        Paste the relevant section of `docker logs`, gremlin-server
+        log, or stack trace. Please trim to the relevant bit and
+        redact anything sensitive.
+      render: text
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else that might help — deployment topology, recent config changes, etc.

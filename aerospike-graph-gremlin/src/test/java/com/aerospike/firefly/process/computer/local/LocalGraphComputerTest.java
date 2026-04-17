@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphFilterStrategy;
@@ -26,9 +42,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * @author Marko A. Rodriguez (http://markorodriguez.com)
- */
 public class LocalGraphComputerTest extends AbstractFireflySuite {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalGraphComputerTest.class);
@@ -137,7 +150,7 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
         g.V().drop().iterate();
         g.addV("person").property(T.id, 1).property("name", "marko").property("age", 32).next();
         g.addV("person").property(T.id, 2).property("name", "stephen").property("age", 35).next();
-        g.addV("person").property(T.id, 3).property("name", "lyndon").property("age", 31).next();
+        g.addV("person").property(T.id, 3).property("name", "alice").property("age", 31).next();
         final GraphTraversalSource gComputer = graph.traversal().withComputer();
         //final List<Vertex> vertices = gComputer.V().has(T.id, 1).has(T.id, 2).toList();
         final List<Vertex> vertices = gComputer.V(1, 2).toList();
@@ -151,7 +164,7 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
         g.V().drop().iterate();
         g.addV("person").property(T.id, 1).property("name", "marko").property("age", 32).next();
         g.addV("person").property(T.id, 2).property("name", "stephen").property("age", 35).next();
-        g.addV("person").property(T.id, 3).property("name", "lyndon").property("age", 31).next();
+        g.addV("person").property(T.id, 3).property("name", "alice").property("age", 31).next();
         final GraphTraversalSource gComputer = graph.traversal().withComputer();
         final List<Vertex> vertices = gComputer.V().toList();
         assertEquals(3, vertices.size());
@@ -164,7 +177,7 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
         g.V().drop().iterate();
         g.addV("person").property(T.id, 1).property("name", "marko").property("age", 32).next();
         g.addV("person").property(T.id, 2).property("name", "stephen").property("age", 35).next();
-        g.addV("person").property(T.id, 3).property("name", "lyndon").property("age", 31).next();
+        g.addV("person").property(T.id, 3).property("name", "alice").property("age", 31).next();
         createIndexWaitComplete("name");
         final GraphTraversalSource gComputer = graph.traversal().withComputer();
         final Vertex marko = gComputer.V().has("name", "marko").next();

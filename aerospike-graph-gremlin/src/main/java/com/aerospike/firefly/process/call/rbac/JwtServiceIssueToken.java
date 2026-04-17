@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022-2026 Aerospike, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aerospike.firefly.process.call.rbac;
 
 import com.aerospike.firefly.security.JWTAuthenticator;
@@ -27,11 +43,11 @@ public class JwtServiceIssueToken<I, R> extends JwtServiceBase<I, R> {
                         "\tAcceptable values of role are: 'READ', 'READ_WRITE', 'ADMIN' or Map of pairs GraphID-role.\n" +
                         "\tProvided arguments: '%s'.\n" +
                         "\tExample of correct usage:\n" +
-                        "\t\tg.call(\"%s\").with(\"username\", \"lyndon\").with(\"role\", \"ADMIN\").next();\n" +
-                        "\t\tg.call(\"%s\").with(\"username\", \"lyndon\").with(\"Graph1\", \"ADMIN\").with(\"Graph2\", \"READ\").next();\n" +
-                        "\t\tg.call(\"%s\").with(\"username\", \"lyndon\").with(\"role\", [\"Graph1\": \"ADMIN\"]).next();\n" +
+                        "\t\tg.call(\"%s\").with(\"username\", \"alice\").with(\"role\", \"ADMIN\").next();\n" +
+                        "\t\tg.call(\"%s\").with(\"username\", \"alice\").with(\"Graph1\", \"ADMIN\").with(\"Graph2\", \"READ\").next();\n" +
+                        "\t\tg.call(\"%s\").with(\"username\", \"alice\").with(\"role\", [\"Graph1\": \"ADMIN\"]).next();\n" +
                         "\tor to set a token that expires in 1 day:\n" +
-                        "\t\tg.call(\"%s\").with(\"username\", \"lyndon\").with(\"role\", \"ADMIN\").with(\"expiry\", 24 * 60 * 60).next();",
+                        "\t\tg.call(\"%s\").with(\"username\", \"alice\").with(\"role\", \"ADMIN\").with(\"expiry\", 24 * 60 * 60).next();",
                 getName(), params, getName(), getName(), getName(), getName());
     }
 
@@ -45,8 +61,8 @@ public class JwtServiceIssueToken<I, R> extends JwtServiceBase<I, R> {
     }
 
     /*
-        for http requests expected input is in format `username=Lyndon&role=READ` for global roles
-        or per graph `username=Lyndon&graphID1=READ&graphID2=ADMIN`,
+        for http requests expected input is in format `username=Alice&role=READ` for global roles
+        or per graph `username=Alice&graphID1=READ&graphID2=ADMIN`,
         but not both
     */
     private void extractRoles(final Map params) {

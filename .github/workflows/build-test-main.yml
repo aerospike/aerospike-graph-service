@@ -61,7 +61,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
       - name: Staggered Delay
@@ -97,7 +97,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
       - name: Staggered Delay
@@ -133,7 +133,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
       - name: Staggered Delay
@@ -169,7 +169,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
       - name: Staggered Delay
@@ -205,7 +205,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
       - name: Staggered Delay
@@ -241,7 +241,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
       - name: Staggered Delay
@@ -277,7 +277,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
       - name: Staggered Delay
@@ -313,7 +313,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
       - name: Staggered Delay
@@ -349,7 +349,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
       - name: Staggered Delay
@@ -385,7 +385,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
       - name: Staggered Delay
@@ -421,7 +421,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Staggered Delay
         run: |
           HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
@@ -455,7 +455,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Staggered Delay
         run: |
           HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
@@ -489,7 +489,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Staggered Delay
         run: |
           HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
@@ -523,7 +523,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Staggered Delay
         run: |
           HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
@@ -557,7 +557,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Staggered Delay
         run: |
           HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
@@ -591,7 +591,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Staggered Delay
         run: |
           HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
@@ -625,7 +625,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Staggered Delay
         run: |
           HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
@@ -659,7 +659,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Staggered Delay
         run: |
           HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
@@ -693,7 +693,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Staggered Delay
         run: |
           HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
@@ -727,7 +727,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Staggered Delay
         run: |
           HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
@@ -761,7 +761,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Staggered Delay
         run: |
           HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
@@ -810,8 +810,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           pip3 install python_on_whales
@@ -1030,8 +1030,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -1068,8 +1068,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -1209,8 +1209,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -1247,8 +1247,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -1285,8 +1285,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -1323,8 +1323,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           pip3 install pyyaml
@@ -1363,8 +1363,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -1402,8 +1402,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -1441,8 +1441,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -1575,8 +1575,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1615,8 +1615,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1655,8 +1655,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1696,8 +1696,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1737,8 +1737,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1778,8 +1778,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1819,8 +1819,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1858,8 +1858,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1899,8 +1899,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1939,8 +1939,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -2118,8 +2118,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
         run: |
           docker run -d -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
@@ -2290,7 +2290,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2316,7 +2316,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2342,7 +2342,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2368,7 +2368,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2394,7 +2394,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2420,7 +2420,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2446,7 +2446,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2472,7 +2472,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2498,7 +2498,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2524,7 +2524,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2550,7 +2550,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2594,7 +2594,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2620,7 +2620,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2646,7 +2646,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2672,7 +2672,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2698,7 +2698,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2724,7 +2724,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2750,7 +2750,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2776,7 +2776,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2802,7 +2802,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
@@ -2828,7 +2828,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Stop EC2 runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:

@@ -47,6 +47,9 @@ env:
 jobs:
   tinkerbench-benchmark:
     name: Tinkerbench Benchmark
+    permissions:
+      packages: write
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -83,7 +86,7 @@ jobs:
 
       - name: Login to GitHub Container Registry
         run: |
-          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login ghcr.io --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io --username ${{ github.actor }} --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0

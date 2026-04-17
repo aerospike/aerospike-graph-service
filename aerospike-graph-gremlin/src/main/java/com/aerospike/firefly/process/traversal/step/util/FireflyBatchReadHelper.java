@@ -48,6 +48,58 @@ import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fi
  */
 public class FireflyBatchReadHelper {
 
+    /**
+     * Pre-computed classification of a step's {@link HasContainer}s into three views,
+     * produced by {@link #splitHasContainers}.
+     *
+     * <p>Callers should choose the post-read filter based on whether the aerospike-side
+     * filters were actually applied at the read path:
+     * <ul>
+     *   <li>If the read path pushed {@link #aerospike} to the server (or otherwise filtered
+     *       equivalently), post-filter with {@link #firefly} (unsupported-only) to avoid
+     *       redundant re-evaluation of predicates already satisfied.</li>
+     *   <li>If the read path did <em>not</em> apply any aerospike-side filter (e.g. a cache
+     *       read or an unfiltered {@code readEdges}/{@code graph.vertices()} scan), post-filter
+     *       with {@link #all} so every predicate is enforced.</li>
+     * </ul>
+     */
+    public static final class SplitHasContainers {
+        public static final SplitHasContainers EMPTY = new SplitHasContainers(List.of(), List.of(), List.of());
+
+        /** Supported containers, pushable to Aerospike server-side. Date/OffsetDateTime values are type-cast to Long. */
+        public final List<HasContainer> aerospike;
+        /** Unsupported containers only. Use as post-read filter when aerospike-side filters were applied at read time. */
+        public final List<HasContainer> firefly;
+        /** Every container in cardinality order (original, not type-cast). Use as post-read filter when the read path was unfiltered. */
+        public final List<HasContainer> all;
+
+        private SplitHasContainers(final List<HasContainer> aerospike,
+                                   final List<HasContainer> firefly,
+                                   final List<HasContainer> all) {
+            this.aerospike = aerospike;
+            this.firefly = firefly;
+            this.all = all;
+        }
+    }
+
+    /**
+     * Classify a raw {@link HasContainer} list into aerospike-pushable, firefly-only, and full views.
+     * Centralises the idiom that was duplicated at every batch read step (see GRAPH-401).
+     */
+    public static <E extends Element> SplitHasContainers splitHasContainers(final FireflyGraph graph,
+                                                                             final Class<E> returnClass,
+                                                                             final List<HasContainer> hasContainers) {
+        if (hasContainers == null) {
+            return SplitHasContainers.EMPTY;
+        }
+        final List<FireflyGraphStep.HasContainerWithCardinality> sorted =
+                getHasContainersWithCardinalityOrder(graph, returnClass, hasContainers);
+        return new SplitHasContainers(
+                getAerospikeHasContainers(sorted),
+                getFireflyHasContainers(sorted),
+                sorted.stream().map(c -> c.hasContainer).collect(Collectors.toList()));
+    }
+
     public static class ReadStepInfo<E extends Element> {
         final Traverser.Admin<E> traverser;
         final Integer size;

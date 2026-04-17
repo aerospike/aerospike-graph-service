@@ -1,6 +1,5 @@
 package com.aerospike.firefly.process.traversal.step.computer;
 
-import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -25,7 +24,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -55,18 +53,13 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> {
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
         this.labels = new HashSet<>(labels);
         this.areEdgesRequired = areEdgesRequired;
-        if (hasContainers != null) {
-            final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
-                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) traversal.getGraph().get(), Edge.class, hasContainers);
-            // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
-            //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
-            //  matter what.
-            fireflyHasContainers = hasContainerWithCardinalities.stream().map(a -> a.hasContainer).collect(Collectors.toList());
-            aerospikeHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(hasContainerWithCardinalities);
-        } else {
-            fireflyHasContainers = List.of();
-            aerospikeHasContainers = List.of();
-        }
+        // GRAPH-401: keep the full list as the post-read filter because the fresh readEdges call below
+        // passes Collections.emptyList() as its aerospike containers (no server-side push-down),
+        // so every predicate must still be applied client-side on the returned edges.
+        final FireflyBatchReadHelper.SplitHasContainers split = FireflyBatchReadHelper.splitHasContainers(
+                (FireflyGraph) traversal.getGraph().get(), Edge.class, hasContainers);
+        this.fireflyHasContainers = split.all;
+        this.aerospikeHasContainers = split.aerospike;
         for (final String label : labels) {
             this.addLabel(label);
         }

@@ -1,6 +1,5 @@
 package com.aerospike.firefly.process.traversal.step;
 
-import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -23,7 +22,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public abstract class VertexBatchReadStep extends CollectingBarrierStep<Edge> implements LocalBarrier<Edge> {
     protected final List<HasContainer> fireflyHasContainers;
@@ -45,19 +43,12 @@ public abstract class VertexBatchReadStep extends CollectingBarrierStep<Edge> im
         this.labels = new HashSet<>(labels);
         this.barrierSize = barrierSize;
 
-        // piece of magic
-        if (hasContainers != null) {
-            final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
-                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, hasContainers);
-            // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
-            //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
-            //  matter what.
-            fireflyHasContainers = hasContainerWithCardinalities.stream().map(a -> a.hasContainer).collect(Collectors.toList());
-            aerospikeHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(hasContainerWithCardinalities);
-        } else {
-            fireflyHasContainers = List.of();
-            aerospikeHasContainers = List.of();
-        }
+        // TODO GRAPH-401: post-read filter still uses the full container list; server-side expression
+        //  filters do not universally match fireflyTestAll for missing bins or unsupported types.
+        final FireflyBatchReadHelper.SplitHasContainers split = FireflyBatchReadHelper.splitHasContainers(
+                (FireflyGraph) getTraversal().getGraph().get(), Vertex.class, hasContainers);
+        this.fireflyHasContainers = split.all;
+        this.aerospikeHasContainers = split.aerospike;
         this.limit = limit;
     }
 

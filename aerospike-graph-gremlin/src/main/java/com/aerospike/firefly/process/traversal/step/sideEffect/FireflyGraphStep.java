@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
 
@@ -139,15 +138,13 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                                                            final List<String> requiredProperties,
                                                            final long evaluationTimeout,
                                                            final Object... vertexIds) {
-        final List<HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper
-                .getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, hasContainers);
-        final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper
-                .getAerospikeHasContainers(sortedHasContainers);
-        // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
-        //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
-        //  matter what.
-        final List<HasContainer> fireflySideHasContainers = sortedHasContainers.stream().map(containerWithCardinality ->
-                containerWithCardinality.hasContainer).collect(Collectors.toList());
+        // TODO GRAPH-401: post-read filter uses the full container list; server-side filters (expression
+        //  filters, index scans) do not universally match fireflyTestAll semantics (missing bins,
+        //  unsupported types), so every predicate is still re-checked client-side.
+        final FireflyBatchReadHelper.SplitHasContainers split = FireflyBatchReadHelper.splitHasContainers(
+                graph, FireflyVertex.class, hasContainers);
+        final List<HasContainer> aerospikeSideHasContainers = new ArrayList<>(split.aerospike);
+        final List<HasContainer> fireflySideHasContainers = split.all;
         Iterator<Vertex> iterator;
 
         if (vertexIds == null) {
@@ -172,9 +169,8 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
 
         if (topContainer == null || topContainer.getKey() == null ||
                 (topContainer.getKey().startsWith("~") && !topContainer.getKey().equals("~label"))) {
-            // If index container is null or key is null or if key starts with ~ but is not ~label, then get graph.vertices().
             iterator = graph.vertices();
-            iterator = hasContainerCheckedIterator(iterator, hasContainers);
+            iterator = hasContainerCheckedIterator(iterator, fireflySideHasContainers);
             return iterator;
         } else if (topContainer.getKey().equals("~label") ||
                 Number.class.isAssignableFrom(topContainer.getValue().getClass()) ||
@@ -208,8 +204,6 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                         true,
                         evaluationTimeout);
             }
-            // fireflySideHasContainers.add(new HasContainer(T.id.getAccessor(), idFilter));
-            // Need to wrap iterator in hasContainerCheckedIterator() to apply hasContainers that could not be pushed down to Aerospike.
             iterator = hasContainerCheckedIterator(iterator, fireflySideHasContainers);
             return iterator;
         } else {
@@ -220,8 +214,8 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
 
     private <R extends Element> Iterator<R> phatEdges(final FireflyGraph graph) {
         Iterator<R> iterator;
-        final List<HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, returnClass, hasContainers);
-        final List<HasContainer> fireflySideHasContainers = sortedHasContainers.stream().map(hasContainerWithCardinality -> hasContainerWithCardinality.hasContainer).collect(Collectors.toList());
+        final List<HasContainer> fireflySideHasContainers = FireflyBatchReadHelper
+                .splitHasContainers(graph, returnClass, hasContainers).all;
 
         if (null == this.ids) {
             iterator = Collections.emptyIterator();

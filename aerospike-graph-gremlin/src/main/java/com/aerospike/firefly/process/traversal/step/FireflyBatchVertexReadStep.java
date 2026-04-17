@@ -1,6 +1,5 @@
 package com.aerospike.firefly.process.traversal.step;
 
-import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -89,13 +88,13 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                     generalContainers.add(hasContainer);
                 }
             }
-            final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
-                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, generalContainers);
-            // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
-            //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
-            //  matter what.
-            fireflyHasContainers = hasContainerWithCardinalities.stream().map(a -> a.hasContainer).collect(Collectors.toList());
-            aerospikeHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(hasContainerWithCardinalities);
+            // TODO GRAPH-401: post-read filter still uses the full container list because server-side
+            //  filters (expression filters, cache reads) do not always match the semantics of
+            //  fireflyTestAll for records with missing bins or unsupported types.
+            final FireflyBatchReadHelper.SplitHasContainers split = FireflyBatchReadHelper.splitHasContainers(
+                    (FireflyGraph) getTraversal().getGraph().get(), Vertex.class, generalContainers);
+            fireflyHasContainers = split.all;
+            aerospikeHasContainers = split.aerospike;
         } else {
             fireflyHasContainers = List.of();
             aerospikeHasContainers = List.of();

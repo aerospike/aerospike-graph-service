@@ -1,6 +1,5 @@
 package com.aerospike.firefly.process.traversal.step;
 
-import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.process.traversal.step.util.HasContainerHelper;
 import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
@@ -40,7 +39,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.getTraversalOptionInteger;
@@ -74,18 +72,14 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         this.adjustedIdContainers = HasContainerHelper.convert(adjustedIdContainers, (FireflyGraph) traversal.getGraph().get());
         this.labels = new HashSet<>(labels);
         this.barrierSize = barrierSize;
-        if (hasContainers != null) {
-            final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
-                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Edge.class, hasContainers);
-            // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
-            //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
-            //  matter what.
-            fireflyHasContainers = hasContainerWithCardinalities.stream().map(a -> a.hasContainer).collect(Collectors.toList());
-            supernodeContainers = FireflyBatchReadHelper.getAerospikeHasContainers(hasContainerWithCardinalities);
-        } else {
-            fireflyHasContainers = List.of();
-            supernodeContainers = List.of();
-        }
+        // TODO GRAPH-401: post-read filter still uses the full container list. Supernode reads via the
+        //  adjacency index return whole phat-edge records (server-side filter matches at record level,
+        //  not per individual edge), so cache-sourced edges are not reliably pre-filtered per-edge
+        //  (see FireflyPhatEdgeIdIteratorFromIndexedVertex#getIndividualEdgeIdsAttachedToVertex).
+        final FireflyBatchReadHelper.SplitHasContainers split = FireflyBatchReadHelper.splitHasContainers(
+                (FireflyGraph) getTraversal().getGraph().get(), Edge.class, hasContainers);
+        this.fireflyHasContainers = split.all;
+        this.supernodeContainers = split.aerospike;
         final Optional<Integer> threads = getTraversalOptionInteger(ConfigurationHelper.TraversalOptions.PARALLELIZE, traversal, 1, Integer.MAX_VALUE);
         this.threads = threads.orElse(-1);
         this.limit = limit;
@@ -181,9 +175,12 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                     final Element element = pair.getValue0();
                     final Traverser.Admin traverser = pair.getValue1();
                     final List<FireflyId> ids = futures.containsKey(element) ? futures.get(element).get() : duplicateIdMap.get(element);
-                    final List<FireflyEdge> edges = ids.stream().map(fireflyEdgeMap::get).collect(Collectors.toList());
-                    for (final FireflyEdge edge : edges) {
-                        if (edge != null && fireflyTestAll(edge, fireflyHasContainers)) {
+                    for (final FireflyId id : ids) {
+                        final FireflyEdge edge = fireflyEdgeMap.get(id);
+                        if (edge == null) {
+                            continue;
+                        }
+                        if (fireflyTestAll(edge, fireflyHasContainers)) {
                             set.add(traverser.split(edge, this));
                         }
                     }

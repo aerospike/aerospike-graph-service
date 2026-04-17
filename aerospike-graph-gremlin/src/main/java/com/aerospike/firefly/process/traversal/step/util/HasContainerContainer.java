@@ -1,13 +1,11 @@
 package com.aerospike.firefly.process.traversal.step.util;
 
-import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.io.Serializable;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class HasContainerContainer implements Serializable {
     private final List<HasContainer> hasContainers;
@@ -28,18 +26,15 @@ public class HasContainerContainer implements Serializable {
 
         final List<HasContainer> combinedHasContainers = HasContainerHelper.getVertexFilter(graph, hasContainers);
 
-        if (combinedHasContainers != null) {
-            final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
-                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, Vertex.class, combinedHasContainers);
-            // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
-            //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
-            //  matter what.
-            fireflyHasContainers = hasContainerWithCardinalities.stream().map(a -> a.hasContainer).collect(Collectors.toList());
-            aerospikeHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(hasContainerWithCardinalities);
-        } else {
-            fireflyHasContainers = List.of();
-            aerospikeHasContainers = List.of();
-        }
+        // GRAPH-401: getFireflyHasContainers() intentionally returns the full list (every container in cardinality
+        // order) rather than only the unsupported ones. Some callers (e.g. FireflyOtherVBatchReadStepLocal) apply
+        // this list to elements that were never filtered server-side, so reducing it here would miss predicates.
+        // Callers that have already pushed aerospikeHasContainers server-side should pick the reduced variant
+        // themselves via FireflyBatchReadHelper.splitHasContainers(...).firefly.
+        final FireflyBatchReadHelper.SplitHasContainers split = FireflyBatchReadHelper.splitHasContainers(
+                graph, Vertex.class, combinedHasContainers);
+        fireflyHasContainers = split.all;
+        aerospikeHasContainers = split.aerospike;
         initialized = true;
     }
 

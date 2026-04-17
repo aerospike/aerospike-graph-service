@@ -25,7 +25,7 @@ body:
         fields below and fill in everything you can.
 
         **If you suspect a security issue, stop here** and follow
-        [SECURITY.md](https://github.com/aerospike/aerospike-graph-service/blob/main/SECURITY.md)
+        [SECURITY.md](https://github.com/aerospike/aerospike-graph-service/blob/3.x-dev/SECURITY.md)
         instead.
   - type: checkboxes
     id: prechecks

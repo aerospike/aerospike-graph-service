@@ -85,8 +85,8 @@ A GitHub Action enforces this on every PR.
 
 - At least one maintainer review is required. Two for anything that
   changes on-disk format, public API, or security-sensitive code.
-- The PR must be rebased (not merged) onto the current `main` before
-  merge. Keep the history linear.
+- The PR must be rebased (not merged) onto the current `3.x-dev`
+  before merge. Keep the history linear.
 - Once approved, a maintainer will merge. Contributors cannot
   self-merge.
 

@@ -73,6 +73,9 @@ Out of scope:
 
 Operational guidance for running this service securely —
 authentication, authorization, TLS, network isolation, and secret
-management — lives in [`docs/SECURITY.md`](docs/SECURITY.md). If that
-document is missing anything you needed to know to deploy safely, that
-itself is an issue worth filing.
+management — is spread across the configuration and deployment
+documents in [`docs/`](docs/), starting with
+[`docs/SETUP.md`](docs/SETUP.md) and
+[`docs/DOCKER_USER_DOCUMENTATION.md`](docs/DOCKER_USER_DOCUMENTATION.md).
+If something you needed to know to deploy safely is missing or
+unclear, please open an issue — that gap is itself worth fixing.

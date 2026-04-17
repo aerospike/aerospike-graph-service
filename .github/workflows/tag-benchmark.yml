@@ -50,6 +50,8 @@ jobs:
           security-group-id: sg-005fce4b475465f9e
   run-l3-bulk-loader:
     name: Run L3 Spark Bulk Loader
+    permissions:
+      contents: write
     timeout-minutes: 3000
     runs-on: ${{ needs.start-runner-l3-bulk-loader.outputs.label }}
     needs: start-runner-l3-bulk-loader
@@ -161,7 +163,7 @@ jobs:
           alert-threshold: '125%'
           comment-on-alert: true
           fail-on-alert: false
-          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           benchmark-data-dir-path: docs/
       - name: Run Benchmark on GCP
         run: |
@@ -180,7 +182,7 @@ jobs:
           alert-threshold: '105%'
           comment-on-alert: true
           fail-on-alert: false
-          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           benchmark-data-dir-path: docs/
       - name: Log Aerospike Server on Failure
         if: failure()

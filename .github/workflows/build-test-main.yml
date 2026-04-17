@@ -826,6 +826,8 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark --no-transfer-progress
   test-heap-usage:
     name: Test Firefly Heap Usage
+    permissions:
+      contents: write
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
@@ -866,10 +868,12 @@ jobs:
           comment-on-alert: true
           fail-on-alert: false
           max-items-in-chart: 750
-          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           benchmark-data-dir-path: docs/
   benchmark-firefly:
     name: Benchmark Firefly
+    permissions:
+      contents: write
     timeout-minutes: 240
     needs: start-runner-benchmark
     runs-on: ${{ needs.start-runner-benchmark.outputs.label }}
@@ -924,7 +928,7 @@ jobs:
           comment-on-alert: true
           fail-on-alert: false
           max-items-in-chart: 750
-          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           benchmark-data-dir-path: docs/
   test-firefly-chainable-maven:
     name: Test Chainable Maven
@@ -1952,6 +1956,8 @@ jobs:
           mvn test --no-transfer-progress
   benchmark-identifies-flow-firefly:
     name: Benchmark Identifies Flow Firefly
+    permissions:
+      contents: write
     timeout-minutes: 240
     needs: start-runner-benchmark-identifies
     runs-on: ${{ needs.start-runner-benchmark-identifies.outputs.label }}
@@ -2006,7 +2012,7 @@ jobs:
           comment-on-alert: true
           fail-on-alert: false
           max-items-in-chart: 750
-          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           benchmark-data-dir-path: docs/
   test-chainable-docker:
     name: Test Chainable Docker

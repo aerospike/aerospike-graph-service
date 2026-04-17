@@ -49,7 +49,7 @@ jobs:
     name: Tinkerbench Benchmark
     permissions:
       packages: write
-      contents: read
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -236,7 +236,7 @@ jobs:
           comment-on-alert: true
           fail-on-alert: false
           max-items-in-chart: 750
-          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           benchmark-data-dir-path: docs/
 
       - name: Stop Tinkerbench machine

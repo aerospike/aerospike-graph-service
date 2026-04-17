@@ -15,7 +15,7 @@
 name: Build OLAP and Test
 permissions:
   id-token: write
-  contents: read
+  contents: write
   pull-requests: write
   packages: write
 
@@ -366,7 +366,7 @@ jobs:
           comment-on-alert: true
           fail-on-alert: false
           max-items-in-chart: 750
-          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           benchmark-data-dir-path: docs/
 
       - name: Stop dataproc cluster

@@ -227,6 +227,8 @@ jobs:
           gcloud storage rm -r gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}
   run-l3-bulk-loader:
     name: Run L3 Spark Bulk Loader
+    permissions:
+      contents: write
     timeout-minutes: 150
     runs-on: ${{ needs.start-runner-l3-bulk-loader.outputs.label }}
     needs: [ci-guard, start-runner-l3-bulk-loader]
@@ -354,7 +356,7 @@ jobs:
           comment-on-alert: true
           fail-on-alert: false
           alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
-          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           benchmark-data-dir-path: docs/
       - name: Run Benchmark on GCP
         run: |
@@ -374,7 +376,7 @@ jobs:
           comment-on-alert: true
           fail-on-alert: false
           alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
-          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           benchmark-data-dir-path: docs/
       - name: Delete Firefly Compute Instances (Cleanup)
         if: always()

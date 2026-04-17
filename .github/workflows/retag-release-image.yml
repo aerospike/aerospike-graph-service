@@ -27,8 +27,6 @@ env:
   GITHUB_REGISTRY_URL: ghcr.io
   DOCKERHUB_IMAGE_NAME: aerospike-graph-service
   DOCKERHUB_REPOSITORY_NAME: aerospike
-  GCLOUD_REPOSITORY_NAME: gcr.io/aerospike-prod
-  GCLOUD_IMAGE_NAME: aerospike-graph-service
 
 
 jobs:
@@ -48,15 +46,6 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
-
-      - name: Set up Cloud Authentication
-        id: auth
-        uses: google-github-actions/auth@v3
-        with:
-          credentials_json: ${{ secrets.GOOGLE_DOCKER_REPO_SECRET }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@e30db14379863a8c79331b04a9969f4c1e225e0b # v1.1.1
 
       - name: Login to Dockerhub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
@@ -78,9 +67,6 @@ jobs:
 
       - name: Publish Container
         run: |
-          # Configure docker auth for gcloud
-          gcloud auth configure-docker -q
-          
           # Strip git ref prefix (refs/tags or ref/heads).
           # From the release event structure, we expect to find it under this.
           VERSION=$(echo "${{ github.event.release.tag_name }}" | sed -e 's,.*/\(.*\),\1,')
@@ -98,31 +84,15 @@ jobs:
           GITHUB_IMAGE_ARM_SLIM=${GITHUB_IMAGE}-slim-arm64
           GITHUB_IMAGE_AMD_SLIM=${GITHUB_IMAGE}-slim-amd64
           
-          # Get registry URL and convert to lower case.
           DOCKERHUB_IMAGE_BASE=$DOCKERHUB_REPOSITORY_NAME/$DOCKERHUB_IMAGE_NAME
-          GCLOUD_IMAGE_BASE=$GCLOUD_REPOSITORY_NAME/$GCLOUD_IMAGE_NAME
-          
-          # Convert image base to lower case.
           DOCKERHUB_IMAGE_BASE=$(echo $DOCKERHUB_IMAGE_BASE | tr '[A-Z]' '[a-z]')
-          GCLOUD_IMAGE_BASE=$(echo $GCLOUD_IMAGE_BASE | tr '[A-Z]' '[a-z]')
           
-          # Create image names.
           DOCKERHUB_OUTPUT_IMAGE=$DOCKERHUB_IMAGE_BASE:$VERSION
           DOCKERHUB_OUTPUT_IMAGE_SLIM=$DOCKERHUB_IMAGE_BASE:$VERSION-slim
-          GCLOUD_OUTPUT_IMAGE=$GCLOUD_IMAGE_BASE:$VERSION
-          GCLOUD_OUTPUT_IMAGE_SLIM=$GCLOUD_IMAGE_BASE:$VERSION-slim
-          
-          # Create latest image names.
           DOCKERHUB_LATEST_IMAGE=$DOCKERHUB_IMAGE_BASE:latest
           DOCKERHUB_LATEST_IMAGE_SLIM=$DOCKERHUB_IMAGE_BASE:latest-slim
-          GCLOUD_LATEST_IMAGE=$GCLOUD_IMAGE_BASE:latest
-          GCLOUD_LATEST_IMAGE_SLIM=$GCLOUD_IMAGE_BASE:latest-slim
-          
-          # Create immutable tags.
           DOCKERHUB_IMMUTABLE_IMAGE=${DOCKERHUB_OUTPUT_IMAGE}.1
           DOCKERHUB_IMMUTABLE_IMAGE_SLIM=${DOCKERHUB_OUTPUT_IMAGE_SLIM}.1
-          GCLOUD_IMMUTABLE_IMAGE=${GCLOUD_OUTPUT_IMAGE}.1
-          GCLOUD_IMMUTABLE_IMAGE_SLIM=${GCLOUD_OUTPUT_IMAGE_SLIM}.1
           
           # Pull base image.
           docker pull ${GITHUB_IMAGE_ARM} --platform linux/arm64

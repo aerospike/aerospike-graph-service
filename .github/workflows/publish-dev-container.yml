@@ -22,7 +22,7 @@ on:
 
 env:
   QE_DOCKER_REGISTRY: secure.docker.qe.aerospike.com
-  QE_DOCKER_USERNAME: firefly
+  QE_DOCKER_USERNAME: ${{ vars.QE_DOCKER_USERNAME }}
 
 jobs:
   publish-github-amd:

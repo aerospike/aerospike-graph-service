@@ -144,7 +144,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Authorize gcloud CLI
-        uses: google-github-actions/auth@v3
+        uses: step-security/google-github-auth@775fc4c80760272ef389c9f9f8d98de7db0c170d # v3.0.2
         with:
           credentials_json: ${{ secrets.GCS_KEYFILE_B64 }}
 
@@ -173,7 +173,7 @@ jobs:
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io --username ${{ github.actor }} --password-stdin
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
+        uses: step-security/setup-buildx-action@f931205d68723ad9589fd2a7e2ece238bf9de341 # v4.0.0
 
       - name: Latch Date and Time
         uses: Kaven-Universe/github-action-current-date-time@f2c12d90cff9c3e7b1f50430886e632fe31fcee1 # v1.4.0

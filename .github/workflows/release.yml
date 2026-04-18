@@ -159,7 +159,7 @@ jobs:
 
       - name: Create draft GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
+        uses: step-security/action-gh-release@dc29ef0d1f6f9a032a97ec797d9cb7ea788dde41 # v2.6.1
         with:
           draft: true
           generate_release_notes: true

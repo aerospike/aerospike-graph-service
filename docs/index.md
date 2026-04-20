@@ -28,10 +28,9 @@ this directory is where operational, design, and tuning docs live.
 
 ## Data model & storage
 
-- [Data model design](DATA_MODEL_DESIGN.md) — overview of how vertices,
-  edges, and properties map onto Aerospike records.
-- [Linked layout](data-layouts/LINKED.md) — one of the two on-disk graph
-  layouts (`linked` vs. `packed`).
+- [Data model design](DATA_MODEL_DESIGN.md) — how vertices, edges, and
+  properties map onto Aerospike records under the `packed` on-disk
+  layout.
 - [ID management](ID_MANAGEMENT.md) — `~id` semantics, user-supplied
   vs. auto-generated IDs, the `~id` / `T.id` / plain `id` distinction.
 - [TTL](TTL.md) — record expiration behavior.

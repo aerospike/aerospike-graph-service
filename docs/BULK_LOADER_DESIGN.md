@@ -91,13 +91,9 @@ flowchart LR
     end
     subgraph Firefly
     DataWriter-->FireflyGraph
-    FireflyGraph-->LinkedGraph
-    FireflyGraph-->TupleGraph
-    FireflyGraph-->OtherGraph
+    FireflyGraph-->PackedGraph[Packed data model]
     end
-    LinkedGraph-->Aerospike
-    TupleGraph-->Aerospike
-    OtherGraph-->Aerospike
+    PackedGraph-->Aerospike
     Aerospike[(Aerospike)]
 ```
 
@@ -105,8 +101,11 @@ To make the bulk loader future-proof, the Reader should be abstract and allow fu
 reader should convert to an intermediate type in the bulk loader. Future bulk loading inputs could be things such as S3
 or other inputs, so this should be as generic as is reasonably possible.
 
-Notice, Firefly will handle its own specific writing by routing requests to the appropriate data model. Some data 
-model examples have been listed in the diagram.
+The currently supported on-disk layout is `packed` (see
+[`DATA_MODEL_DESIGN.md`](DATA_MODEL_DESIGN.md)); the bulk loader
+writes through `FireflyGraph`, which routes to the packed
+implementation. The plumbing here is written to accommodate additional
+data models in the future if they are ever added.
 
 The idea is to have a number of read and write threads running at the same time. The read and write threads share a 
 block queue, this way we avoid reading too much, or writing too much. Most likely we will be constrained by writes.

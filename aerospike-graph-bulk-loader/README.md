@@ -1,17 +1,23 @@
-# Firefly Spark Bulk Loader
+# Aerospike Graph Service — Spark Bulk Loader
 
-Bulk loading of data using Firefly Bulk Loader is a process that enables the user to load large volumes of graph data
-into the database using the Apache Spark distributed computing framework via
-the [Gremlin data csv format](https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-format-gremlin.html).
+> Uses the `firefly` codename in class names, artifact ids, and a few
+> configuration paths. The product is **Aerospike Graph Service**; see
+> the root [README](../README.md) for why the codename is preserved.
+
+Bulk loading enables loading large volumes of graph data into the
+database using the Apache Spark distributed computing framework via
+the [Gremlin data CSV format](https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-format-gremlin.html).
 
 ### Requirements
 
-There are two ways of running the bulk loader. The basic method is by invoking the `call` API via a Gremlin Traversal
-to an active instance of Firefly. The more advanced method is by running `spark-submit` to a configured Spark cluster.
+There are two ways of running the bulk loader. The basic method is by
+invoking the `call` API via a Gremlin traversal against a running
+Aerospike Graph Service. The more advanced method is by running
+`spark-submit` against a configured Spark cluster.
 
 #### Call API
 
-* A running instance of Firefly
+* A running Aerospike Graph Service instance
 * CSV files containing vertices and edges to be loaded
   in [Gremlin data format](https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-format-gremlin.html)
     - These can live locally or in an AWS S3 bucket
@@ -25,7 +31,8 @@ to an active instance of Firefly. The more advanced method is by running `spark-
   in [Gremlin data format](https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-format-gremlin.html)
     - These can live locally or in an AWS S3 bucket
 * A running instance of Aerospike
-* `.properties` configuration file for Firefly configured to use that instance
+* A `.properties` configuration file for Aerospike Graph Service
+  pointing at that Aerospike cluster
 
 ### Vertex and Edge Directories
 
@@ -61,10 +68,13 @@ Running the bulk loader comes with configurable options. These configurations ca
 
 ##### Using a `.properties` file
 
-The Firefly Spark Bulk Loader uses the data models within Firefly to accurately load data into Aerospike, so its
-configuration needs to be based off an identical `.properties` file to the one that is used to launch Firefly that is
-expected to interact with the loaded data. In L2 mode, this configuration file is optional and by default will use the 
-running instance's if one is not provided.
+The Spark Bulk Loader uses the data model within Aerospike Graph
+Service to accurately load data into Aerospike, so its configuration
+should be based on the same `.properties` file used to launch the
+graph service instance that will interact with the loaded data.
+When invoking via the Call API, this configuration file is optional
+and defaults to the running instance's configuration if none is
+provided.
 
 Additional Bulk Loader specific configurations should be added to it to create the `.properties` config for it. 
 
@@ -77,7 +87,7 @@ The following configuration options are available:
 | aerospike.graphloader.config                            | -c   | Yes if Call API \ No if Spark Submit                         | N/A           | Call API: `.properties` of the instance the Call API is made to. |
 | aerospike.graphloader.vertices                          | -vd  | No                                                           | N/A           | Local: Absolute path to directory containing Vertex CSVs. AWS S3: `s3://` URI. GCS: `gs://` URI. |
 | aerospike.graphloader.edges                             | -ed  | No                                                           | N/A           | Local: Absolute path to directory containing Vertex CSVs. AWS S3: `s3://` URI. GCS: `gs://` URI. |
-| aerospike.graphloader.temp-directory                    | -td  | No, unless `read_only` flag is active (only applicable in L3) | N/A           | Local: Absolute path to directory where temporary Edge IDs would be written. AWS S3: `s3://` URI.  GCS `gs://` URI. `read_only` flag disables this configuration. |
+| aerospike.graphloader.temp-directory                    | -td  | No, unless `read_only` flag is active (Spark Submit only)    | N/A           | Local: Absolute path to directory where temporary Edge IDs would be written. AWS S3: `s3://` URI.  GCS `gs://` URI. `read_only` flag disables this configuration. |
 | aerospike.graphloader.keep-provided-edge-id-as-property | -ki  | Yes                                                          | false         | Keep provided ~id value in Edge CSVs as a Property on the Edge. |
 | aerospike.graphloader.provided-edge-id-property-name    | -ep  | Yes                                                          | "~providedId" | Property key/name of provided ID when stored as a Property.  |
 | aerospike.graphloader.null-value                        | -nv  | Yes                                                          | "null"        | The String value when found in CSV which is parsed to a literal null. |
@@ -162,7 +172,7 @@ A local example:
 # Docker run with files passed in.  
 docker run -p 8182:8182  \
             -v /<local path to root of a directory that contains 'sampledata/vertices' and 'sampledata/edges'>/:/opt/aerospike-graph/etc/ \
-            ghcr.io/aerospike/aerospike-graph-service
+            ghcr.io/aerospike/firefly
 
 # Invoke call API with path to files in docker container.
 g.call("aerospike.graphloader.bulk-load.load")
@@ -319,7 +329,7 @@ These are the flags to modify the run when bulk loading via Spark Submit. The Ca
 | aerospike.graphloader.dataframe-storage-type | -dt  | Yes      | "disk_only" | Dataframe storage type. Allowed values: "disk_only", "memory_only", "memory_and_disk" |
 | aerospike.graphloader.s3-endpoint            | -s3e | Yes      | N/A         | Custom S3 endpoint for QE testing                            |
 
-##### sample commands (for single node L2 with 32 GB memory)
+##### Sample commands (for a single-node Spark cluster with 32 GB memory)
 
 | description        | command                                                                                                                                                                                                                                                                              |
 | ------------------ |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -369,14 +379,17 @@ aerospike.graphloader.dataframe-storage-type = memory_and_disk
 
 #### Running
 
-* Grab a copy of a `.properties` config to use as a base - one can be found at `firefly/conf/spark-bulk-loader-conf`
-* Properly configure it to match your system and desired behaviour
-* Build the `firefly-spark-bulk-loader` jar by running `mvn clean install -DskipTests` in the `firefly` root directory
-    - This should build a jar located
-      at `firefly/firefly-spark-bulk-loader/target/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar`
-    - The jar prefixed with `original` can be ignored
-* Submit a spark job locally with the following
-  command: `spark-submit --master <SPARK_URL> --conf spark.local.dir=</path/to/local>/work_dir --conf spark.worker.cleanup.enabled=true --conf spark.driver.cores=1 --conf spark.driver.memory=1gb --conf spark.executor.cores=2 --conf spark.executor.instances=2 --conf spark.executor.memoryOverhead=1g --conf spark.executor.memory=2g --conf spark.task.cpus=1 --conf spark.shuffle.service.enable=true --conf spark.sql.shuffle.partitions=100 --conf spark.default.parallelism=100 --conf spark.memory.fraction=0.6 --conf spark.locality.wait=0 --class com.aerospike.firefly.bulkloader.SparkBulkLoader </path/to>/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar -e local -c <absolute/path/to>/config.properties`
+* Grab a copy of a `.properties` config to use as a base — one is provided at
+  [`conf/spark-bulk-loader-conf/config.properties`](../conf/spark-bulk-loader-conf/config.properties)
+  in the repository root.
+* Configure it to match your system and desired behaviour.
+* Build the bulk-loader jar by running `mvn clean install -DskipTests`
+  from the repository root.
+    - The jar will be produced at
+      `aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-X.Y.Z-SNAPSHOT.jar`.
+    - The jar prefixed with `original` can be ignored.
+* Submit a Spark job locally with the following command:
+  `spark-submit --master <SPARK_URL> --conf spark.local.dir=</path/to/local>/work_dir --conf spark.worker.cleanup.enabled=true --conf spark.driver.cores=1 --conf spark.driver.memory=1gb --conf spark.executor.cores=2 --conf spark.executor.instances=2 --conf spark.executor.memoryOverhead=1g --conf spark.executor.memory=2g --conf spark.task.cpus=1 --conf spark.shuffle.service.enable=true --conf spark.sql.shuffle.partitions=100 --conf spark.default.parallelism=100 --conf spark.memory.fraction=0.6 --conf spark.locality.wait=0 --class com.aerospike.firefly.bulkloader.SparkBulkLoader </path/to>/aerospike-graph-bulk-loader-X.Y.Z-SNAPSHOT.jar -e local -c <absolute/path/to>/config.properties`
     - Spark uses `/tmp` as default local work/scratch directory. To specify a custom local path on a shared storage,
       make sure to pass the entire path to `spark.local.dir` conf. Spark will auto create `work_dir`
     - The configuration to achieve maximum parallelism in Spark is achieved by allocating the right number of the number

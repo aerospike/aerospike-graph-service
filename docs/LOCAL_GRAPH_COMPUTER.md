@@ -56,7 +56,7 @@ AerospikeGraph provides a single `GraphComputer` implementation called `LocalGra
 executes on a single node and is oriented for processing small to medium-sized subgraphs in a multi-threaded manner. Exposing an OLAP `GraphTraversalSource` versus an OLTP `GraphTraversalSource` is as simple as ensuring traversals are executed `withComputer()`.
 
 ```
-// OTLP
+// OLTP
 g = traversal().withRemote(DriverRemoteConnection.using("<AGS-IP>", <AGS-PORT>, "g"))
 
 // OLAP
@@ -72,7 +72,7 @@ gremlin> g.V().count()
 ==>0
 
 gremlin> g.close()
-gremlin> g = traversal().withRemote(DriverRemoteConnection.using("<AGS-IP>", <AGS-PORT>,, "g"))
+gremlin> g = traversal().withRemote(DriverRemoteConnection.using("<AGS-IP>", <AGS-PORT>, "g"))
 ==>graphtraversalsource[emptygraph[empty], standard]
 gremlin> g.addV("thing")
 ==>v[-1]
@@ -86,7 +86,7 @@ gremlin> g.addV("thing")
 ==>v[-5]
 gremlin> g.close()
 
-gremlin> g = traversal().withRemote(DriverRemoteConnection.using("<AGS-IP>", <AGS-PORT>,, "g")).withComputer()
+gremlin> g = traversal().withRemote(DriverRemoteConnection.using("<AGS-IP>", <AGS-PORT>, "g")).withComputer()
 ==>graphtraversalsource[emptygraph[empty], graphcomputer]
 gremlin> g.V().count()
 ==>5

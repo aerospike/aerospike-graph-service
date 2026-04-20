@@ -32,7 +32,6 @@ gremlin.graph=com.aerospike.firefly.structure.FireflyGraph
 aerospike.client.host=172.17.0.1
 aerospike.client.port=3000
 aerospike.client.namespace=test
-aerospike.graph.data.model=packed
 ```
 
 ### Multi-node cluster
@@ -43,22 +42,15 @@ Comma-separate seed addresses:
 gremlin.graph=com.aerospike.firefly.structure.FireflyGraph
 aerospike.client.host=172.18.0.3:3000,172.18.0.2:3000,172.18.0.4:3000
 aerospike.client.namespace=test
-aerospike.graph.data.model=packed
 ```
 
-## Choosing a data model
+## Data model
 
-The service supports two on-disk graph layouts. Pick one at deploy
-time; it cannot be changed after data has been written.
-
-- **`linked`** — vertex record with a per-vertex edge index; better for
-  high-fanout traversals across supernodes.
-- **`packed`** — edges packed into the vertex record up to a size
-  threshold; better for lower-fanout workloads with heavy write
-  amplification sensitivity.
-
-See [`DATA_MODEL_DESIGN.md`](DATA_MODEL_DESIGN.md) for the trade-offs
-and [`CONFIG_OPTIONS.md`](CONFIG_OPTIONS.md) for every tunable.
+The service uses a single on-disk graph layout, `packed`, tuned to
+keep adjacency information co-resident with the vertex record. It is
+the default and the only value `aerospike.graph.data.model` accepts
+today. See [`DATA_MODEL_DESIGN.md`](DATA_MODEL_DESIGN.md) for the
+layout and [`CONFIG_OPTIONS.md`](CONFIG_OPTIONS.md) for every tunable.
 
 ## Advanced: a custom `gremlin-server.yaml`
 

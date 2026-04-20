@@ -5,11 +5,10 @@
 
 <img src="https://raw.githubusercontent.com/apache/tinkerpop/master/docs/static/images/tinkerpop-character.png" alt="TinkerPop" width="100" />
 
-> Some Docker tags and image names still use the project codename
-> **`firefly`** (the internal CI pushes to `ghcr.io/aerospike/firefly`);
-> the public image will be published as
-> `ghcr.io/aerospike/aerospike-graph-service`. See [`index.md`](index.md)
-> for the codename explanation.
+> Images are published to `ghcr.io/aerospike/firefly` under the project
+> codename. The product name is **Aerospike Graph Service**; the image
+> identity is `firefly`. See the top of the root README for the full
+> explanation of why the codename is preserved on the image path.
 
 [tinkerpop]: http://tinkerpop.apache.org
 [aerospike]: https://aerospike.com
@@ -32,7 +31,7 @@ docker run -d --name graph \
   -e AEROSPIKE_NAMESPACE="test" \
   -e aerospike.graph.index.vertex.properties=property1,property2 \
   -e aerospike.graph.index.vertex.label.enabled=true \
-  ghcr.io/aerospike/aerospike-graph-service:latest
+  ghcr.io/aerospike/firefly:latest
 ```
 
 ## 2. Properties file (recommended for most deployments)
@@ -44,7 +43,7 @@ expects:
 docker run -d --name graph \
   -p 8182:8182 \
   -v /host/path/aerospike-graph.properties:/opt/aerospike-graph/conf/aerospike-graph.properties \
-  ghcr.io/aerospike/aerospike-graph-service:latest
+  ghcr.io/aerospike/firefly:latest
 ```
 
 Example `aerospike-graph.properties`:
@@ -70,7 +69,7 @@ containing both an `aerospike-graph.properties` and a
 docker run -d --name graph \
   -p 8182:8182 \
   -v /host/path/conf:/opt/aerospike-graph/conf \
-  ghcr.io/aerospike/aerospike-graph-service:latest
+  ghcr.io/aerospike/firefly:latest
 ```
 
 `/host/path/conf` must contain **both** files:

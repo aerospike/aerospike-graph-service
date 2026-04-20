@@ -23,12 +23,21 @@ The indexes can be set in the bulk loader before bulk loading as well.
 
 ## Vertex Label Index Usage
 
-Vertex label indexes can be created by setting the flags:
+The vertex label index is opt-in. Enable it with:
 ```
-aerospike.graph.index.vertex.properties=true
+aerospike.graph.index.vertex.label.enabled=true
 ```
-This flag is taken as a union from all firefly instances. This means if a single firefly instance sets the flag to true, 
-all other firefly instances will be aware of the vertex label index that was created and will be able to use it.
+This flag is taken as a union across all Aerospike Graph Service
+instances. A single instance setting it to `true` is enough; all
+other instances will pick up the index on their next metadata refresh
+and will be able to use it.
+
+## Edge indexes
+
+Edge property and edge label indexes are **not** supported today.
+Setting `aerospike.graph.index.edge.properties` or
+`aerospike.graph.index.edge.label.enabled=true` will cause the service
+to fail startup. See [`INDEX_DESIGN.md`](INDEX_DESIGN.md) for details.
 
 ## Example
 For a graph with schema:

@@ -2,13 +2,14 @@
 
 ## Background Information
 
-In the packed model and linked data model, writing an edge requires performing the following actions:
+In the `packed` data model, writing an edge requires performing the following actions:
 - Read-modify-write of the adjacent vertices.
 - Write of the incident edge.
 
->Adding Vertex properties in the linked data model has the same issue, but for the purpose of this
-document we will focus on edges because they are more complex and the solution can be applied to 
-vertex properties.
+> Adding vertex properties that overflow into their own records has the
+> same class of issue, but for the purpose of this document we will
+> focus on edges because they are more complex and the solution can be
+> applied to vertex properties.
 
 ## Problem Statement
 

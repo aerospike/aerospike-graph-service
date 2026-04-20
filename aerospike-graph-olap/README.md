@@ -1,10 +1,16 @@
 # Aerospike Graph OLAP
 
+> This module uses the `firefly` codename in class names and a few
+> identifiers. The product is **Aerospike Graph Service**; see the
+> root [README](../README.md) for why the codename is preserved.
+
 ## Overview
 
-Aerospike Graph OLAP is a graph analytics engine that provides a high-performance, scalable, and cost-effective solution 
-for analyzing large-scale graph data. It is designed to handle large-scale graph data and  to be used in conjunction with
-Aerospike Graph Service, which provides a distributed graph database that can store and query large-scale graph data.
+Aerospike Graph OLAP is the analytics-side counterpart to Aerospike
+Graph Service. It runs Gremlin OLAP traversals (`GraphComputer` jobs —
+PageRank, connected components, custom VertexPrograms, large
+aggregations) against the same Aerospike namespace that the online
+service writes, using Spark as the compute layer.
 
 ## Pre-requisites
 
@@ -104,7 +110,7 @@ subnet_id="subnet-04bc1bfb6c6ebc05b"
 #   Using security group ID sg-030a778997ce044eb name AeroLabServer-0eb2d9ae66bac4b47
 security_group="sg-028ccc8c880bd48cd"
 
-#Switch from java8 to java 11, the minimum java version needed for Aerospike Firefly Graph.
+# Switch from Java 8 to Java 11, the minimum Java version required by Aerospike Graph Service.
 CONFIGURATIONS='[{"Classification":"hadoop-env","Configurations":[{"Classification":"export","Configurations":[],"Properties":{"JAVA_HOME":"/usr/lib/jvm/java-11-amazon-corretto.x86_64"}}],"Properties":{}},{"Classification":"spark-env","Configurations":[{"Classification":"export","Configurations":[],"Properties":{"JAVA_HOME":"/usr/lib/jvm/java-11-amazon-corretto.x86_64"}}],"Properties":{}},{"Classification":"spark-defaults","Properties":{"spark.executorEnv.JAVA_HOME":"/usr/lib/jvm/java-11-amazon-corretto.x86_64"}}]'
 EMR_RELEASE="emr-7.12.0"
 

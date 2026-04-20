@@ -21,9 +21,6 @@
 > and avoid churn for anyone on internal branches; think of `firefly`
 > the same way `linux` users think of `tux` or `gcc` users think of
 > `gnu`: it's the animal, not the product.
->
-> See [`docs/open-source/OPEN_SOURCE_PLAN.md`](docs/open-source/OPEN_SOURCE_PLAN.md)
-> for the full open-source migration plan.
 
 ---
 
@@ -48,9 +45,10 @@ streams results back to the driver.
 - **Standard Gremlin on the wire.** No bespoke query language, no
   custom drivers. Anything that speaks TinkerPop 3.7.x works — we do
   not yet support 3.8 because of breaking changes in that line.
-- **Tunable data layouts.** Two on-disk graph layouts (`linked` and
-  `packed`) trade off write amplification against traversal density;
-  you pick the one that matches your access pattern. See
+- **Aerospike-native data layout.** Vertices and edges are stored in
+  a `packed` on-disk layout tuned for Aerospike's record structure,
+  keeping adjacency information co-resident with the vertex so that
+  most traversal hops resolve in a single Aerospike read. See
   [`docs/DATA_MODEL_DESIGN.md`](docs/DATA_MODEL_DESIGN.md).
 - **Scale-out OLAP.** The Spark-backed OLAP module lets you run
   `GraphComputer` jobs (e.g. PageRank, connected components, custom
@@ -70,16 +68,20 @@ docker run -d --name graph \
   -p 8182:8182 \
   -e AEROSPIKE_HOST="aerospike-node:3000" \
   -e AEROSPIKE_NAMESPACE="test" \
-  ghcr.io/aerospike/aerospike-graph-service:latest
+  ghcr.io/aerospike/firefly:latest
 ```
 
 `AEROSPIKE_HOST` accepts one or more `host:port` pairs (comma-separated)
 pointing at your Aerospike cluster. `AEROSPIKE_NAMESPACE` must already
 exist on that cluster.
 
-> **Heads up:** the first publicly-pushed image tag is
-> `v0.x.0`-prefixed and will be announced in the release notes.
-> Until then, build the image locally from source (below).
+The published image name uses the codename (`firefly`) — same reasoning
+as the callout at the top of this README. The product name is
+**Aerospike Graph Service**; the image identity is `firefly`.
+
+> **Heads up:** the first publicly-pushed image tag will be `v0.x.0`
+> -prefixed and will be announced in the release notes. Until then,
+> build the image locally from source (below).
 
 Verify it's up:
 
@@ -125,6 +127,11 @@ complete walk-through, including loading sample datasets (the air-routes
 graph and a synthetic schema generator), is in
 [`docs/SETUP.md`](docs/SETUP.md).
 
+For runnable end-to-end examples — notebooks, sample datasets, bulk-load
+recipes, and application patterns — see the companion
+[`aerospike/aerospike-graph`](https://github.com/aerospike/aerospike-graph)
+repository.
+
 ## Architecture at a glance
 
 ```
@@ -150,7 +157,7 @@ The repository is laid out as a multi-module Maven build:
 
 | Module | What's in it |
 |---|---|
-| [`aerospike-graph-gremlin/`](aerospike-graph-gremlin)           | Core OLTP engine. `FireflyGraph`, the storage layouts (`linked`, `packed`), indexes, traversal strategies, and the embedded gremlin-server. |
+| [`aerospike-graph-gremlin/`](aerospike-graph-gremlin)           | Core OLTP engine. `FireflyGraph`, the `packed` storage layout, indexes, traversal strategies, and the embedded gremlin-server. |
 | [`aerospike-graph-bulk-loader/`](aerospike-graph-bulk-loader)   | Spark-based bulk loader for CSV / GraphML / GraphSON inputs. |
 | [`aerospike-graph-olap/`](aerospike-graph-olap)                 | Spark-backed `GraphComputer` (OLAP) implementation for cluster-wide analytics. |
 | [`aerospike-graph-api/`](aerospike-graph-api)                   | Stable API surface shared between the engine and extensions. |
@@ -177,7 +184,7 @@ Pass it to the container:
 docker run -d --name graph \
   -p 8182:8182 \
   -v $PWD/aerospike-graph.properties:/opt/aerospike-graph/conf/aerospike-graph.properties \
-  ghcr.io/aerospike/aerospike-graph-service:latest
+  ghcr.io/aerospike/firefly:latest
 ```
 
 For the full option reference — including auth, TLS, caching, indexing,
@@ -188,8 +195,11 @@ Spark executor tuning, metrics, and JVM heap sizing — see
 
 ### Prerequisites
 
-- JDK 11 or newer (tested with OpenJDK 11, 17, 21)
-- Maven 3.8+
+- JDK 11 or newer. CI covers JDK 11 and 17; JDK 21 is on the roadmap
+  but not yet in the test matrix (see
+  [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md)).
+- Maven 3.9+ (matches CI; see
+  [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md))
 - Docker (for the integration tests and for building the runtime image)
 - An Aerospike cluster, or `docker run -p 3000:3000 aerospike/aerospike-server` for local development
 
@@ -204,11 +214,11 @@ Outputs land in each module's `target/` directory as `*-jar-with-dependencies.ja
 ### Build the Docker image
 
 ```bash
-docker build --tag aerospike-graph-service:dev .
+docker build --tag firefly:dev .
 docker run -d -p 8182:8182 \
   -e AEROSPIKE_HOST=host.docker.internal:3000 \
   -e AEROSPIKE_NAMESPACE=test \
-  aerospike-graph-service:dev
+  firefly:dev
 ```
 
 ### License-clean dependency graph
@@ -253,9 +263,10 @@ Core docs, organized roughly by audience:
 - [`docs/CONFIG_OPTIONS.md`](docs/CONFIG_OPTIONS.md) — complete configuration reference
 - [`docs/INDEX_USAGE.md`](docs/INDEX_USAGE.md) — when and how to use indexes
 - [`docs/METRICS.md`](docs/METRICS.md) — operational metrics and what to alert on
+- [`aerospike/aerospike-graph`](https://github.com/aerospike/aerospike-graph) — runnable example applications, notebooks, and sample datasets
 
 **Design docs**
-- [`docs/DATA_MODEL_DESIGN.md`](docs/DATA_MODEL_DESIGN.md) — `linked` vs. `packed` on-disk layouts
+- [`docs/DATA_MODEL_DESIGN.md`](docs/DATA_MODEL_DESIGN.md) — the `packed` on-disk layout
 - [`docs/INDEX_DESIGN.md`](docs/INDEX_DESIGN.md) — the index subsystem
 - [`docs/ID_MANAGEMENT.md`](docs/ID_MANAGEMENT.md) — vertex/edge ID generation and allocation
 - [`docs/BULK_LOADER_DESIGN.md`](docs/BULK_LOADER_DESIGN.md) — architecture of the Spark bulk loader

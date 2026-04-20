@@ -13,14 +13,17 @@
 > **Codename `firefly`.** The project was developed internally under the
 > codename *Firefly*, and the codename is preserved throughout the code
 > and repository: Java packages (`com.aerospike.firefly.*`), the root
-> Maven `<artifactId>`, Docker images (`ghcr.io/aerospike/firefly`), and
-> config-prefix/env-var names (`firefly.*` / `FIREFLY_*`). The **product
-> name** — the thing you deploy, document, and talk to other humans
-> about — is **Aerospike Graph Service**. Mapping the codename onto
-> every identifier was deliberately skipped to keep the OSS diff small
-> and avoid churn for anyone on internal branches; think of `firefly`
-> the same way `linux` users think of `tux` or `gcc` users think of
-> `gnu`: it's the animal, not the product.
+> Maven `<artifactId>`, the internal GHCR dev image
+> (`ghcr.io/aerospike/firefly`), and config-prefix/env-var names
+> (`firefly.*` / `FIREFLY_*`). The **product name** — the thing you
+> deploy, document, and talk to other humans about — is
+> **Aerospike Graph Service**, and that's the name used for the
+> user-facing Docker Hub image (`aerospike/aerospike-graph-service`).
+> Mapping the codename onto every internal identifier was deliberately
+> skipped to keep the OSS diff small and avoid churn for anyone on
+> internal branches; think of `firefly` the same way `linux` users
+> think of `tux` or `gcc` users think of `gnu`: it's the animal, not
+> the product.
 
 ---
 
@@ -68,16 +71,19 @@ docker run -d --name graph \
   -p 8182:8182 \
   -e AEROSPIKE_HOST="aerospike-node:3000" \
   -e AEROSPIKE_NAMESPACE="test" \
-  ghcr.io/aerospike/firefly:latest
+  aerospike/aerospike-graph-service:latest
 ```
 
 `AEROSPIKE_HOST` accepts one or more `host:port` pairs (comma-separated)
 pointing at your Aerospike cluster. `AEROSPIKE_NAMESPACE` must already
 exist on that cluster.
 
-The published image name uses the codename (`firefly`) — same reasoning
-as the callout at the top of this README. The product name is
-**Aerospike Graph Service**; the image identity is `firefly`.
+Released user-facing images are published on Docker Hub as
+`aerospike/aerospike-graph-service:<version>` (with a moving `:latest`
+tag). Release-candidate builds are pushed to GitHub Container Registry
+as `ghcr.io/aerospike/firefly:<version>` under the codename — see the
+callout at the top of this README for why the codename is kept on the
+dev image path.
 
 > **Heads up:** the first publicly-pushed image tag will be `v0.x.0`
 > -prefixed and will be announced in the release notes. Until then,
@@ -184,7 +190,7 @@ Pass it to the container:
 docker run -d --name graph \
   -p 8182:8182 \
   -v $PWD/aerospike-graph.properties:/opt/aerospike-graph/conf/aerospike-graph.properties \
-  ghcr.io/aerospike/firefly:latest
+  aerospike/aerospike-graph-service:latest
 ```
 
 For the full option reference — including auth, TLS, caching, indexing,

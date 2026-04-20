@@ -172,7 +172,7 @@ A local example:
 # Docker run with files passed in.  
 docker run -p 8182:8182  \
             -v /<local path to root of a directory that contains 'sampledata/vertices' and 'sampledata/edges'>/:/opt/aerospike-graph/etc/ \
-            ghcr.io/aerospike/firefly
+            aerospike/aerospike-graph-service
 
 # Invoke call API with path to files in docker container.
 g.call("aerospike.graphloader.bulk-load.load")

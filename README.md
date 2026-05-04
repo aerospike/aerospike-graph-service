@@ -10,44 +10,28 @@
 [![TinkerPop](https://img.shields.io/badge/TinkerPop-3.7.x-orange.svg)](https://tinkerpop.apache.org)
 [![Java](https://img.shields.io/badge/Java-11%2B-green.svg)](https://adoptium.net)
 
-> **Codename `firefly`.** The project was developed internally under the
-> codename *Firefly*, and the codename is preserved throughout the code
-> and repository: Java packages (`com.aerospike.firefly.*`), the root
-> Maven `<artifactId>`, the internal GHCR dev image
-> (`ghcr.io/aerospike/firefly`), and config-prefix/env-var names
-> (`firefly.*` / `FIREFLY_*`). The **product name** — the thing you
-> deploy, document, and talk to other humans about — is
-> **Aerospike Graph Service**, and that's the name used for the
-> user-facing Docker Hub image (`aerospike/aerospike-graph-service`).
-> Mapping the codename onto every internal identifier was deliberately
-> skipped to keep the OSS diff small and avoid churn for anyone on
-> internal branches; think of `firefly` the same way `linux` users
-> think of `tux` or `gcc` users think of `gnu`: it's the animal, not
-> the product.
-
 ---
 
 ## What is Aerospike Graph Service
 
 Aerospike Graph Service is a JVM process that speaks the standard
 TinkerPop Gremlin wire protocol over WebSocket and stores its data in
-an Aerospike cluster. You point your favorite Gremlin driver
+an Aerospike cluster. Use any Gremlin driver variant
 (`gremlin-python`, `gremlin-javascript`, `tinkerpop-client` in Java,
-etc.) at a running instance and issue normal Gremlin traversals — the
+etc.), issue normal Gremlin traversals and the
 service translates them into efficient Aerospike operations, applies
 query-planning optimizations specific to Aerospike's data model, and
 streams results back to the driver.
 
 **Why another graph database?**
 
-- **Aerospike as the storage tier**, so you inherit Aerospike's strong
+- **Aerospike as the storage tier**, inherit Aerospike's strong
   consistency, predictable sub-millisecond reads, horizontal scale,
   hybrid-memory architecture, and cross-datacenter replication. Graph
-  state is just another flavor of workload on top of a battle-tested
+  state is just another flavor of workload on top of a high performance, battle-tested
   KV store.
-- **Standard Gremlin on the wire.** No bespoke query language, no
-  custom drivers. Anything that speaks TinkerPop 3.7.x works — we do
-  not yet support 3.8 because of breaking changes in that line.
+- **Standard Gremlin on the wire.** Anything that speaks TinkerPop 3.7.x works. No bespoke query language, no
+  custom drivers. 3.8 is not supported yet due to breaking changes in that line.
 - **Aerospike-native data layout.** Vertices and edges are stored in
   a `packed` on-disk layout tuned for Aerospike's record structure,
   keeping adjacency information co-resident with the vertex so that
@@ -64,30 +48,29 @@ streams results back to the driver.
 
 ## Quickstart
 
+```
+┌──────────────┐    Gremlin (ws://host:8182)    ┌─────────────────────┐    Aerospike    ┌─────────────────┐
+│  Your app    │  ───────────────────────────>  │  Graph Service      │  ───────────>   │  Aerospike      │
+│  (any lang)  │  <───────────────────────────  │  (this container)   │  <───────────   │  cluster        │
+└──────────────┘                                └─────────────────────┘                 └─────────────────┘
+```
+
 ### Run the server in Docker
+
+You'll need a running Aerospike cluster.
+Then start the Graph Service:
 
 ```bash
 docker run -d --name graph \
   -p 8182:8182 \
-  -e AEROSPIKE_HOST="aerospike-node:3000" \
-  -e AEROSPIKE_NAMESPACE="test" \
+  -e aerospike.client.host="aerospike:3000" \
+  -e aerospike.client.namespace="test" \
   aerospike/aerospike-graph-service:latest
 ```
 
-`AEROSPIKE_HOST` accepts one or more `host:port` pairs (comma-separated)
-pointing at your Aerospike cluster. `AEROSPIKE_NAMESPACE` must already
+`aerospike.client.host` accepts one or more `host:port` pairs (comma-separated)
+pointing at your Aerospike cluster. `aerospike.client.namespace` must already
 exist on that cluster.
-
-Released user-facing images are published on Docker Hub as
-`aerospike/aerospike-graph-service:<version>` (with a moving `:latest`
-tag). Release-candidate builds are pushed to GitHub Container Registry
-as `ghcr.io/aerospike/firefly:<version>` under the codename — see the
-callout at the top of this README for why the codename is kept on the
-dev image path.
-
-> **Heads up:** the first publicly-pushed image tag will be `v0.x.0`
-> -prefixed and will be announced in the release notes. Until then,
-> build the image locally from source (below).
 
 Verify it's up:
 
@@ -128,60 +111,25 @@ List<Object> friends = g.V().has("person", "name", "alice")
                           .out("knows").values("name").toList();
 ```
 
-Every other TinkerPop-compatible driver works the same way. A more
+All TinkerPop-compatible driver work the same way. A more
 complete walk-through, including loading sample datasets (the air-routes
 graph and a synthetic schema generator), is in
 [`docs/SETUP.md`](docs/SETUP.md).
 
-For runnable end-to-end examples — notebooks, sample datasets, bulk-load
-recipes, and application patterns — see the companion
-[`aerospike/aerospike-graph`](https://github.com/aerospike/aerospike-graph)
-repository.
+For more runnable end-to-end examples, notebooks, sample datasets, bulk-load
+recipes, and application patterns see the companion repository
+[`aerospike/aerospike-graph`](https://github.com/aerospike/aerospike-graph).
 
-## Architecture at a glance
-
-```
-┌────────────┐        Gremlin over WebSocket         ┌────────────────────┐
-│  Gremlin   │  ───────────────────────────────────> │ Aerospike Graph    │
-│  client    │  <─────────────────────────────────── │ Service (JVM)      │
-└────────────┘              traversals               │  - gremlin-server  │
-                                                     │  - query planner   │
-                                                     │  - index manager   │
-                                                     │  - cache manager   │
-                                                     └────────┬───────────┘
-                                                              │
-                                          Aerospike native    │
-                                          client protocol     │
-                                                              ▼
-                                                     ┌────────────────────┐
-                                                     │ Aerospike cluster  │
-                                                     │ (namespace = test) │
-                                                     └────────────────────┘
-```
-
-The repository is laid out as a multi-module Maven build:
-
-| Module | What's in it |
-|---|---|
-| [`aerospike-graph-gremlin/`](aerospike-graph-gremlin)           | Core OLTP engine. `FireflyGraph`, the `packed` storage layout, indexes, traversal strategies, and the embedded gremlin-server. |
-| [`aerospike-graph-bulk-loader/`](aerospike-graph-bulk-loader)   | Spark-based bulk loader for CSV / GraphML / GraphSON inputs. |
-| [`aerospike-graph-olap/`](aerospike-graph-olap)                 | Spark-backed `GraphComputer` (OLAP) implementation for cluster-wide analytics. |
-| [`aerospike-graph-api/`](aerospike-graph-api)                   | Stable API surface shared between the engine and extensions. |
-
-Deeper design docs live under [`docs/`](docs); see the
-[documentation index](#documentation) below.
 
 ## Configuration
 
 Configuration is supplied as a standard Java `.properties` file mounted
-into the container, or (for a handful of common keys) as environment
+into the container, or as environment
 variables. A minimal `aerospike-graph.properties`:
 
 ```properties
-gremlin.graph=com.aerospike.firefly.structure.FireflyGraph
 aerospike.client.host=aerospike-node:3000
 aerospike.client.namespace=test
-aerospike.graph.data.model=packed
 ```
 
 Pass it to the container:
@@ -197,7 +145,63 @@ For the full option reference — including auth, TLS, caching, indexing,
 Spark executor tuning, metrics, and JVM heap sizing — see
 [`docs/CONFIG_OPTIONS.md`](docs/CONFIG_OPTIONS.md).
 
+## Documentation
+
+Core docs, organized roughly by audience:
+
+**User guides**
+- [`docs/SETUP.md`](docs/SETUP.md) — first-run walkthrough
+- [`docs/DOCKER_USER_DOCUMENTATION.md`](docs/DOCKER_USER_DOCUMENTATION.md) — Docker-specific deployment patterns
+- [`docs/CONFIG_OPTIONS.md`](docs/CONFIG_OPTIONS.md) — complete configuration reference
+- [`docs/INDEX_USAGE.md`](docs/INDEX_USAGE.md) — when and how to use indexes
+- [`docs/METRICS.md`](docs/METRICS.md) — operational metrics and what to alert on
+- [`aerospike/aerospike-graph`](https://github.com/aerospike/aerospike-graph) — runnable example applications, notebooks, and sample datasets
+
+**Design docs**
+- [`docs/DATA_MODEL_DESIGN.md`](docs/DATA_MODEL_DESIGN.md) — the details about the `packed` data model
+- [`docs/INDEX_DESIGN.md`](docs/INDEX_DESIGN.md) — how graph leverages aerospike's secondary indexes
+- [`docs/ID_MANAGEMENT.md`](docs/ID_MANAGEMENT.md) — vertex/edge ID generation and allocation
+- [`docs/BULK_LOADER_DESIGN.md`](docs/BULK_LOADER_DESIGN.md) — architecture of the Spark bulk loader
+- [`docs/LOCAL_GRAPH_COMPUTER.md`](docs/LOCAL_GRAPH_COMPUTER.md) — single-JVM OLAP for smaller graphs
+- [`docs/CACHE_MANAGEMENT.md`](docs/CACHE_MANAGEMENT.md) — multi-level cache hierarchy
+- [`docs/TRAVERSAL_CACHE.md`](docs/TRAVERSAL_CACHE.md) — query-plan caching
+- [`docs/GENERATION_CHECK_BASED_WRITES_DESIGN.md`](docs/GENERATION_CHECK_BASED_WRITES_DESIGN.md) — optimistic concurrency control
+
+**Operations**
+- [`docs/GRAPH_MAX_MEMORY.md`](docs/GRAPH_MAX_MEMORY.md) — heap sizing guidance
+- [`docs/TTL.md`](docs/TTL.md) — time-to-live semantics
+- [`docs/QUERY_TRACING.md`](docs/QUERY_TRACING.md) — per-query tracing
+- [`docs/SUPERNODE_FLAG.md`](docs/SUPERNODE_FLAG.md) — handling extreme-degree vertices
+
+
 ## Building from source
+
+> **Codename `firefly`.** The project was developed internally under the
+> codename *Firefly*, and the codename is preserved throughout the code
+> and repository: Java packages (`com.aerospike.firefly.*`), the root
+> Maven `<artifactId>`, the internal GHCR dev image
+> (`ghcr.io/aerospike/firefly`), and config-prefix/env-var names
+> (`firefly.*` / `FIREFLY_*`). The **product name** — the thing you
+> deploy, document, and talk to other humans about — is
+> **Aerospike Graph Service**, and that's the name used for the
+> user-facing Docker Hub image (`aerospike/aerospike-graph-service`).
+> Mapping the codename onto every internal identifier was deliberately
+> skipped to keep the OSS diff small and avoid churn for anyone on
+> internal branches; think of `firefly` the same way `linux` users
+> think of `tux` or `gcc` users think of `gnu`: it's the animal, not
+> the product.
+
+The repository is laid out as a multi-module Maven build:
+
+| Module | What's in it |
+|---|---|
+| [`aerospike-graph-gremlin/`](aerospike-graph-gremlin)           | Core OLTP engine. `FireflyGraph`, the `packed` storage layout, indexes, traversal strategies, and the embedded gremlin-server. |
+| [`aerospike-graph-bulk-loader/`](aerospike-graph-bulk-loader)   | Spark-based bulk loader for CSV / GraphML / GraphSON inputs. |
+| [`aerospike-graph-olap/`](aerospike-graph-olap)                 | Spark-backed `GraphComputer` (OLAP) implementation for cluster-wide analytics. |
+| [`aerospike-graph-api/`](aerospike-graph-api)                   | Stable API surface shared between the engine and extensions. |
+
+Deeper design docs live under [`docs/`](docs); see the
+[documentation index](#documentation) below.
 
 ### Prerequisites
 
@@ -226,6 +230,11 @@ docker run -d -p 8182:8182 \
   -e AEROSPIKE_NAMESPACE=test \
   firefly:dev
 ```
+
+Released user-facing images are published on Docker Hub as
+`aerospike/aerospike-graph-service:<version>` (with a moving `:latest`
+tag). Release-candidate builds are pushed to GitHub Container Registry
+as `ghcr.io/aerospike/firefly:<version>` under the codename.
 
 ### License-clean dependency graph
 
@@ -259,33 +268,6 @@ skipped by default. Run them with:
 mvn -ntp -pl aerospike-graph-gremlin test -Dtest='BenchmarkTest*'
 ```
 
-## Documentation
-
-Core docs, organized roughly by audience:
-
-**User guides**
-- [`docs/SETUP.md`](docs/SETUP.md) — first-run walkthrough
-- [`docs/DOCKER_USER_DOCUMENTATION.md`](docs/DOCKER_USER_DOCUMENTATION.md) — Docker-specific deployment patterns
-- [`docs/CONFIG_OPTIONS.md`](docs/CONFIG_OPTIONS.md) — complete configuration reference
-- [`docs/INDEX_USAGE.md`](docs/INDEX_USAGE.md) — when and how to use indexes
-- [`docs/METRICS.md`](docs/METRICS.md) — operational metrics and what to alert on
-- [`aerospike/aerospike-graph`](https://github.com/aerospike/aerospike-graph) — runnable example applications, notebooks, and sample datasets
-
-**Design docs**
-- [`docs/DATA_MODEL_DESIGN.md`](docs/DATA_MODEL_DESIGN.md) — the `packed` on-disk layout
-- [`docs/INDEX_DESIGN.md`](docs/INDEX_DESIGN.md) — the index subsystem
-- [`docs/ID_MANAGEMENT.md`](docs/ID_MANAGEMENT.md) — vertex/edge ID generation and allocation
-- [`docs/BULK_LOADER_DESIGN.md`](docs/BULK_LOADER_DESIGN.md) — architecture of the Spark bulk loader
-- [`docs/LOCAL_GRAPH_COMPUTER.md`](docs/LOCAL_GRAPH_COMPUTER.md) — single-JVM OLAP for smaller graphs
-- [`docs/CACHE_MANAGEMENT.md`](docs/CACHE_MANAGEMENT.md) — multi-level cache hierarchy
-- [`docs/TRAVERSAL_CACHE.md`](docs/TRAVERSAL_CACHE.md) — query-plan caching
-- [`docs/GENERATION_CHECK_BASED_WRITES_DESIGN.md`](docs/GENERATION_CHECK_BASED_WRITES_DESIGN.md) — optimistic concurrency control
-
-**Operations**
-- [`docs/GRAPH_MAX_MEMORY.md`](docs/GRAPH_MAX_MEMORY.md) — heap sizing guidance
-- [`docs/TTL.md`](docs/TTL.md) — time-to-live semantics
-- [`docs/QUERY_TRACING.md`](docs/QUERY_TRACING.md) — per-query tracing
-- [`docs/SUPERNODE_FLAG.md`](docs/SUPERNODE_FLAG.md) — handling extreme-degree vertices
 
 ## Contributing
 

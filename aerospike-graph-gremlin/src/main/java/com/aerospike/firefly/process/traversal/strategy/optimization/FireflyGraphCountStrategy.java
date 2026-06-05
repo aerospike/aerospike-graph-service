@@ -47,7 +47,8 @@ import java.util.Set;
  * This strategy will do a direct {@link org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerHelper#getVertices}
  * size call if the traversal is a count of the vertices and edges of the graph or a one-to-one map chain thereof.
  *
- * @example <pre>
+ * <p>Examples:
+ * <pre>
  * g.V().count()               // is replaced by TinkerCountGlobalStep
  * g.V().map(out()).count()    // is replaced by TinkerCountGlobalStep
  * g.E().label().count()       // is replaced by TinkerCountGlobalStep

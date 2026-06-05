@@ -25,7 +25,6 @@ on:
   push:
     branches:
       - main
-      - 3.x-dev
     paths:
       - 'docs/**'
       - 'aerospike-graph-api/src/main/java/**'
@@ -114,9 +113,9 @@ jobs:
   deploy:
     name: Deploy to Pages
     needs: build
-    # Deploy on push to main or 3.x-dev. PRs build-only so the job
-    # validates without mutating the live site.
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/3.x-dev')
+    # Only deploy on push to main; PRs build-only so the job provides
+    # validation without mutating the live site.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

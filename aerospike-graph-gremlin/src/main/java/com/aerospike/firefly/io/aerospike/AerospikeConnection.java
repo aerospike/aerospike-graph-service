@@ -1151,7 +1151,7 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         /**
-         * Get a list of all the Sets in a namespace that have a number of records > 0
+         * Get a list of all the Sets in a namespace that have a number of records greater than 0
          *
          * @param db AerospikeConnection instance
          * @return Set of namespaces

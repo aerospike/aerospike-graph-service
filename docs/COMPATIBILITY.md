@@ -77,8 +77,8 @@ compile.
 
 ## Spark (OLAP + bulk loader)
 
-The two side processes: `aerospike-graph-olap` (`GraphComputer`) and
-`aerospike-graph-bulk-loader`: are tested on Spark 3.5.x. They
+Both side processes (`aerospike-graph-olap` / `GraphComputer` and
+`aerospike-graph-bulk-loader`) are tested on Spark 3.5.x. They
 should also work on any 3.4+ release that has the same Kryo
 serializer defaults, but that is not part of the CI matrix; file an
 issue before relying on a different line.

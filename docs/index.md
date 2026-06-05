@@ -4,7 +4,7 @@
 
 This directory is the engineering and design reference for contributors to this repository (data model, configuration properties, caches, bulk loader internals, and similar topics). The top-level [`README.md`](../README.md) summarizes the product, points here and to [aerospike.com/docs/graph](https://aerospike.com/docs/graph), and covers building from source.
 
-> Codename. Throughout the source tree and these docs you see
+> **Codename.** Throughout the source tree and these docs you see
 > the codename `firefly` (in Java package paths, artifact IDs,
 > Docker image tags, and a few internal API names). It refers to the
 > same product, Aerospike Graph Service. Mapping the codename onto

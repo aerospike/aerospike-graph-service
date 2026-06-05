@@ -35,8 +35,9 @@ Replace `HOSTNAME:PORT` and `NAMESPACE` using [Connection values](../README.md#c
 
 ## Alternative: `JAVA_OPTIONS`
 
-You can pass `-Xmx` through the `JAVA_OPTIONS` environment variable when a
-properties-based heap setting is not enough:
+You can pass `-Xmx` through the `JAVA_OPTIONS` environment variable when you
+need to set heap size without a properties file, or to override a
+properties-file setting at runtime:
 
 ```bash
 docker run -p 8182:8182 -p 9090:9090 \

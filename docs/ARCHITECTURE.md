@@ -131,8 +131,8 @@ boundaries defined by the in-process `FireflyTransaction`.
 ## OLAP path (`aerospike-graph-olap`)
 
 For analytical traversals that would be unreasonable on the online
-service: `PageRank`, `ConnectedComponents`, large aggregations:
-there is a separate Spark-based `GraphComputer`. It reads the same
+service (such as `PageRank`, `ConnectedComponents`, and large
+aggregations), there is a separate Spark-based `GraphComputer`. It reads the same
 record layout directly (via `codec.RowCodec`), runs the vertex
 program across a Spark cluster, and writes results back. The online
 service is not involved in an OLAP job. See

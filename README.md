@@ -57,7 +57,7 @@ streams results back to the driver.
 └──────────────┘                                └─────────────────────┘                 └─────────────────┘
 ```
 
-### Fastest path from zero
+### Quickstart with Docker Compose
 
 If you do not already have an Aerospike cluster, the companion repository
 [`aerospike/aerospike-graph`](https://github.com/aerospike/aerospike-graph) ships a
@@ -109,14 +109,16 @@ docker run -d --name graph \
 ```bash
 docker network create ags-net
 docker run -d --name aerospike --network ags-net \
-  aerospike/aerospike-server:latest          # or your Enterprise image
+  aerospike/aerospike-server-enterprise:latest
 
 docker run -d --name graph --network ags-net \
   -p 8182:8182 \
   -e aerospike.client.host="aerospike:3000" \
-  -e aerospike.client.namespace="test" \
+  -e aerospike.client.namespace="NAMESPACE" \
   aerospike/aerospike-graph-service:latest
 ```
+
+The Aerospike Database server must have the `graph-service` feature key enabled in its `feature-key-file`. This is an Enterprise Edition requirement: the community image (`aerospike/aerospike-server`) does not support feature keys and will not satisfy the prerequisite. For the full setup including the feature-key file mount, see [Deploy Aerospike Graph Service with Docker](https://aerospike.com/docs/graph/deploy/docker).
 
 Using `localhost` inside a Docker container refers to the container itself, not the host. Always use a shared network with a named host, or get the Aerospike container IP with `docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' aerospike`.
 
@@ -138,18 +140,28 @@ If AGS exits instead of starting, check `docker logs graph` for a `default-ttl` 
 
 ```bash
 docker run --rm --network ags-net aerospike/aerospike-tools \
-  asadm -h aerospike -e "enable; manage config namespace test param default-ttl to 0"
+  asadm -h aerospike -e "enable; manage config namespace NAMESPACE param default-ttl to 0"
 ```
 
 ### Connect with a Gremlin driver
 
-AGS speaks TinkerPop **3.7.x**. Use a 3.7.x driver. A 3.8.x driver will fail with
+AGS speaks TinkerPop 3.7.x. Use a 3.7.x driver. A 3.8.x driver will fail with
 a `Could not locate method` error.
 
 Python — install `gremlin-python` at the matching version, then run:
 
 ```bash
 pip install 'gremlinpython>=3.7,<3.8'
+```
+
+Java — use the TinkerPop 3.7.x driver:
+
+```xml
+<dependency>
+  <groupId>org.apache.tinkerpop</groupId>
+  <artifactId>gremlin-driver</artifactId>
+  <version>3.7.3</version>
+</dependency>
 ```
 
 ```python

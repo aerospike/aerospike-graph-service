@@ -14,7 +14,7 @@ the vertex is promoted to a supernode: its adjacency moves to dedicated
 `E_IN_IDX` / `E_OUT_IDX` secondary indexes instead.
 
 The automatic path is fine, but it means every edge insert up to that
-threshold is writing into: and eventually invalidating: the inline
+threshold is writing into, and eventually invalidating, the inline
 cache before the promotion kicks in. For vertices you already know are
 going to be high-degree (hubs, celebrities, categories, etc.), that's
 wasted work. Setting `~supernode` bypasses it: the vertex is treated as

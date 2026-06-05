@@ -31,8 +31,7 @@ docker run -p 8182:8182 -p 9090:9090 \
   aerospike/aerospike-graph-service:latest
 ```
 
-Replace `HOSTNAME:PORT` and `NAMESPACE` as in the [README](../README.md)
-Quickstart.
+Replace `HOSTNAME:PORT` and `NAMESPACE` using [Connection values](../README.md#connection-values) in the README.
 
 ## Alternative: `JAVA_OPTIONS`
 

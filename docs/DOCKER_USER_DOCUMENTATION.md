@@ -25,13 +25,20 @@ Before you run AGS in Docker, you need:
 - Aerospike Database version 7.0 or later. See [`COMPATIBILITY.md`](COMPATIBILITY.md).
 - A namespace that already exists on the cluster with the [`default-ttl`](https://aerospike.com/docs/database/reference/config#namespace__default-ttl) configuration option set to `0`. See [TTL on the Aerospike namespace](https://aerospike.com/docs/graph/deploy/docker#ttl-on-the-aerospike-namespace).
 
+## Connection values
+
+`HOSTNAME:PORT` and `NAMESPACE` come from your Aerospike cluster:
+
+- **Seed address (`HOSTNAME:PORT`)**: Aerospike seed hostname or IP plus service port (default `3000`). When AGS and Aerospike both run in Docker on one host, use the Aerospike container IP or see [Deploy Aerospike Graph Service with Docker](https://aerospike.com/docs/graph/deploy/docker#prerequisites).
+- **Namespace (`NAMESPACE`)**: existing namespace name from `aerospike.conf` or `show namespaces` in [`asadm`](https://aerospike.com/docs/database/tools/asadm). The Aerospike [Install with Docker](https://aerospike.com/docs/database/install/docker/) quick start uses `test`.
+
 ## 1. Quickstart with environment variables
 
 The simplest way to start the service. Suitable for demos and local
 development. Not recommended for production because only a subset of
 configuration is reachable through environment variables.
 
-Replace `HOSTNAME:PORT` with Aerospike seed addresses (comma-separated for multiple seeds). Replace `NAMESPACE` with the namespace name.
+Use your cluster values in place of the placeholders below:
 
 ```bash
 docker run -d --name graph \

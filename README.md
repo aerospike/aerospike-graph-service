@@ -65,11 +65,18 @@ Before you run AGS in Docker, you need:
 - A running Aerospike Database instance, version 7.0 or later. See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) and [Deploy Aerospike Graph Service with Docker](https://aerospike.com/docs/graph/deploy/docker). To start Aerospike with Docker, see [Install with Docker](https://aerospike.com/docs/database/install/docker/).
 - A namespace that already exists on the cluster. The namespace must have the [`default-ttl`](https://aerospike.com/docs/database/reference/config#namespace__default-ttl) configuration option set to `0`. See [TTL on the Aerospike namespace](https://aerospike.com/docs/graph/deploy/docker#ttl-on-the-aerospike-namespace).
 
+### Connection values
+
+`HOSTNAME:PORT` and `NAMESPACE` come from your Aerospike cluster, not from AGS.
+
+- **Seed address (`HOSTNAME:PORT`)**: hostname or IP of an Aerospike seed node, plus the Aerospike service port. The default service port is `3000`. Use the address your deployment exposes (node IP, DNS name, or `localhost` when Aerospike runs on the same host outside Docker). When AGS and Aerospike both run in Docker on one machine, use the Aerospike container IP from `docker inspect` or follow [Deploy Aerospike Graph Service with Docker](https://aerospike.com/docs/graph/deploy/docker#prerequisites).
+- **Namespace (`NAMESPACE`)**: name of an existing namespace on that cluster. Read it from the `namespace` block in `aerospike.conf`, or list namespaces with [`asadm`](https://aerospike.com/docs/database/tools/asadm) (`show namespaces`). The Aerospike [Install with Docker](https://aerospike.com/docs/database/install/docker/) quick start uses the default namespace `test`.
+
+The namespace must exist before AGS starts.
+
 ### Run the server in Docker
 
-Start AGS:
-
-Replace `HOSTNAME:PORT` with the hostname and port of your Aerospike database seed node. Replace `NAMESPACE` with the namespace name AGS uses on that cluster.
+Start AGS. Use your cluster values in place of the placeholders below:
 
 ```bash
 docker run -d --name graph \
@@ -139,9 +146,7 @@ recipes, and application patterns see the companion repository
 
 Configuration is supplied as a standard Java `.properties` file mounted
 into the container, or as environment
-variables. A minimal `aerospike-graph.properties`:
-
-Replace `HOSTNAME` with a reachable Aerospike seed hostname or IP address. Replace `PORT` with the Aerospike service port (default `3000`). Replace `NAMESPACE` with the namespace name.
+variables. A minimal `aerospike-graph.properties` (see [Connection values](#connection-values) for where `HOSTNAME`, `PORT`, and `NAMESPACE` come from):
 
 ```properties
 aerospike.client.host=HOSTNAME
@@ -266,7 +271,7 @@ python3 scripts/build-docker.py --tags firefly:dev --platforms linux/amd64
 - `--slim`: builds only the graph JAR and uses [`docker/Dockerfile-slim`](docker/Dockerfile-slim). The image has no bulk loader (smaller footprint, same idea as `aerospike/aerospike-graph-service:latest-slim` on Docker Hub).
 - `--use_local`: skip Maven and reuse JARs already present under `*/target/`.
 
-Run the image you built. Replace `HOSTNAME:PORT` and `NAMESPACE` as in the Quickstart:
+Run the image you built. Use the same `HOSTNAME:PORT` and `NAMESPACE` values as in [Connection values](#connection-values):
 
 ```bash
 docker run -d -p 8182:8182 \

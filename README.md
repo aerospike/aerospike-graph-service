@@ -57,6 +57,24 @@ streams results back to the driver.
 └──────────────┘                                └─────────────────────┘                 └─────────────────┘
 ```
 
+### Fastest path from zero
+
+If you do not already have an Aerospike cluster, the companion repository
+[`aerospike/aerospike-graph`](https://github.com/aerospike/aerospike-graph) ships a
+`docker-compose.yml` that starts AGS, Aerospike Database, and Zipkin in one command:
+
+```bash
+git clone https://github.com/aerospike/aerospike-graph.git
+cd aerospike-graph
+docker compose up -d
+```
+
+The repository also includes the Air Routes sample dataset and a bulk-load guide. The
+official step-by-step walkthrough is at
+[aerospike.com/docs/graph/quick-start](https://aerospike.com/docs/graph/quick-start).
+
+The rest of this section shows how to connect AGS to an existing Aerospike cluster.
+
 ### Prerequisites
 
 Before you run AGS in Docker, you need:
@@ -69,14 +87,14 @@ Before you run AGS in Docker, you need:
 
 `HOSTNAME:PORT` and `NAMESPACE` come from your Aerospike cluster, not from AGS.
 
-- **Seed address (`HOSTNAME:PORT`)**: hostname or IP of an Aerospike seed node, plus the Aerospike service port. The default service port is `3000`. Use the address your deployment exposes (node IP, DNS name, or `localhost` when Aerospike runs on the same host outside Docker). When AGS and Aerospike both run in Docker on one machine, use the Aerospike container IP from `docker inspect` or follow [Deploy Aerospike Graph Service with Docker](https://aerospike.com/docs/graph/deploy/docker#prerequisites).
+- **Seed address (`HOSTNAME:PORT`)**: hostname or IP of an Aerospike seed node, plus the Aerospike service port. The default service port is `3000`.
 - **Namespace (`NAMESPACE`)**: name of an existing namespace on that cluster. Read it from the `namespace` block in `aerospike.conf`, or list namespaces with [`asadm`](https://aerospike.com/docs/database/tools/asadm) (`show namespaces`). The Aerospike [Install with Docker](https://aerospike.com/docs/database/install/docker/) quick start uses the default namespace `test`.
 
 The namespace must exist before AGS starts.
 
 ### Run the server in Docker
 
-Start AGS. Use your cluster values in place of the placeholders below:
+**Option A — Aerospike already running outside Docker** (use `localhost` or the node IP):
 
 ```bash
 docker run -d --name graph \
@@ -86,7 +104,23 @@ docker run -d --name graph \
   aerospike/aerospike-graph-service:latest
 ```
 
-`aerospike.client.host` accepts one or more `HOSTNAME:PORT` seed addresses (comma-separated). If Aerospike runs in a Docker container on the same host, see [Deploy Aerospike Graph Service with Docker](https://aerospike.com/docs/graph/deploy/docker) for how to determine a reachable seed address.
+**Option B — Aerospike running in Docker on the same machine** (put both containers on a shared network so the hostname resolves):
+
+```bash
+docker network create ags-net
+docker run -d --name aerospike --network ags-net \
+  aerospike/aerospike-server:latest          # or your Enterprise image
+
+docker run -d --name graph --network ags-net \
+  -p 8182:8182 \
+  -e aerospike.client.host="aerospike:3000" \
+  -e aerospike.client.namespace="test" \
+  aerospike/aerospike-graph-service:latest
+```
+
+Using `localhost` inside a Docker container refers to the container itself, not the host. Always use a shared network with a named host, or get the Aerospike container IP with `docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' aerospike`.
+
+`aerospike.client.host` accepts one or more `HOSTNAME:PORT` seed addresses (comma-separated).
 
 Verify it's up:
 
@@ -100,9 +134,23 @@ Expected output includes:
 Channel started at port 8182.
 ```
 
+If AGS exits instead of starting, check `docker logs graph` for a `default-ttl` error. If present, set the namespace TTL to 0 with `asadm` and restart:
+
+```bash
+docker run --rm --network ags-net aerospike/aerospike-tools \
+  asadm -h aerospike -e "enable; manage config namespace test param default-ttl to 0"
+```
+
 ### Connect with a Gremlin driver
 
-Python, using `gremlin-python`:
+AGS speaks TinkerPop **3.7.x**. Use a 3.7.x driver. A 3.8.x driver will fail with
+a `Could not locate method` error.
+
+Python — install `gremlin-python` at the matching version, then run:
+
+```bash
+pip install 'gremlinpython>=3.7,<3.8'
+```
 
 ```python
 from gremlin_python.process.anonymous_traversal import traversal

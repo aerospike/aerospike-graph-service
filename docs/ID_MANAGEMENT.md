@@ -2,10 +2,10 @@
 
 Firefly uses two distinct notions of ID:
 
-* The **Gremlin-facing** `~id` — what `g.V(x)` or `g.E(y)` takes, and
+* The **Gremlin-facing** `~id`: what `g.V(x)` or `g.E(y)` takes, and
   what `element.id()` returns. This is the stable identity a user or
   client deals with.
-* The **storage** ID — what actually gets written into Aerospike record
+* The **storage** ID: what actually gets written into Aerospike record
   keys and bins. For vertices these are identical; for edges they are
   derived (see [Internals](#internals-for-curious-readers)).
 
@@ -15,7 +15,7 @@ the internals for people reading the source.
 ## `~id` vs `id` in Gremlin
 
 `~id` is a special keyword in Gremlin. It enables direct lookup of a
-vertex or edge by its canonical identifier — a single-record Aerospike
+vertex or edge by its canonical identifier: a single-record Aerospike
 read, not a secondary-index scan. `T.id` is an alias for `~id`.
 
 - For **vertices**, `~id` may be supplied by the user or auto-generated
@@ -45,10 +45,10 @@ g.addV("person").property(T.id, 3).property("name", "Dave").iterate()
 // Error: a vertex with ~id=3 already exists.
 
 g.V(1).next()
-// Returns Alice — direct record lookup on ~id=1.
+// Returns Alice: direct record lookup on ~id=1.
 
 g.V(1, 2, 3).toList()
-// Returns [Alice, Bob, Carol] — single batch read of three records.
+// Returns [Alice, Bob, Carol]: single batch read of three records.
 
 g.addV("person").property("id", 4).property("name", "Dave").iterate()
 // Creates a vertex with property id=4 (ordinary property, not ~id).
@@ -57,7 +57,7 @@ g.V(4).next()
 // Fails: there is no vertex with ~id=4.
 
 g.V().has("id", 4).next()
-// Returns Dave — requires a secondary-index query or scan.
+// Returns Dave: requires a secondary-index query or scan.
 ```
 
 ## Takeaway
@@ -69,7 +69,7 @@ If you care about lookup latency, use `T.id` / `~id`. Properties named
 
 ## Internals for curious readers
 
-These details are not part of the stable user contract — they're here
+These details are not part of the stable user contract: they're here
 so someone reading the code has a map.
 
 ### Vertex IDs
@@ -87,20 +87,20 @@ round-trip for an ID on every call.
 ### Edge IDs
 
 Edge `~id`s are always system-generated. An edge ID is *not* the same
-value as the record key that stores it — it's a two-part logical ID:
+value as the record key that stores it: it's a two-part logical ID:
 
 ```
 edgeId = (packingId, uniqueId)
 
-  packingId  — identifies the group of edges sharing a phat-edge record
-  uniqueId   — distinguishes edges within that group
+  packingId : identifies the group of edges sharing a phat-edge record
+  uniqueId  : distinguishes edges within that group
 ```
 
 The serialised form on the wire is either 8 bytes (`packingId` alone,
 when `packingId == uniqueId`) or 16 bytes (`packingId || uniqueId`).
 See `FireflyPhatEdgeId`.
 
-The Aerospike record key for an edge — the *storage* ID — is derived:
+The Aerospike record key for an edge: the *storage* ID: is derived:
 
 ```java
 storageId = Math.floorDiv(packingId, phatEdgeSize)
@@ -122,16 +122,16 @@ independent metadata record.
 
 ### Source
 
-* `com.aerospike.firefly.structure.id.FireflyIdFactory` — parses and
+* `com.aerospike.firefly.structure.id.FireflyIdFactory`: parses and
   validates user-supplied IDs, routes to the right manager for
   auto-generated ones.
-* `com.aerospike.firefly.structure.id.FireflyPhatEdgeId` — edge-ID
+* `com.aerospike.firefly.structure.id.FireflyPhatEdgeId`: edge-ID
   encoding and the `packingId → storageId` derivation.
 * `com.aerospike.firefly.io.aerospike.id.DecrementingNumericIdManager`,
-  `...RecyclingBufferedNumericIdManager` — the counter plumbing.
+  `...RecyclingBufferedNumericIdManager`: the counter plumbing.
 
 ## See also
 
-* [`DATA_MODEL_DESIGN.md`](DATA_MODEL_DESIGN.md) — record layout for
+* [`DATA_MODEL_DESIGN.md`](DATA_MODEL_DESIGN.md): record layout for
   vertices, edges, and phat edges.
-* [`INDEX_DESIGN.md`](INDEX_DESIGN.md) — what a non-`~id` lookup costs.
+* [`INDEX_DESIGN.md`](INDEX_DESIGN.md): what a non-`~id` lookup costs.

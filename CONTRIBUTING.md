@@ -1,50 +1,54 @@
-# Contributing to Aerospike Graph Service
+# Contributing to Aerospike Graph Service (AGS)
 
 Thanks for your interest in contributing. This document covers the
 mechanics of getting a change reviewed and merged. For the larger
-"why does this project exist" context, see the [README](README.md); for
-security-sensitive reports, see [SECURITY.md](SECURITY.md); for
+"why does this project exist" context, see the [README](README.md). For
+security-sensitive reports, see [SECURITY.md](SECURITY.md). For
 community norms, see [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 > **A note on the `firefly` codename.** Java packages, the Maven
 > `artifactId`, Docker image names, and many config-prefix / environment
-> variable names still use `firefly` — that's the original internal
+> variable names still use `firefly`. That is the original internal
 > codename and we preserve it throughout the code so history and
-> upgrade paths stay intact. "Aerospike Graph Service" is the public
-> product name; treat the two as interchangeable when reading the
+> upgrade paths stay intact. Aerospike Graph Service is the public
+> product name. Treat the two as interchangeable when reading the
 > codebase.
+
+## Why `firefly` persists in identifiers
+
+The project was developed internally under the codename *Firefly*, and that name is preserved throughout the code and repository: Java packages (`com.aerospike.firefly.*`), the root Maven `<artifactId>`, internal GHCR dev images (`ghcr.io/aerospike/firefly`), and config-prefix / environment-variable names (`firefly.*` / `FIREFLY_*`). The product name you deploy and document is Aerospike Graph Service, and that is the name on the user-facing Docker Hub image (`aerospike/aerospike-graph-service`). Mapping the codename onto every internal identifier was deliberately skipped to keep the OSS diff small and avoid churn for anyone on internal branches. Treat `firefly` as an internal codename, not the product name.
 
 ## Licensing and sign-off
 
 This project is licensed under the [Apache License, Version 2.0](LICENSE).
-By contributing, you agree that your contributions will be licensed under
+By contributing, you agree that your contributions are licensed under
 the same terms.
 
 Every commit must be signed off using the
 [Developer Certificate of Origin](https://developercertificate.org/) (DCO).
-Add `Signed-off-by: Your Name <your.email@example.com>` to each commit
+Add `Signed-off-by: YOUR_NAME <YOUR_EMAIL@example.com>` to each commit
 message, or pass `-s` to `git commit`:
 
 ```bash
-git commit -s -m "your message"
+git commit -s -m "YOUR_MESSAGE"
 ```
 
 A GitHub Action enforces this on every PR.
 
 ## Before you open a PR
 
-1. **Open an issue first** for anything non-trivial. Design discussions
+1. Open an issue first for anything non-trivial. Design discussions
    are much easier in an issue than in review comments on 800 lines of
    diff.
-2. **Scope one PR to one logical change.** Split drive-by formatting
+2. Scope one PR to one logical change. Split drive-by formatting
    fixes into their own PR.
-3. **Run the local checks**:
-   - `mvn -ntp verify` — unit and integration tests.
-   - `mvn -ntp license:check` — license compatibility of the dependency
+3. Run the local checks:
+   - `mvn -ntp verify`: unit and integration tests.
+   - `mvn -ntp -Plicense-check verify`: license compatibility of the dependency
      graph. This is also enforced in CI.
    - If you changed a `pom.xml`: `mvn dependency:tree` and confirm no
      GPL / AGPL / SSPL dependencies landed in compile or runtime scope.
-4. **Update docs** for any user-visible behavior change. The `docs/`
+4. Update docs for any user-visible behavior change. The `docs/`
    tree is part of the product surface.
 
 ## Dependency policy
@@ -77,7 +81,7 @@ A GitHub Action enforces this on every PR.
   JUnit 4 (to match the existing harness).
 - Integration tests that require a real Aerospike cluster belong in the
   appropriate IT profile. They run in CI against a Docker-hosted cluster
-  spun up by the workflow.
+  started by the workflow.
 - Benchmark (JMH) tests belong under `src/test/java/.../benchmark/`.
   JMH is in `test` scope and must not leak into production code.
 
@@ -87,7 +91,7 @@ A GitHub Action enforces this on every PR.
   changes on-disk format, public API, or security-sensitive code.
 - The PR must be rebased (not merged) onto the current `3.x-dev`
   before merge. Keep the history linear.
-- Once approved, a maintainer will merge. Contributors cannot
+- Once approved, a maintainer merges. Contributors cannot
   self-merge.
 
 ## CI for pull requests from forks
@@ -104,9 +108,9 @@ with a `ci-guard` job that blocks the rest of the workflow unless:
 If you're contributing from a fork, expect the first CI run on your PR
 to show a single failed `ci-guard` check and no downstream jobs. A
 maintainer will review the diff, add `trusted-ci`, and re-run CI.
-Maintainers: please remove `trusted-ci` and review the diff again
-after every force-push to the PR — the label should only cover the
-commits you've actually seen.
+Maintainers: remove `trusted-ci` and review the diff again
+after every force-push to the PR. The label must only cover the
+commits you have actually seen.
 
 ## Getting help
 

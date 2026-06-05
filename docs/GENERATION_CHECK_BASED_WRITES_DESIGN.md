@@ -45,7 +45,7 @@ when we want to provide the edge to a user. Additionally, we always write the ed
 writing the edge record to the edge set. By doing this, we can ensure that the edge is always visible in both
 directions, and never just in one direction. This meets design tenet 1.
 
-Using generation checks, we can easily ensure that data is never corrupted which covers design tenet 2. 
+Using generation checks, we can ensure that data is never corrupted, which covers design tenet 2. 
 
 The outstanding issues are alerting a user if any write fails, or if an adjacent vertex has been dropped. These
 basically both come down to error handling in our writes. The flowchart below describes the write flow to handle this.

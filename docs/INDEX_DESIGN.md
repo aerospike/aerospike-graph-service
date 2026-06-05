@@ -41,8 +41,8 @@ Vertex property indexes target the `VP_DATA` map bin with
 graph-scoped, see `AerospikeConnection.getVpIndexPrefix()`).
 
 The index metadata is refreshed by a background task
-(`FireflyIndexMetadata`) so indexes created after startup — for example
-via the `sindex` service — become usable automatically without
+(`FireflyIndexMetadata`) so indexes created after startup: for example
+via the `sindex` service: become usable automatically without
 restarting the graph.
 
 ### Supported predicates
@@ -58,7 +58,7 @@ Substring / regex filtering always falls back to an unindexed scan.
 
 Index use is driven by the shape of the traversal:
 
-* `g.V().has(key, value)` / `g.V().hasLabel(label).has(key, value)` —
+* `g.V().has(key, value)` / `g.V().hasLabel(label).has(key, value)`:
   the `FireflyGraphStepStrategy` folds trailing `has`/`hasLabel` steps
   into the graph step, and then
   `FireflyBatchReadHelper.getHasContainersWithCardinalityOrder` sorts
@@ -66,7 +66,7 @@ Index use is driven by the shape of the traversal:
   refreshed cardinality metadata) so the most selective indexed
   predicate runs first. Remaining has-containers are applied
   server-side via a `filterExp`.
-* `g.V(id)...` — a direct `~id` lookup is always a point read; no
+* `g.V(id)...`: a direct `~id` lookup is always a point read; no
   secondary index is involved.
 * `g.V().has("~label", x)` and `g.V().hasLabel(x)` both resolve to the
   same label-index path when the vertex label index is enabled.
@@ -84,7 +84,7 @@ matching expression index for a set of `has` predicates.
 
 Enabled with `aerospike.graph.index.vertex.label.enabled=true`. It
 indexes the `LABEL` bin on the vertex set as `NUMERIC` (vertex labels
-are interned to `Long` — see [`DATA_MODEL_DESIGN.md`](DATA_MODEL_DESIGN.md#schema-interning)).
+are interned to `Long`: see [`DATA_MODEL_DESIGN.md`](DATA_MODEL_DESIGN.md#schema-interning)).
 Used by `g.V().hasLabel(x)` and by any downstream step that folds a
 label constraint into an eligible index query.
 
@@ -92,10 +92,10 @@ label constraint into an eligible index query.
 
 The two edge-facing index knobs are reserved but not implemented:
 
-* `aerospike.graph.index.edge.properties` — setting this on graph
+* `aerospike.graph.index.edge.properties`: setting this on graph
   startup raises `RuntimeException("Edge property indexes are not
   currently supported.")`.
-* `aerospike.graph.index.edge.label.enabled` — attempting to create an
+* `aerospike.graph.index.edge.label.enabled`: attempting to create an
   edge label index raises `RuntimeException("Edge indexes are not
   currently supported.")`.
 
@@ -107,10 +107,10 @@ via a direct `~id` read on the edge record. Global edge scans
 
 These are internal and users don't configure them directly:
 
-* `E_IN_IDX` / `E_OUT_IDX` — `NUMERIC` indexes on the `IN_V` and `OUT_V`
+* `E_IN_IDX` / `E_OUT_IDX`: `NUMERIC` indexes on the `IN_V` and `OUT_V`
   bins of the edge set. They're the primary path for `out()`, `in()`,
   and `both()` traversals.
-* `TTL_V_IDX` / `TTL_E_IDX` — `NUMERIC` indexes on the TTL bin of the
+* `TTL_V_IDX` / `TTL_E_IDX`: `NUMERIC` indexes on the TTL bin of the
   vertex and edge sets. Created only when TTL is enabled. Used by the
   background TTL sweeper.
 
@@ -129,7 +129,7 @@ These are internal and users don't configure them directly:
 
 ## See also
 
-* [`DATA_MODEL_DESIGN.md`](DATA_MODEL_DESIGN.md) — record and bin layout
+* [`DATA_MODEL_DESIGN.md`](DATA_MODEL_DESIGN.md): record and bin layout
   that these indexes are built over.
-* [`ID_MANAGEMENT.md`](ID_MANAGEMENT.md) — why `~id` is a point read and
+* [`ID_MANAGEMENT.md`](ID_MANAGEMENT.md): why `~id` is a point read and
   property-named `id` isn't.

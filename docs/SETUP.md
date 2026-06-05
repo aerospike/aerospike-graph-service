@@ -1,10 +1,12 @@
 # Setup
 
+User guides and deployment procedures: [aerospike.com/docs/graph](https://aerospike.com/docs/graph).
+
 <img src="img/firefly_10kft.drawio.png" alt="Aerospike Graph Service 10kft architecture diagram" />
 
 > The image above and some identifiers in this document use the project
-> codename **`firefly`**. See [`index.md`](index.md) for context — it is
-> the same product as *Aerospike Graph Service*.
+> codename **`firefly`**. See [`index.md`](index.md) for context. It is
+> the same product as Aerospike Graph Service.
 
 ## What it is
 
@@ -13,8 +15,8 @@ more client connections to an Aerospike cluster (per its configuration)
 and hosts a TinkerPop `gremlin-server` endpoint over WebSocket. Client
 applications connect with a standard Gremlin driver
 (`gremlin-python`, `gremlin-javascript`,
-TinkerPop's Java `Client`, etc.) and issue normal Gremlin traversals;
-the service translates those into efficient Aerospike operations and
+TinkerPop's Java `Client`, and other TinkerPop-compatible drivers) and issue normal Gremlin traversals.
+The service translates those into efficient Aerospike operations and
 streams results back.
 
 ## Minimal configuration

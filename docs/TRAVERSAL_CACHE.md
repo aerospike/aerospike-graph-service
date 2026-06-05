@@ -1,23 +1,38 @@
-# Firefly Traversal Cache
+# Traversal cache
 
-<img  width="800" height="200" src="img/traversal_cache.drawio.svg">
+> Internal design note for contributors. Describes the
+> `FireflyTraversalCacheStrategy` implementation in the query engine.
 
+<img width="800" height="200" src="img/traversal_cache.drawio.svg" alt="Diagram of traversal cache flow from Gremlin traversal through cache to Aerospike reads and writes">
 
-FireflyTraversalCacheStrategy adds a traversal specific Guava cache to supported traversals.
+## Overview
 
-If ConcurrentHashMap<UUID, TraversalCache> traversalCacheSet is a Map from an assigned TraversalID to a Cache specific to that traversal.
+`FireflyTraversalCacheStrategy` adds a traversal-specific Guava cache for
+supported traversals.
 
-A Step is appended to the end of the traversal that will remove the cache at completion of the traversal.
+For each supported traversal, the strategy assigns a unique ID, prepends a
+step that carries that ID, and registers a cache in
+`ConcurrentHashMap<UUID, TraversalCache>`.
 
-For supported traversals, the FireflyTraversalCacheStrategy will pack a unique id in a step prepended to the traversal 
-and create a cache specific to that traversal identified by this id.
+## Lifecycle
 
-The Traversal is exposed to the AerospikeConnection storage layer via a ThreadLocal
+A step at the end of the traversal removes the cache when the traversal
+completes.
 
-Aerospike reads and writes are proxied through the cache by looking at the Traversal in the storage layer   
+## Storage layer integration
 
-For enabled PrefetchTasks, they will be triggered (either upfront or in the background by configuration) at the beginning of the traversal.
+The active traversal is exposed to the `AerospikeConnection` storage layer
+through a thread-local. While that traversal is active, Aerospike reads and
+writes are routed through its cache.
 
-Given a Function from (Traversal) -> (Aproximate Aerospike Record Set), a PrefetchTask can tell be backend "start sending all the records your think this traversal will need into the cache"
+## Prefetch
 
-If it has an accurate PrefetchTask, the longer a Traversal executes,  it should get closer to running entirely in-memory.
+When prefetch tasks are enabled, they run at the start of the traversal
+(eagerly or in the background, depending on configuration).
+
+Given a function from `(Traversal)` to `(approximate Aerospike record set)`,
+a prefetch task tells the backend to load the records the traversal is
+likely to need into the cache.
+
+When prefetch metadata is accurate, longer-running traversals tend toward
+in-memory execution.

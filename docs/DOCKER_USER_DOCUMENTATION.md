@@ -1,51 +1,58 @@
 # Running Aerospike Graph Service in Docker
 
+User guides and deployment procedures: [aerospike.com/docs/graph](https://aerospike.com/docs/graph).
+
 [Apache TinkerPop®][tinkerpop]-compatible graph database backed by
 [Aerospike][aerospike].
 
 <img src="https://raw.githubusercontent.com/apache/tinkerpop/master/docs/static/images/tinkerpop-character.png" alt="TinkerPop" width="100" />
 
 > Released user-facing images are published on Docker Hub as
-> `aerospike/aerospike-graph-service:<version>` (with a moving `:latest`
+> `aerospike/aerospike-graph-service:VERSION` (with a moving `:latest`
 > tag). Release-candidate builds are pushed to GitHub Container
-> Registry as `ghcr.io/aerospike/firefly:<version>` under the internal
-> codename. The product name is **Aerospike Graph Service**; see the
-> top of the root README for why the codename is preserved on the dev
-> image path.
+> Registry as `ghcr.io/aerospike/firefly:VERSION` under the internal
+> codename. The product name is Aerospike Graph Service. See the root
+> README for why the codename is preserved on the dev image path.
 
 [tinkerpop]: http://tinkerpop.apache.org
 [aerospike]: https://aerospike.com
 
+## Prerequisites
+
+Before you run AGS in Docker, you need:
+
+- An Aerospike feature-key file with the `graph-service` key enabled. See [feature-key file](https://aerospike.com/docs/database/manage/planning/feature-key) and [Deploy Aerospike Graph Service with Docker](https://aerospike.com/docs/graph/deploy/docker).
+- Aerospike Database version 7.0 or later. See [`COMPATIBILITY.md`](COMPATIBILITY.md).
+- A namespace that already exists on the cluster with the [`default-ttl`](https://aerospike.com/docs/database/reference/config#namespace__default-ttl) configuration option set to `0`. See [TTL on the Aerospike namespace](https://aerospike.com/docs/graph/deploy/docker#ttl-on-the-aerospike-namespace).
+
 ## 1. Quickstart with environment variables
 
 The simplest way to start the service. Suitable for demos and local
-development; not recommended for production because only a subset of
-configuration is reachable via env vars.
+development. Not recommended for production because only a subset of
+configuration is reachable through environment variables.
 
-In this example the Aerospike cluster has two seed nodes at
-`aerospike-devel-cluster-host1` and `aerospike-devel-cluster-host2`,
-the graph uses namespace `test`, and vertex-property indexes are
-configured on `property1` and `property2`:
+Replace `HOSTNAME:PORT` with Aerospike seed addresses (comma-separated for multiple seeds). Replace `NAMESPACE` with the namespace name.
 
 ```bash
 docker run -d --name graph \
   -p 8182:8182 \
-  -e AEROSPIKE_HOST="aerospike-devel-cluster-host1:3000,aerospike-devel-cluster-host2:3000" \
-  -e AEROSPIKE_NAMESPACE="test" \
+  -e aerospike.client.host="HOSTNAME:PORT" \
+  -e aerospike.client.namespace="NAMESPACE" \
   -e aerospike.graph.index.vertex.properties=property1,property2 \
   -e aerospike.graph.index.vertex.label.enabled=true \
   aerospike/aerospike-graph-service:latest
 ```
 
+Environment variable names must start with `aerospike` and use the same keys as in a properties file.
+
 ## 2. Properties file (recommended for most deployments)
 
-Mount a properties file into the container at the path the service
-expects:
+Mount a properties file at the path the container entrypoint reads:
 
 ```bash
 docker run -d --name graph \
   -p 8182:8182 \
-  -v /host/path/aerospike-graph.properties:/opt/aerospike-graph/conf/aerospike-graph.properties \
+  -v /host/path/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
   aerospike/aerospike-graph-service:latest
 ```
 
@@ -53,72 +60,33 @@ Example `aerospike-graph.properties`:
 
 ```properties
 gremlin.graph=com.aerospike.firefly.structure.FireflyGraph
-aerospike.client.host=aerospike-devel-cluster-host1:3000,aerospike-devel-cluster-host2:3000
-aerospike.client.namespace=test
+aerospike.client.host=HOSTNAME:PORT
+aerospike.client.namespace=NAMESPACE
 aerospike.graph.index.vertex.label.enabled=true
 aerospike.graph.index.vertex.properties=property1,property2
 ```
 
-See [`CONFIG_OPTIONS.md`](CONFIG_OPTIONS.md) for every tunable.
+See [`CONFIG_OPTIONS.md`](CONFIG_OPTIONS.md) for every tunable and the [Configuration reference](https://aerospike.com/docs/graph/reference/config) on aerospike.com.
 
-## 3. Properties + custom Gremlin Server YAML (advanced)
+## 3. Custom Gremlin Server YAML (advanced)
 
 For deployments that need to override Gremlin Server internals
-(serializers, timeouts, metrics reporters, …), mount a config directory
-containing both an `aerospike-graph.properties` and a
-`gremlin-server.yaml`:
+(serializers, timeouts, metrics reporters, and similar settings), mount
+a custom YAML at `/opt/aerospike-graph/custom/aerospike-graph-service.yaml`.
+The container entrypoint uses that file when it exists.
+
+You are responsible for linking the YAML to a properties file. You can
+still set heap options through `aerospike.graph-service.heap.*`
+environment variables or properties.
 
 ```bash
 docker run -d --name graph \
   -p 8182:8182 \
-  -v /host/path/conf:/opt/aerospike-graph/conf \
+  -v /host/path/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+  -v /host/path/aerospike-graph-service.yaml:/opt/aerospike-graph/custom/aerospike-graph-service.yaml \
   aerospike/aerospike-graph-service:latest
 ```
 
-`/host/path/conf` must contain **both** files:
-
-- `aerospike-graph.properties` — graph-specific options (example above).
-- `gremlin-server.yaml` — Gremlin Server options.
-
-Minimal `gremlin-server.yaml` compatible with this deployment:
-
-```yaml
-host: 0.0.0.0
-port: 8182
-evaluationTimeout: 10000
-channelizer: org.apache.tinkerpop.gremlin.server.channel.WebSocketChannelizer
-graphs:
-  graph: /opt/aerospike-graph/conf/aerospike-graph.properties
-
-scriptEngines: {}
-serializers:
-  - { className: org.apache.tinkerpop.gremlin.util.ser.GraphSONMessageSerializerV3, config: { ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3] }}
-  - { className: org.apache.tinkerpop.gremlin.util.ser.GraphBinaryMessageSerializerV1 }
-  - { className: org.apache.tinkerpop.gremlin.util.ser.GraphBinaryMessageSerializerV1, config: { serializeResultToString: true } }
-processors:
-  - { className: org.apache.tinkerpop.gremlin.server.op.session.SessionOpProcessor, config: { sessionTimeout: 28800000 } }
-  - { className: org.apache.tinkerpop.gremlin.server.op.traversal.TraversalOpProcessor, config: { cacheExpirationTime: 600000, cacheMaxSize: 1000 } }
-metrics:
-  consoleReporter: { enabled: true, interval: 180000 }
-  csvReporter: { enabled: true, interval: 180000, fileName: /tmp/gremlin-server-metrics.csv }
-  jmxReporter: { enabled: true }
-  slf4jReporter: { enabled: true, interval: 180000 }
-strictTransactionManagement: false
-idleConnectionTimeout: 0
-keepAliveInterval: 0
-maxInitialLineLength: 4096
-maxHeaderSize: 8192
-maxChunkSize: 8192
-maxContentLength: 10485760
-maxAccumulationBufferComponents: 1024
-resultIterationBatchSize: 64
-writeBufferLowWaterMark: 32768
-writeBufferHighWaterMark: 65536
-ssl:
-  enabled: false
-```
-
-Note that `graphs.graph` must point at the path inside the container
-where the properties file is mounted. The full Gremlin Server
-reference is at
+See [`SETUP.md`](SETUP.md) for the same path documented outside Docker.
+The full Gremlin Server reference is at
 <https://tinkerpop.apache.org/docs/current/reference/#_configuring_2>.

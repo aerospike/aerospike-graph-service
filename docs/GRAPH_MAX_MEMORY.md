@@ -1,20 +1,51 @@
-# Setting the max memory of the docker container
+# Setting the max memory of the Docker container
 
-The max memory of the docker container and the max memory of the JVM are not the same. Giving the docker container
-more memory will not allow the JVM to access more.
+Container memory limits and JVM heap size are not the same. Increasing the
+container limit does not increase the heap unless you configure the JVM to
+use it.
 
-By default, Aerospike Graph uses `-XX:MaxRAMPercentage=80.0`, which tells the JVM to use up to 80% of the
-container's available memory for its heap. The JVM automatically detects container memory limits (via cgroup),
-so this works correctly in Docker, Fargate, Kubernetes, and other containerized environments.
+By default, AGS uses `-XX:MaxRAMPercentage=80.0`, so the JVM heap can use up
+to 80% of the container memory limit. The JVM reads cgroup limits in Docker,
+Kubernetes, Fargate, and similar environments.
 
-To explicitly override the max memory of the JVM, you can set the `aerospike.graph-service.heap.max` property
-or the `JAVA_OPTIONS` environment variable in the docker container to "-Xmx<value_in_mb>m".
+## Recommended: configure heap through AGS properties
 
-For example, if deploying the docker container with default memory looks like this:
+Set `aerospike.graph-service.heap.max` (and optionally
+`aerospike.graph-service.heap.min`) in your properties file or as
+environment variables. See [`CONFIG_OPTIONS.md`](CONFIG_OPTIONS.md) and the
+[Configuration reference](https://aerospike.com/docs/graph/reference/config).
+
+Example properties file:
+
+```properties
+aerospike.graph-service.heap.max=32g
 ```
-docker run -p 8182:8182 -p9090:9090 -e aerospike.client.host="172.17.0.1" aerospike/aerospike-graph-service
+
+Example Docker run with a properties file mount:
+
+```bash
+docker run -p 8182:8182 -p 9090:9090 \
+  -v $PWD/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+  -e aerospike.client.host=HOSTNAME:PORT \
+  -e aerospike.client.namespace=NAMESPACE \
+  aerospike/aerospike-graph-service:latest
 ```
-then, deploying the same container with 32 GB of memory for the JVM instead would look like:
+
+Replace `HOSTNAME:PORT` and `NAMESPACE` as in the [README](../README.md)
+Quickstart.
+
+## Alternative: `JAVA_OPTIONS`
+
+You can pass `-Xmx` through the `JAVA_OPTIONS` environment variable when a
+properties-based heap setting is not enough:
+
+```bash
+docker run -p 8182:8182 -p 9090:9090 \
+  -e JAVA_OPTIONS="-Xmx32768m" \
+  -e aerospike.client.host=HOSTNAME:PORT \
+  -e aerospike.client.namespace=NAMESPACE \
+  aerospike/aerospike-graph-service:latest
 ```
-docker run -p 8182:8182 -p9090:9090 -e JAVA_OPTIONS="-Xmx32768m" -e aerospike.client.host="172.17.0.1" aerospike/aerospike-graph-service
-```
+
+Prefer `aerospike.graph-service.heap.max` when possible so heap settings
+stay with other AGS configuration.

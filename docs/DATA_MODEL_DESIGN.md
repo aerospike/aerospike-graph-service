@@ -9,7 +9,7 @@ Everything below describes the `packed` data model, which is the only
 data model supported in v0.x+. The configuration key
 `aerospike.graph.data.model` exists and defaults to `"packed"`; no other
 value is currently accepted by the runtime. Historical references to a
-`linked` layout have been removed — they are not relevant to anything
+`linked` layout have been removed: they are not relevant to anything
 shipping today.
 
 ### Design goals
@@ -26,7 +26,7 @@ directly out of Aerospike's storage engine:
 2. **Edges are amortized across records, not record-per-edge.** An
    edge is _not_ its own Aerospike record by default. Up to
    `aerospike.graph.phat.edge.size` edges (default 10; allowed 1 – 100)
-   share a single "packed edge" record — i.e. N logical edges become
+   share a single "packed edge" record: i.e. N logical edges become
    N/10 Aerospike reads for bulk edge-property fetches.
 3. **Supernodes stay correct without crushing the fast path.** Vertices
    whose on-record adjacency would exceed the Aerospike record-size
@@ -65,7 +65,7 @@ by `ConfigurationHelper.Keys.Sets`.
 Bins inside `VERTICES` and `EDGES` records are short English strings
 (`"LABEL"`, `"VP_DATA"`, `"IN_EDGES"`, `"EDGE_DATA"`, …) emitted by
 `ConfigurationHelper.Keys.Bins`. The numeric byte codes on each enum
-member are **not** used as bin names — they're reserved for future
+member are **not** used as bin names: they're reserved for future
 binary-compact mode and are safe to ignore when reading records today.
 
 ### Schema interning
@@ -88,7 +88,7 @@ The mapping lives in the `SCHEMA` set, one record per kind:
 | Edge property key | `_epsch` | `-30` | `-29, -28, …` (`-31` and `-32` pre-reserved; not allocated from the counter) |
 
 Each kind has its own counter bin (`COUNTER`) that tracks the next
-available id. The counter walks **toward positive** for every kind —
+available id. The counter walks **toward positive** for every kind:
 `0, 1, 2, …` for vertex labels, `-32, -31, -30, …` for everything else.
 Keeping vertex labels positive lets them sit in a plain numeric
 secondary index on the vertex record's `LABEL` bin without colliding
@@ -97,7 +97,7 @@ with the negative-id space used by every other interning domain.
 For edge properties specifically, **id `-32` is reserved for `T.label`**
 and **id `-31` is reserved for the adjacent vertex id**. Both are
 written at `SchemaManager` construction time and never appear in the
-counter sequence — the counter for this kind starts at `-30`. These
+counter sequence: the counter for this kind starts at `-30`. These
 reserved ids are what makes the supernode adjacency bin
 (`SUPERNODE_IN` / `SUPERNODE_OUT`) readable with fixed, well-known map
 keys instead of having to look up interned ids for label / adjacent-id
@@ -118,7 +118,7 @@ entry on the next read. The in-memory `BiMap<String, Long>` in
 `SCHEMA` record when a read misses.
 
 The central `COUNTER` is monotonic across all schema growth; ids are
-never reused. Schema assignments are permanent — a label `"person"`
+never reused. Schema assignments are permanent: a label `"person"`
 that was assigned id `5` keeps id `5` forever, even if every
 `person` vertex is deleted. This is required for correctness: on-disk
 edge and vertex records reference those ids directly.
@@ -167,11 +167,11 @@ An edge has an 8- or 16-byte id:
 
 The two halves map to Aerospike like this:
 
-- `storageId = floorDiv(packingId, phat.edge.size)` — this is the
+- `storageId = floorDiv(packingId, phat.edge.size)`: this is the
   Aerospike record key in the `EDGES` set. The bulk-loader and the
   runtime pick edge ids so that up to `phat.edge.size` edges fall into
   the same `storageId`.
-- `uniqueId` (really: the full 8- or 16-byte id) — this is the _map
+- `uniqueId` (really: the full 8- or 16-byte id): this is the _map
   key_ inside the packed-edge record's `EDGE_DATA` bin that identifies
   which edge you're talking about.
 
@@ -181,7 +181,7 @@ in Aerospike record count (and hence Aerospike-side RAM metadata) for
 edge storage. Single-hop point reads over the graph see a 10×
 reduction in Aerospike round-trips per N edges of the same vertex.
 
-Tuning note: `phat.edge.size` is an **immutable config** — it is
+Tuning note: `phat.edge.size` is an **immutable config**: it is
 baked into every edge id the moment that id is allocated, so it cannot
 be changed on an existing graph. Valid range 1 – 100. Larger values
 mean fewer records and cheaper bulk reads, but more contention when
@@ -194,7 +194,7 @@ Relevant bins on a packed-edge record:
 
 | Bin | Type | Purpose |
 |---|---|---|
-| `EDGE_DATA` | `Map<ByteBuffer, List<Object>>` or `Map<ByteBuffer, Map<Long, Object>>` | Per-edge data, keyed by the full edge id bytes. Value shape depends on whether the edge is attached to a supernode — see below. |
+| `EDGE_DATA` | `Map<ByteBuffer, List<Object>>` or `Map<ByteBuffer, Map<Long, Object>>` | Per-edge data, keyed by the full edge id bytes. Value shape depends on whether the edge is attached to a supernode: see below. |
 | `SUPERNODE_IN` | nested `Map` | Reverse-adjacency map populated only for edges whose `inVertex` is a supernode. Schema: `edgeId → {vertexIdHash → {labelKey → labelValue, adjIdKey → adjVertexId, propertyKey1 → value1, …}}`. |
 | `SUPERNODE_OUT` | same | Same, for edges whose `outVertex` is a supernode. |
 | `TTL` | `Map<ByteBuffer, Long>` | Per-edge expiration if TTL is enabled. |
@@ -241,18 +241,18 @@ data-model version:
    vertex record.
 2. The vertex's `ECACHE_OFF` bin is set to `true` via a separate
    `UPDATE_ONLY` operation. Existing `IN_EDGES` / `OUT_EDGES` content
-   is _not_ migrated away; it is simply ignored from that point on.
+   is _not_ migrated away. It is ignored from that point on.
 3. Every subsequent edge touching that vertex writes into the edge
    record's `SUPERNODE_IN` / `SUPERNODE_OUT` bin, keyed by the
    vertex's id-hash.
 
 A pair of secondary indexes back this up:
 
-- `E_IN_IDX` — `STRING` secondary index on the `SUPERNODE_IN` bin,
+- `E_IN_IDX`: `STRING` secondary index on the `SUPERNODE_IN` bin,
   collection type `MAPKEYS`. Lets `Direction.IN` lookups find all
   packed-edge records that reference a given supernode hash as an
   inbound endpoint.
-- `E_OUT_IDX` — same, for `SUPERNODE_OUT`.
+- `E_OUT_IDX`: same, for `SUPERNODE_OUT`.
 
 Reads against a supernode therefore do:
 
@@ -261,7 +261,7 @@ Reads against a supernode therefore do:
 2. A per-record read of `EDGE_DATA` + `SUPERNODE_OUT` to extract the
    edges. Predicate pushdown against the supernode map (label, adjacent
    id, properties) happens on the Aerospike server via
-   `EdgeQueryHelper.phatEdgeHasContainerListToExpression` — so
+   `EdgeQueryHelper.phatEdgeHasContainerListToExpression`: so
    `g.V(supernode).outE('knows').has('weight', gt(0.5))` does not ship
    non-matching edges back to the JVM.
 
@@ -280,7 +280,7 @@ by the vertex-property id. The in-memory `FireflyVertex.vpProperties`
 hides the split from the rest of the engine.
 
 Vertex-property ids themselves come from the `ID_MANAGER` set, using
-a `DecrementingNumericIdManager` — i.e. vertex-property ids are
+a `DecrementingNumericIdManager`: i.e. vertex-property ids are
 guaranteed distinct from vertex ids (which decrement from a different
 counter) and from edge packing ids (which increment).
 
@@ -298,7 +298,7 @@ Each logical id kind has its own counter in the `ID_MANAGER` set:
 `RecyclingBufferedNumericIdManager` (or `MrtRecyclingBufferedNumericIdManager`
 when MRT is on) lets the engine pull a block of ids out of the
 counter, hand them out to local writers, and top the buffer up when it
-runs low. Recycling is lossy-on-crash by design — a killed server
+runs low. Recycling is lossy-on-crash by design: a killed server
 forfeits its outstanding buffer rather than risk double-issuing an id.
 
 When MRT is enabled, edge-packing ids have a second layer: recycled
@@ -319,7 +319,7 @@ read by `DataModelVersioning.checkVersionCompatibility`:
 
 On every boot the engine compares the on-disk version against its own:
 
-- If both sides are null, this is a fresh namespace — the engine writes
+- If both sides are null, this is a fresh namespace: the engine writes
   its own name/version and proceeds.
 - Major versions **must match exactly**. A mismatch throws
   `DataModelVersionMismatchException` and refuses to start; migrations
@@ -366,31 +366,31 @@ All of the above is implemented in `aerospike-graph-gremlin`. The
 highest-value entry points for reading the code:
 
 - `com.aerospike.firefly.io.aerospike.AerospikeOperations#writeVertex`
-  — vertex-write pipeline, including the on-record edge cache shape.
+ : vertex-write pipeline, including the on-record edge cache shape.
 - `com.aerospike.firefly.io.aerospike.AerospikeOperations#writeEdgeToRecord`
-  — packed-edge write pipeline, including the non-supernode vs.
+ : packed-edge write pipeline, including the non-supernode vs.
   supernode `EDGE_DATA` shape.
 - `com.aerospike.firefly.io.aerospike.AerospikeOperations#createFilterableSupernodeOperations`
-  — the supernode `SUPERNODE_IN` / `SUPERNODE_OUT` write path.
-- `com.aerospike.firefly.io.aerospike.schema.SchemaManager` — label /
+ : the supernode `SUPERNODE_IN` / `SUPERNODE_OUT` write path.
+- `com.aerospike.firefly.io.aerospike.schema.SchemaManager`: label /
   property-key interning and reserved ids.
-- `com.aerospike.firefly.io.aerospike.DataModelVersioning` — the
+- `com.aerospike.firefly.io.aerospike.DataModelVersioning`: the
   startup compatibility check.
-- `com.aerospike.firefly.structure.id.FireflyPhatEdgeId` — edge-id
+- `com.aerospike.firefly.structure.id.FireflyPhatEdgeId`: edge-id
   shape and `storageId` derivation.
 - `com.aerospike.firefly.util.config.ConfigurationHelper.Keys.{Sets,Bins,InternalConfigs}`
-  — the authoritative list of set and bin names.
+ : the authoritative list of set and bin names.
 
 ### See also
 
-- [`INDEX_DESIGN.md`](INDEX_DESIGN.md) — the user-facing index
+- [`INDEX_DESIGN.md`](INDEX_DESIGN.md): the user-facing index
   subsystem built on top of this data model.
-- [`ID_MANAGEMENT.md`](ID_MANAGEMENT.md) — id allocation in detail,
+- [`ID_MANAGEMENT.md`](ID_MANAGEMENT.md): id allocation in detail,
   including the recycling buffer and MRT interactions.
-- [`SUPERNODE_FLAG.md`](SUPERNODE_FLAG.md) — operational handling of
+- [`SUPERNODE_FLAG.md`](SUPERNODE_FLAG.md): operational handling of
   supernodes from the user's perspective.
-- [`BULK_LOADER_DESIGN.md`](BULK_LOADER_DESIGN.md) — how the Spark
+- [`BULK_LOADER_DESIGN.md`](BULK_LOADER_DESIGN.md): how the Spark
   bulk loader writes directly into the packed-edge format described
   above, bypassing the online write path.
-- [`GRAPH_MAX_MEMORY.md`](GRAPH_MAX_MEMORY.md) — record-size budget
+- [`GRAPH_MAX_MEMORY.md`](GRAPH_MAX_MEMORY.md): record-size budget
   and its interaction with `ECACHE_OFF` transitions.

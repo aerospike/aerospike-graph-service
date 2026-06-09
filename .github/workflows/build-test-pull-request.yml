@@ -84,411 +84,6 @@ jobs:
       - name: Build Maven Project
         run: |
           mvn clean package -DskipTests --no-transfer-progress
-  start-chainable-maven-runner:
-    needs: ci-guard
-    name: Start Chainable Maven Runner
-    runs-on: ubuntu-latest
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
-      - name: Staggered Delay
-        run: |
-          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
-          DELAY=$((16#$HASH % 120))
-          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
-          sleep $DELAY
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8a.large
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-test-firefly-structure:
-    needs: ci-guard
-    name: Start Runner Structure
-    runs-on: ubuntu-latest
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
-      - name: Staggered Delay
-        run: |
-          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
-          DELAY=$((16#$HASH % 120))
-          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
-          sleep $DELAY
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: r8a.large
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-test-firefly-process-1:
-    needs: ci-guard
-    name: Start Runner Process 1
-    runs-on: ubuntu-latest
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
-      - name: Staggered Delay
-        run: |
-          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
-          DELAY=$((16#$HASH % 120))
-          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
-          sleep $DELAY
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8a.large
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-test-firefly-process-2:
-    needs: ci-guard
-    name: Start Runner Process 2
-    runs-on: ubuntu-latest
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
-      - name: Staggered Delay
-        run: |
-          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
-          DELAY=$((16#$HASH % 120))
-          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
-          sleep $DELAY
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8a.large
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-test-firefly-process-3:
-    needs: ci-guard
-    name: Start Runner Process 3
-    runs-on: ubuntu-latest
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
-      - name: Staggered Delay
-        run: |
-          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
-          DELAY=$((16#$HASH % 120))
-          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
-          sleep $DELAY
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8a.large
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-test-local-computer-process-1:
-    needs: ci-guard
-    name: Start Runner Local Computer Process 1
-    runs-on: ubuntu-latest
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
-      - name: Staggered Delay
-        run: |
-          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
-          DELAY=$((16#$HASH % 120))
-          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
-          sleep $DELAY
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8a.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-test-local-computer-process-2:
-    needs: ci-guard
-    name: Start Runner Local Computer Process 2
-    runs-on: ubuntu-latest
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
-      - name: Staggered Delay
-        run: |
-          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
-          DELAY=$((16#$HASH % 120))
-          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
-          sleep $DELAY
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: r8a.xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-test-local-computer-process-3:
-    needs: ci-guard
-    name: Start Runner Local Computer Process 3
-    runs-on: ubuntu-latest
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
-      - name: Staggered Delay
-        run: |
-          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
-          DELAY=$((16#$HASH % 120))
-          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
-          sleep $DELAY
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: r8a.xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-test-local-computer-process-4:
-    needs: ci-guard
-    name: Start Runner Local Computer Process 4
-    runs-on: ubuntu-latest
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
-      - name: Staggered Delay
-        run: |
-          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
-          DELAY=$((16#$HASH % 120))
-          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
-          sleep $DELAY
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: r8a.xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-test-firefly:
-    needs: ci-guard
-    name: Start Firefly Test Runner
-    runs-on: ubuntu-latest
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
-      - name: Staggered Delay
-        run: |
-          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
-          DELAY=$((16#$HASH % 120))
-          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
-          sleep $DELAY
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8a.xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-movielens:
-    needs: ci-guard
-    name: Start Movielens Runner
-    runs-on: ubuntu-latest
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-      - name: Staggered Delay
-        run: |
-          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
-          DELAY=$((16#$HASH % 120))
-          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
-          sleep $DELAY
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8a.large
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
   negative-test-bulk-loader-call-docker:
     needs: ci-guard
     name: Bulk Loader Call without Spark Fails
@@ -531,16 +126,16 @@ jobs:
           python3 ./scripts/build-docker.py --tags aerospike/firefly --slim
           
           docker run -d -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/custom/ \
-            -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
+            -v ${{ github.workspace }}/conf/docker-bulk-load/:/opt/aerospike-graph/custom/ \
+            -v ${{ github.workspace }}/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
             aerospike/firefly
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark --no-transfer-progress
   test-firefly-chainable-maven:
     name: Test Chainable Maven
     timeout-minutes: 120
-    needs: [ci-guard, start-chainable-maven-runner]
-    runs-on: ${{ needs.start-chainable-maven-runner.outputs.label }}
+    needs: ci-guard
+    runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -600,8 +195,8 @@ jobs:
   test-firefly:
     name: Test Firefly
     timeout-minutes: 120
-    needs: [ci-guard, start-runner-test-firefly]
-    runs-on: ${{ needs.start-runner-test-firefly.outputs.label }}
+    needs: ci-guard
+    runs-on: ubuntu-latest-4-cores
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -638,8 +233,8 @@ jobs:
   test-firefly-structure:
     name: Test Packed Structure Tests
     timeout-minutes: 120
-    needs: [ci-guard, start-runner-test-firefly-structure]
-    runs-on: ${{ needs.start-runner-test-firefly-structure.outputs.label }}
+    needs: ci-guard
+    runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -782,7 +377,7 @@ jobs:
           
           echo "Running docker image with transactions enabled"
           docker run -d -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            -v ${{ github.workspace }}/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -e aerospike.graph.tx.enabled=true firefly
 
           echo "Sleeping for 10 seconds while docker image starts"
@@ -799,13 +394,13 @@ jobs:
           echo "Running multi node transaction test"
           
           docker run -d -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            -v ${{ github.workspace }}/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -e aerospike.graph.tx.enabled=true firefly
           docker run -d -p 8183:8182  \
-            -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            -v ${{ github.workspace }}/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -e aerospike.graph.tx.enabled=true firefly
           docker run -d -p 8184:8182  \
-            -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            -v ${{ github.workspace }}/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -e aerospike.graph.tx.enabled=true firefly
           sleep 10
           
@@ -813,8 +408,8 @@ jobs:
   test-firefly-process-1:
     name: Test Firefly Process Tests 1
     timeout-minutes: 120
-    needs: [ci-guard, start-runner-test-firefly-process-1]
-    runs-on: ${{ needs.start-runner-test-firefly-process-1.outputs.label }}
+    needs: ci-guard
+    runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -851,8 +446,8 @@ jobs:
   test-firefly-process-2:
     name: Test Firefly Process Tests 2
     timeout-minutes: 120
-    needs: [ci-guard, start-runner-test-firefly-process-2]
-    runs-on: ${{ needs.start-runner-test-firefly-process-2.outputs.label }}
+    needs: ci-guard
+    runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -889,8 +484,8 @@ jobs:
   test-firefly-process-3:
     name: Test Firefly Process Tests 3
     timeout-minutes: 120
-    needs: [ci-guard, start-runner-test-firefly-process-3]
-    runs-on: ${{ needs.start-runner-test-firefly-process-3.outputs.label }}
+    needs: ci-guard
+    runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -927,8 +522,8 @@ jobs:
   test-local-computer-process-1:
     name: Test Local Computer Process Tests 1
     timeout-minutes: 120
-    needs: [ci-guard, start-runner-test-local-computer-process-1]
-    runs-on: ${{ needs.start-runner-test-local-computer-process-1.outputs.label }}
+    needs: ci-guard
+    runs-on: ubuntu-latest-8-cores
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -967,8 +562,8 @@ jobs:
   test-local-computer-process-2:
     name: Test Local Computer Process Tests 2 (map)
     timeout-minutes: 120
-    needs: [ci-guard, start-runner-test-local-computer-process-2]
-    runs-on: ${{ needs.start-runner-test-local-computer-process-2.outputs.label }}
+    needs: ci-guard
+    runs-on: ubuntu-latest-8-cores
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -1006,8 +601,8 @@ jobs:
   test-local-computer-process-3:
     name: Test Local Computer Process Tests 3 (filter)
     timeout-minutes: 120
-    needs: [ci-guard, start-runner-test-local-computer-process-3]
-    runs-on: ${{ needs.start-runner-test-local-computer-process-3.outputs.label }}
+    needs: ci-guard
+    runs-on: ubuntu-latest-8-cores
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -1045,8 +640,8 @@ jobs:
   test-local-computer-process-4:
     name: Test Local Computer Process Tests 4 (branch)
     timeout-minutes: 120
-    needs: [ci-guard, start-runner-test-local-computer-process-4]
-    runs-on: ${{ needs.start-runner-test-local-computer-process-4.outputs.label }}
+    needs: ci-guard
+    runs-on: ubuntu-latest-8-cores
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -1084,8 +679,8 @@ jobs:
   test-firefly-movielens:
     name: Test Movielens
     timeout-minutes: 120
-    needs: [ci-guard, start-runner-movielens]
-    runs-on: ${{ needs.start-runner-movielens.outputs.label }}
+    needs: ci-guard
+    runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -1262,7 +857,7 @@ jobs:
           bash -x scripts/start_aerospike.sh
 
           echo "Running docker image with custom yaml file"
-          docker run -d -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs-usage-stats/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
+          docker run -d -p 8182:8182 -v ${{ github.workspace }}/conf/test-custom-configs-usage-stats/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
           echo "Sleeping for 10 seconds while gremlin-server starts"
           sleep 10
           
@@ -1275,7 +870,7 @@ jobs:
         # This test does not need to stop the image because SSL is not configured properly, so it errors and exits but the test serves its purpose regardless.
         run: |
           echo "Running docker image with secrets"
-          docker run -d --name firefly -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-secret-masking/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -e JAVA_OPTIONS="-Djavax.net.ssl.trustStore=/root/aerospike/truststore.jks -Djavax.net.ssl.keyStore=/root/aerospike/keystore.jks -Djavax.net.ssl.trustStorePassword=MASKME123 -Djavax.net.ssl.keyStorePassword=MASKME123" firefly
+          docker run -d --name firefly -p 8182:8182 -v ${{ github.workspace }}/conf/test-secret-masking/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -e JAVA_OPTIONS="-Djavax.net.ssl.trustStore=/root/aerospike/truststore.jks -Djavax.net.ssl.keyStore=/root/aerospike/keystore.jks -Djavax.net.ssl.trustStorePassword=MASKME123 -Djavax.net.ssl.keyStorePassword=MASKME123" firefly
           echo "Sleeping for 10 seconds while gremlin-server starts"
           sleep 10
 
@@ -1286,7 +881,7 @@ jobs:
       - name: Launch Firefly Docker Image with Custom yaml
         run: |
           echo "Running docker image with custom yaml file"
-          docker run -d -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/custom firefly
+          docker run -d -p 8182:8182 -v ${{ github.workspace }}/conf/test-custom-configs:/opt/aerospike-graph/custom firefly
           echo "Sleeping for 10 seconds while gremlin-server starts"
           sleep 10
           
@@ -1298,7 +893,7 @@ jobs:
       - name: Launch Firefly Docker Image with Custom properties
         run: |
           echo "Running docker image with custom properties file"
-          docker run -d -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
+          docker run -d -p 8182:8182 -v ${{ github.workspace }}/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
 
           echo "Sleeping for 10 seconds while gremlin-server starts"
           sleep 10
@@ -1309,7 +904,7 @@ jobs:
       - name: Test Firefly Docker Image with Security Enabled
         run: |
           echo "Running docker image with security enabled"
-          docker run -d -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-security/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -e aerospike.graph.audit.log.enabled=true firefly
+          docker run -d -p 8182:8182 -p 9090:9090 -v ${{ github.workspace }}/conf/test-security/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -e aerospike.graph.audit.log.enabled=true firefly
           echo "Sleeping for 10 seconds while gremlin-server starts"
           sleep 10
 
@@ -1319,7 +914,7 @@ jobs:
       - name: Test Firefly Docker Image with Default Prometheus
         run: |
           echo "Running docker image with prometheus"
-          docker run -d -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
+          docker run -d -p 8182:8182 -p 9090:9090 -v ${{ github.workspace }}/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
           echo "Sleeping for 10 seconds while gremlin-server starts"
           sleep 10
 
@@ -1335,8 +930,8 @@ jobs:
           GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
         run: |
           docker run -d -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
-            -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
+            -v ${{ github.workspace }}/conf/docker-bulk-load/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            -v ${{ github.workspace }}/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
             firefly
           
           echo "Sleeping for 10 seconds while docker image starts"
@@ -1347,7 +942,7 @@ jobs:
       - name: Test Firefly Docker Runtime (Default Config)
         run: |
           docker run -d -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            -v ${{ github.workspace }}/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             firefly
           
           echo "Sleeping for 10 seconds while docker image starts"
@@ -1359,7 +954,7 @@ jobs:
       - name: Test Firefly Docker Runtime (Scan Disabled)
         run: |
           docker run -d -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/aerospike-graph-scan-disabled.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            -v ${{ github.workspace }}/conf/aerospike-graph-scan-disabled.properties:/opt/aerospike-graph/aerospike-graph.properties \
             firefly
           
           echo "Sleeping for 10 seconds while docker image starts"
@@ -1416,7 +1011,7 @@ jobs:
           bash -x scripts/start_aerospike_tls.sh
 
           echo "Running docker image with SSL enabled on GLV<->Gremlin Server and TLS enabled on AGS<->Aerospike DB"
-          docker run -d -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-tls/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/aerospike-client-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/gremlin-server-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.key:/opt/aerospike-graph/gremlin-server-tls/aerospike.key firefly
+          docker run -d -p 8182:8182 -v ${{ github.workspace }}/conf/test-tls/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/aerospike-client-tls/aerospike.crt -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/gremlin-server-tls/aerospike.crt -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.key:/opt/aerospike-graph/gremlin-server-tls/aerospike.key firefly
           echo "Sleeping for 10 seconds while gremlin-server starts"
           sleep 10
 
@@ -1488,303 +1083,6 @@ jobs:
         run: |
           mvn clean install -DskipTests
           mvn snyk:test@snyk-test
-  stop-runner-movielens:
-    name: Stop Movielens Runner
-    needs:
-      - ci-guard
-      - test-firefly-movielens
-      - start-runner-movielens
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-movielens.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-movielens.outputs.ec2-instance-id }}
-  stop-chainable-maven-runner:
-    name: Stop Chainable Runner
-    needs:
-      - ci-guard
-      - start-chainable-maven-runner
-      - test-firefly-chainable-maven
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-chainable-maven-runner.outputs.label }}
-          ec2-instance-id: ${{ needs.start-chainable-maven-runner.outputs.ec2-instance-id }}
-  stop-runner-test-firefly:
-    name: Stop Runner
-    needs:
-      - ci-guard
-      - test-firefly
-      - start-runner-test-firefly
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-test-firefly.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-test-firefly.outputs.ec2-instance-id }}
-  stop-runner-test-firefly-process-1:
-    name: Stop Process Runner 1
-    needs:
-      - ci-guard
-      - test-firefly-process-1
-      - start-runner-test-firefly-process-1
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-test-firefly-process-1.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-test-firefly-process-1.outputs.ec2-instance-id }}
-  stop-runner-test-firefly-process-2:
-    name: Stop Process Runner 2
-    needs:
-      - ci-guard
-      - test-firefly-process-2
-      - start-runner-test-firefly-process-2
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-test-firefly-process-2.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-test-firefly-process-2.outputs.ec2-instance-id }}
-  stop-runner-test-firefly-process-3:
-    name: Stop Process Runner 3
-    needs:
-      - ci-guard
-      - test-firefly-process-3
-      - start-runner-test-firefly-process-3
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-test-firefly-process-3.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-test-firefly-process-3.outputs.ec2-instance-id }}
-  stop-runner-test-local-computer-process-1:
-    name: Stop Local Computer Process Runner 1
-    needs:
-      - ci-guard
-      - test-local-computer-process-1
-      - start-runner-test-local-computer-process-1
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-test-local-computer-process-1.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-test-local-computer-process-1.outputs.ec2-instance-id }}
-  stop-runner-test-local-computer-process-2:
-    name: Stop Local Computer Process Runner 2
-    needs:
-      - ci-guard
-      - test-local-computer-process-2
-      - start-runner-test-local-computer-process-2
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-test-local-computer-process-2.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-test-local-computer-process-2.outputs.ec2-instance-id }}
-  stop-runner-test-local-computer-process-3:
-    name: Stop Local Computer Process Runner 3
-    needs:
-      - ci-guard
-      - test-local-computer-process-3
-      - start-runner-test-local-computer-process-3
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-test-local-computer-process-3.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-test-local-computer-process-3.outputs.ec2-instance-id }}
-  stop-runner-test-local-computer-process-4:
-    name: Stop Local Computer Process Runner 4
-    needs:
-      - ci-guard
-      - test-local-computer-process-4
-      - start-runner-test-local-computer-process-4
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-test-local-computer-process-4.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-test-local-computer-process-4.outputs.ec2-instance-id }}
-  stop-runner-test-firefly-structure:
-    name: Stop Structure Runner
-    needs:
-      - ci-guard
-      - test-firefly-structure
-      - start-runner-test-firefly-structure
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-test-firefly-structure.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-test-firefly-structure.outputs.ec2-instance-id }}
   test-configure_graph_scripts:
     needs: ci-guard
     name: Test Configure Aerospike Graph Python Scripts

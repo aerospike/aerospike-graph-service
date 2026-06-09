@@ -196,7 +196,7 @@ jobs:
     name: Test Firefly
     timeout-minutes: 120
     needs: ci-guard
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -523,7 +523,7 @@ jobs:
     name: Test Local Computer Process Tests 1
     timeout-minutes: 120
     needs: ci-guard
-    runs-on: ubuntu-latest-8-cores
+    runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -563,7 +563,7 @@ jobs:
     name: Test Local Computer Process Tests 2 (map)
     timeout-minutes: 120
     needs: ci-guard
-    runs-on: ubuntu-latest-8-cores
+    runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -602,7 +602,7 @@ jobs:
     name: Test Local Computer Process Tests 3 (filter)
     timeout-minutes: 120
     needs: ci-guard
-    runs-on: ubuntu-latest-8-cores
+    runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -641,7 +641,7 @@ jobs:
     name: Test Local Computer Process Tests 4 (branch)
     timeout-minutes: 120
     needs: ci-guard
-    runs-on: ubuntu-latest-8-cores
+    runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0

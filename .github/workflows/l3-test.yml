@@ -63,7 +63,7 @@ jobs:
   run-l3-bulk-loader-pe:
     name: Run L3 Spark Bulk Loader Phantom Edges
     timeout-minutes: 150
-    runs-on: ubuntu-latest-8-cores
+    runs-on: ubuntu-latest
     needs: ci-guard
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -175,7 +175,7 @@ jobs:
     permissions:
       contents: write
     timeout-minutes: 150
-    runs-on: ubuntu-latest-8-cores
+    runs-on: ubuntu-latest
     needs: ci-guard
     steps:
       - name: Harden the runner (Audit all outbound calls)

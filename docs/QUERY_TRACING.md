@@ -3,6 +3,8 @@
 Aerospike Graph Service can emit OpenTelemetry spans to a Zipkin
 collector for slow-query analysis.
 
+Official overview: [Query tracing](https://aerospike.com/docs/graph/observe/query-tracing).
+
 ## Quickstart
 
 Stand up a local Zipkin:

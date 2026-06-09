@@ -3,22 +3,22 @@
 Every `aerospike.*` property recognized by the service. Options are
 grouped by audience:
 
-- **Common** — the options most deployments set. Start here.
-- **Gremlin Server** — knobs passed straight through to the embedded
+- **Common**: the options most deployments set. Start here.
+- **Gremlin Server**: knobs passed straight through to the embedded
   Apache TinkerPop Gremlin Server.
-- **Advanced** — tunables where the default is usually right; change
+- **Advanced**: tunables where the default is usually right; change
   them only if you have a concrete reason.
 
 > This doc intentionally does not list purely implementation-internal
 > switches (bin names, experimental feature flags, etc.). Those live
 > next to the code that reads them and should not be relied on by
-> user configuration — they can be renamed or removed without notice.
+> user configuration: they can be renamed or removed without notice.
 
 ## Common
 
 | Config                                     | Default        | Allowed Values                                               | Description                                                  |
 | ------------------------------------------ | -------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| aerospike.client.host                      | localhost:3000 | Any String that follows `<host>:<port>` format.              | Accessible address of one or more an Aerospike seed nodes, specified as `<host>:<port>` in a comma-separated list. |
+| aerospike.client.host                      | localhost:3000 | Any String that follows `<host>:<port>` format.              | Accessible address of one or more Aerospike seed nodes, specified as `<host>:<port>` in a comma-separated list. |
 | aerospike.client.user                      | _none_         | String values, must match a user configured for Aerospike database. | Username to use when connecting to the Aerospike cluster.    |
 | aerospike.client.password                  | _none_         | String values, must match Aerospike password for provided user. | Password to use when connecting to the Aerospike cluster.    |
 | aerospike.client.namespace                 | test           | String values, must match Aerospike namespace String.        | Namespace to use for storage of graph data. Note: This namespace must already exist on the Aerospike cluster. |
@@ -66,4 +66,4 @@ Min and max heap can also be configured here.
 | aerospike.graph.vertex.id.buffer.size                 | 1000    | Buffer size of id manager for vertices.                      |
 | aerospike.graph.edge.id.buffer.size                   | 10000   | Buffer size of id manager for edges.                         |
 | aerospike.graph.property.id.buffer.size               | 10000   | Buffer size of id manager for properties.                    |
-| aerospike.client.policy.maxRetries                    | 2       | Max number of times to retry a write to the Aerospike cluster. Use with care — graph writes are not all idempotent, so retries can produce duplicate edges in edge cases. |
+| aerospike.client.policy.maxRetries                    | 2       | Max number of times to retry a write to the Aerospike cluster. Use with care: graph writes are not all idempotent, so retries can produce duplicate edges in edge cases. |

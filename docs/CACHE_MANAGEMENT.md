@@ -2,6 +2,8 @@
 
 Aerospike Graph Service provides cache management services to control caching behavior at runtime.
 
+Official overview: [Caching](https://aerospike.com/docs/graph/manage/cache).
+
 ## Cache Coverage
 
 AGS cache stores Aerospike graph records that are read during traversal execution:

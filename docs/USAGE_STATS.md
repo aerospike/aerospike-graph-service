@@ -1,6 +1,6 @@
 # Usage stats
 
-> **TL;DR — nothing is reported externally.** Aerospike Graph Service
+> **TL;DR: nothing is reported externally.** Aerospike Graph Service
 > does not send telemetry, crash reports, or any other data off-box.
 > The "usage stats" described here are a self-instrumentation feature:
 > the service periodically writes its own resource-usage numbers
@@ -44,8 +44,8 @@ g.call("aerospike.graph.metadata.usage").next()
 
 Returns a `Map<String, Object>` with:
 
-- `raw` — the raw per-instance stats records.
-- `total-vcpu` — aggregated vCPU-years across all instances.
+- `raw`: the raw per-instance stats records.
+- `total-vcpu`: aggregated vCPU-years across all instances.
 
 Filtering by start date:
 

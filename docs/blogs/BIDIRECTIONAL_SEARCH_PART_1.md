@@ -1,23 +1,25 @@
-# Bidirectional Search Part I
+# Bidirectional search part I
 
-This is part one of a two part series on bidirectional search. 
+This is part one of a two part series on bidirectional search.
 
 This first part will explore:
+
 - Deriving expressions for search time when applying bidirectional search
 - Queries that can be used to implement bidirectional search in Gremlin
 - Comparing search time of bidirectional search to unidirectional search
 
 The second part will explore:
+
 - How to implement bidirectional search in a TinkerPop strategy
 - Comparing a strategy to a query for bidirectional search
 
-# Overview
+## Overview
 
 Bidirectional search is a graph search algorithm. Bidirectional search can be used to find the path
-between two constrained areas of the graph. It runs two simultaneous searches; one forward from the initial state,
-and one backward from the goal, stopping when the two meet in the middle.
+between two constrained areas of the graph. It runs two simultaneous searches. One runs forward from the initial state,
+and one runs backward from the goal, stopping when the two meet in the middle.
 
-# Search Time
+## Search time
 
 The search time of searching a graph for the path between two constrained areas of the graph can be approximated
 as the area of the graph that is being searched.
@@ -68,7 +70,7 @@ If we consider the starting area sizes, the expressions can be modified as follo
 - `A*b^(d/2) + B*b^(d/2+1)` OR `A*b^(d/2+1) + B*b^(d/2)` for odd `d`
 - `A*b^(d)` OR `B*b^(d)` for unidirectional search
 
-# The Gambit/Pitfall/Footgun/Trap of Bidirectional Search
+## The gambit, pitfall, footgun, and trap of bidirectional search
 
 Bidirectional search can be a powerful tool for finding the shortest path(s) between two areas in a graph. However,
 it can make the search time much longer depending on the constraints of the search. For example, if the area `B`

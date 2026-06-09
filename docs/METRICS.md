@@ -1,12 +1,14 @@
 # Prometheus Support
-Aerospike Graph supports exporting metrics via prometheus.
+
+Aerospike Graph Service supports exporting metrics through Prometheus.
 
 ## Enabling the Prometheus Exporter
-The Prometheus exporter can be enabled/disabled by exposing the port in docker.
+
+Set `aerospike.graph.http.port` (default `9090`) in the properties file or as an environment variable, then publish that port when you run the container (for example `-p 9090:9090`).
 
 ## Configuring the Prometheus Exporter
 
-The prometheus exporter runs on port `9090` by default a default path of `/metrics`.
+The prometheus exporter runs on port `9090` by default with a default path of `/metrics`.
 
 These can be overridden by setting the following environment variables or config options in the properties file:
 

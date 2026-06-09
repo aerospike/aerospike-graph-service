@@ -1,8 +1,8 @@
 # The `~supernode` flag
 
 `~supernode` is a virtual property you can set on a vertex to tell
-Firefly, up front, that this vertex will be a supernode — so don't
-bother trying to keep its adjacency list inline on the vertex record.
+Aerospike Graph Service, up front, that this vertex will be a supernode,
+so do not keep its adjacency list inline on the vertex record.
 
 ## Background
 
@@ -14,7 +14,7 @@ the vertex is promoted to a supernode: its adjacency moves to dedicated
 `E_IN_IDX` / `E_OUT_IDX` secondary indexes instead.
 
 The automatic path is fine, but it means every edge insert up to that
-threshold is writing into — and eventually invalidating — the inline
+threshold is writing into, and eventually invalidating, the inline
 cache before the promotion kicks in. For vertices you already know are
 going to be high-degree (hubs, celebrities, categories, etc.), that's
 wasted work. Setting `~supernode` bypasses it: the vertex is treated as
@@ -37,8 +37,8 @@ and go straight to the supernode path.
 
 - **Write-only.** You cannot read `~supernode` back. Reading it returns
   nothing.
-- **Value is ignored.** Any value you set — `true`, `"yes"`, `1`, `""`
-  — is treated as "this vertex is a supernode". Only the presence of
+- **Value is ignored.** Any value you set: `true`, `"yes"`, `1`, `""`
+ : is treated as "this vertex is a supernode". Only the presence of
   the key matters.
 - **One-way.** Once set, it cannot be cleared. A vertex that has been
   marked as a supernode stays a supernode for the lifetime of the
@@ -49,7 +49,7 @@ and go straight to the supernode path.
 ## When to use it
 
 Set `~supernode` when you **know** a vertex will end up above the edge
-cache threshold — ideally before you start bulk-inserting its edges.
+cache threshold: ideally before you start bulk-inserting its edges.
 Common cases:
 
 - Bulk-loading a dataset where some nodes obviously dominate (a
@@ -59,11 +59,11 @@ Common cases:
   attaches to.
 
 If you're not sure, don't bother. The automatic promotion will do the
-right thing; you'd just be pre-optimizing.
+right thing. You would only be pre-optimizing.
 
 ## See also
 
-* [`DATA_MODEL_DESIGN.md`](DATA_MODEL_DESIGN.md) — how supernode
+* [`DATA_MODEL_DESIGN.md`](DATA_MODEL_DESIGN.md): how supernode
   adjacency is stored.
-* [`INDEX_DESIGN.md`](INDEX_DESIGN.md) — the `E_IN_IDX` / `E_OUT_IDX`
+* [`INDEX_DESIGN.md`](INDEX_DESIGN.md): the `E_IN_IDX` / `E_OUT_IDX`
   indexes that supernode traversal relies on.

@@ -7,9 +7,12 @@ subsystems see the per-topic docs linked throughout
 [`docs/index.md`](index.md).
 
 > Reminder: the internal codename is `firefly`. It is still the name
-> of every Java package, the Maven `artifactId`, the Docker image
-> name, and most config prefixes. "Aerospike Graph Service" is the
-> public product name — treat the two as interchangeable.
+> of every Java package, the Maven `artifactId`, and most config prefixes.
+> User-facing container images are published as
+> `aerospike/aerospike-graph-service` on Docker Hub. Dev and RC images also
+> use `ghcr.io/aerospike/firefly`. Aerospike Graph Service is the public
+> product name. Treat the codename and product name as interchangeable when
+> reading the codebase.
 
 ## The 10,000-foot view
 
@@ -93,12 +96,12 @@ This is where most of the interesting logic lives. Package layout:
 | `com.aerospike.firefly.structure`           | TinkerPop `Graph` / `Vertex` / `Edge` implementations, id management. |
 | `com.aerospike.firefly.process`             | Traversal strategies, custom `Step`s, call-step registry.             |
 | `com.aerospike.firefly.process.call.*`      | Admin / management / metadata call steps (`g.call(...)` entry points).|
-| `com.aerospike.firefly.io.aerospike`        | `AerospikeConnection` — the one place that talks to the Aerospike     |
+| `com.aerospike.firefly.io.aerospike`        | `AerospikeConnection`: the one place that talks to the Aerospike     |
 |                                             | Java client. Bin layout, codecs, batch and scan policy live here.     |
 | `com.aerospike.firefly.io.aerospike.indexes`| Secondary-index maintenance and index-driven query planning.          |
 | `com.aerospike.firefly.runtime`             | Process bootstrap, config loading, background tasks, HTTP admin.      |
 | `com.aerospike.firefly.security`            | JWT issuance / validation, audit logging hooks.                       |
-| `com.aerospike.firefly.util.config`         | `ConfigurationHelper` — canonical list of every tunable config key.   |
+| `com.aerospike.firefly.util.config`         | `ConfigurationHelper`: canonical list of every tunable config key.   |
 | `com.aerospike.firefly.features`            | Feature-flag plumbing and version-gating helpers.                     |
 | `com.aerospike.firefly.jsr223`              | Gremlin-language plugin so the service is usable from `gremlin.sh`.   |
 
@@ -128,8 +131,8 @@ boundaries defined by the in-process `FireflyTransaction`.
 ## OLAP path (`aerospike-graph-olap`)
 
 For analytical traversals that would be unreasonable on the online
-service — `PageRank`, `ConnectedComponents`, large aggregations —
-there is a separate Spark-based `GraphComputer`. It reads the same
+service (such as `PageRank`, `ConnectedComponents`, and large
+aggregations), there is a separate Spark-based `GraphComputer`. It reads the same
 record layout directly (via `codec.RowCodec`), runs the vertex
 program across a Spark cluster, and writes results back. The online
 service is not involved in an OLAP job. See
@@ -150,7 +153,7 @@ for invocation.
 
 - **Graph service**: a single JVM process per Gremlin Server instance.
   Memory-sized to fit the config cache and summary. Stateless across
-  restarts — all durable state is in Aerospike.
+  restarts: all durable state is in Aerospike.
 - **Aerospike cluster**: 1 namespace per graph, any number of nodes.
   The service is node-agnostic and discovers the cluster through the
   Aerospike client's seed list.
@@ -180,10 +183,10 @@ these are the natural entry points:
 
 ## See also
 
-- [`SETUP.md`](SETUP.md) — how to actually run the thing.
-- [`CONFIG_OPTIONS.md`](CONFIG_OPTIONS.md) — every tunable, annotated.
-- [`ID_MANAGEMENT.md`](ID_MANAGEMENT.md) — how vertex / edge ids work.
-- [`BULK_LOADER_DESIGN.md`](BULK_LOADER_DESIGN.md) — design of the
+- [`SETUP.md`](SETUP.md): how to actually run the thing.
+- [`CONFIG_OPTIONS.md`](CONFIG_OPTIONS.md): every tunable, annotated.
+- [`ID_MANAGEMENT.md`](ID_MANAGEMENT.md): how vertex / edge ids work.
+- [`BULK_LOADER_DESIGN.md`](BULK_LOADER_DESIGN.md): design of the
   standalone bulk-loader job.
-- [`QUERY_TRACING.md`](QUERY_TRACING.md) — how traces bubble up for
+- [`QUERY_TRACING.md`](QUERY_TRACING.md): how traces bubble up for
   performance debugging.

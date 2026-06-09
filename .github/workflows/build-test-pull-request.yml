@@ -165,32 +165,32 @@ jobs:
           mvn install -DskipTests
       - name: Test Summary Updater TTL Exclusion
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyGraphSummaryUpdaterTest --no-transfer-progress
       - name: Test Client Event Loop Configuration
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeClientConfigEventLoop --no-transfer-progress
       - name: Test Small Memory Maven
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
       - name: Test Stack Overflow Maven
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=TestSupernodeStackOverflow --no-transfer-progress
       - name: Test Client Provider Maven
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentClientProviderInstantiationTest -Dtest=TestAerospikeClientProviderConfiguration --no-transfer-progress
       - name: Test Call Steps Maven
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=TestAdminCallHttp --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflySindexCallSteps --no-transfer-progress
       - name: Test Compression Flag Docker Network
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeNetwork --no-transfer-progress
   test-firefly:
     name: Test Firefly
@@ -228,7 +228,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
   test-firefly-structure:
     name: Test Packed Structure Tests
@@ -266,7 +266,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphStructureStandardTest --no-transfer-progress
   test-nsup-disabled:
     needs: ci-guard
@@ -441,7 +441,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphProcessStandardTest -Dtest=FireflyGraphUncachedProcessStandardTest --no-transfer-progress
   test-firefly-process-2:
     name: Test Firefly Process Tests 2
@@ -479,7 +479,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphSindexProcessStandardTest -Dtest=FireflyGraphSupernodeProcessStandardTest --no-transfer-progress
   test-firefly-process-3:
     name: Test Firefly Process Tests 3
@@ -517,7 +517,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphAdjacentUserIdProcessStandardTest --no-transfer-progress
   test-local-computer-process-1:
     name: Test Local Computer Process Tests 1
@@ -556,7 +556,7 @@ jobs:
         run: |
           pip3 install pyyaml
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn clean install -DskipTests --no-transfer-progress
           mvn test -pl aerospike-graph-olap -Dolap.test.jvm.args="-XX:MaxRAMPercentage=80.0" --no-transfer-progress
   test-local-computer-process-2:
@@ -595,7 +595,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn clean install -DskipTests --no-transfer-progress
           mvn test -pl aerospike-graph-olap -Dtest=FireflyComputerFeatureMapTest --no-transfer-progress
   test-local-computer-process-3:
@@ -634,7 +634,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn clean install -DskipTests --no-transfer-progress
           mvn test -pl aerospike-graph-olap -Dtest=FireflyComputerFeatureFilterTest --no-transfer-progress
   test-local-computer-process-4:
@@ -673,7 +673,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn clean install -DskipTests --no-transfer-progress
           mvn test -pl aerospike-graph-olap -Dtest=FireflyComputerFeatureBranchTest --no-transfer-progress
   test-firefly-movielens:
@@ -707,7 +707,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          bash scripts/map_aerospike_test_host.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=TestMovielens1M  -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-aerospike-version-minimum:
     needs: ci-guard

@@ -13,16 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if [ ! -f .github/aerospike/features.conf ]; then
-  if [ -z "$AEROSPIKE_FEATURES_B64" ]; then
-    echo "no AEROSPIKE_FEATURES_B64 env or features file present at .github/aerospike/features.conf"
-    exit
-  else
-    echo $AEROSPIKE_FEATURES_B64 | base64 -d > .github/aerospike/features.conf
-  fi
+# Map integration-test hostname to the Docker bridge IP (shell redirects bypass sudo).
+if ! grep -q 'aerospike.test.aerospike.dev' /etc/hosts; then
+  echo "172.17.0.1 aerospike.test.aerospike.dev" | sudo tee -a /etc/hosts > /dev/null
 fi
-python3 -m venv .github/aerospike/venv
-source .github/aerospike/venv/bin/activate
-pip3 install -r .github/aerospike/requirements.txt
-python3 .github/aerospike/start_cluster.py --features_file $(realpath .github/aerospike/features.conf) --default_ttl 1 --repo_path $(realpath ./) $@
-

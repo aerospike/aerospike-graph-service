@@ -73,96 +73,162 @@ The repository also includes the Air Routes sample dataset and a bulk-load guide
 official step-by-step walkthrough is at
 [aerospike.com/docs/graph/quick-start](https://aerospike.com/docs/graph/quick-start).
 
-The rest of this section shows how to connect AGS to an existing Aerospike cluster.
+The rest of this section shows how to run AGS in Docker. Pick one path below.
+See [Deploy Aerospike Graph Service with Docker](https://aerospike.com/docs/graph/deploy/docker)
+for the full deployment guide.
 
 ### Prerequisites
 
 Before you run AGS in Docker, you need:
 
-- An Aerospike feature-key file with the `graph-service` key enabled. See [feature-key file](https://aerospike.com/docs/database/manage/planning/feature-key) in the Aerospike Database documentation and [Deploy Aerospike Graph Service with Docker](https://aerospike.com/docs/graph/deploy/docker) for the full prerequisite list.
-- A running Aerospike Database instance, version 7.0 or later. See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) and [Deploy Aerospike Graph Service with Docker](https://aerospike.com/docs/graph/deploy/docker). To start Aerospike with Docker, see [Install with Docker](https://aerospike.com/docs/database/install/docker/).
-- A namespace that already exists on the cluster. The namespace must have the [`default-ttl`](https://aerospike.com/docs/database/reference/config#namespace__default-ttl) configuration option set to `0`. See [TTL on the Aerospike namespace](https://aerospike.com/docs/graph/deploy/docker#ttl-on-the-aerospike-namespace).
+- An Aerospike feature-key file with the `graph-service` key enabled. See
+  [feature-key file](https://aerospike.com/docs/database/manage/planning/feature-key)
+  or [Deploy Aerospike Graph Service with Docker](https://aerospike.com/docs/graph/deploy/docker).
+- Aerospike Database version 7.0 or later. See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
+- A namespace that already exists on the cluster with
+  [`default-ttl`](https://aerospike.com/docs/database/reference/config#namespace__default-ttl)
+  set to `0`. See [TTL on the Aerospike namespace](#ttl-on-the-aerospike-namespace) below.
+- If access control is enabled on Aerospike, the AGS database user needs `sys-admin`
+  and `read-write` privileges.
 
-### Connection values
+### Aerospike Database in Docker
 
-`HOSTNAME:PORT` and `NAMESPACE` come from your Aerospike cluster, not from AGS.
+Use this path if you do not already have Aerospike running. It starts Aerospike Database
+and AGS together on a shared Docker network. Do not also run
+[Run AGS with Docker](#run-ags-with-docker) afterward.
 
-- **Seed address (`HOSTNAME:PORT`)**: hostname or IP of an Aerospike seed node, plus the Aerospike service port. The default service port is `3000`.
-- **Namespace (`NAMESPACE`)**: name of an existing namespace on that cluster. Read it from the `namespace` block in `aerospike.conf`, or list namespaces with [`asadm`](https://aerospike.com/docs/database/tools/asadm) (`show namespaces`). The Aerospike [Install with Docker](https://aerospike.com/docs/database/install/docker/) quick start uses the default namespace `test`.
+1. Pull the images:
 
-The namespace must exist before AGS starts.
+```bash
+docker pull aerospike/aerospike-server-enterprise:latest
+docker pull aerospike/aerospike-graph-service:latest
+```
 
-### Run the server in Docker
+2. Start Aerospike Database and AGS:
 
-**Option A — Aerospike already running outside Docker** (use `localhost` or the node IP):
+```bash
+docker network create ags-net 2>/dev/null || true && \
+docker rm -f aerospike graph 2>/dev/null || true && \
+docker run -d --name aerospike --network ags-net \
+  aerospike/aerospike-server-enterprise:latest && \
+until docker exec aerospike asinfo -v 'status' 2>/dev/null | grep -q ok; do sleep 1; done && \
+docker run -d --name graph --network ags-net --restart unless-stopped \
+  -p 8182:8182 \
+  -e aerospike.client.namespace="test" \
+  -e aerospike.client.host="aerospike:3000" \
+  aerospike/aerospike-graph-service:latest
+```
+
+`aerospike:3000` is the Aerospike container name on `ags-net` plus the default service
+port. `test` is the default namespace in the Aerospike Docker image. Change these only
+if you configured Aerospike differently. The Aerospike image must be Enterprise Edition.
+The community image (`aerospike/aerospike-server`) does not include the `graph-service`
+feature key support required by AGS.
+
+### Run AGS with Docker
+
+Use this path only when Aerospike is already running somewhere else (on the host, on
+another machine, or in a container you started separately). Skip this section if you
+used [Aerospike Database in Docker](#aerospike-database-in-docker) above.
+
+1. Pull the AGS Docker image:
+
+```bash
+docker pull aerospike/aerospike-graph-service:latest
+```
+
+2. Run the AGS container:
 
 ```bash
 docker run -d --name graph \
   -p 8182:8182 \
+  -e aerospike.client.namespace="NAMESPACE" \
   -e aerospike.client.host="HOSTNAME:PORT" \
-  -e aerospike.client.namespace="NAMESPACE" \
   aerospike/aerospike-graph-service:latest
 ```
 
-**Option B — Aerospike running in Docker on the same machine** (put both containers on a shared network so the hostname resolves):
+- `HOSTNAME:PORT`: hostname or IP of an Aerospike seed node and its service port. The
+  default Aerospike service port is `3000`. Examples: `db.example.com:3000` for a remote
+  cluster, or `host.docker.internal:3000` when Aerospike runs on the host outside Docker.
+  Do not use `localhost` here. Inside the AGS container, `localhost` refers to the AGS
+  container itself, not your machine.
+- `NAMESPACE`: name of an existing namespace on that cluster, for example `test`. List
+  namespaces with [`asadm`](https://aerospike.com/docs/database/tools/asadm) (`show namespaces`).
+
+If Aerospike is running in a Docker container, put AGS on the same Docker network and
+use the Aerospike container name as `HOSTNAME` (for example `aerospike:3000`), or get
+its IP address with:
 
 ```bash
-docker network create ags-net
-docker run -d --name aerospike --network ags-net \
-  aerospike/aerospike-server-enterprise:latest
-
-docker run -d --name graph --network ags-net \
-  -p 8182:8182 \
-  -e aerospike.client.host="aerospike:3000" \
-  -e aerospike.client.namespace="NAMESPACE" \
-  aerospike/aerospike-graph-service:latest
+docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' AEROSPIKE_CONTAINER_ID
 ```
 
-The Aerospike Database server must have the `graph-service` feature key enabled in its `feature-key-file`. This is an Enterprise Edition requirement: the community image (`aerospike/aerospike-server`) does not support feature keys and will not satisfy the prerequisite. For the full setup including the feature-key file mount, see [Deploy Aerospike Graph Service with Docker](https://aerospike.com/docs/graph/deploy/docker).
+Replace `AEROSPIKE_CONTAINER_ID` with the Aerospike container ID or name.
 
-Using `localhost` inside a Docker container refers to the container itself, not the host. Always use a shared network with a named host, or get the Aerospike container IP with `docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' aerospike`.
+### Server output
 
-`aerospike.client.host` accepts one or more `HOSTNAME:PORT` seed addresses (comma-separated).
-
-Verify it's up:
+AGS logs to `stdout`. When the container is started with `-d`, follow the logs with:
 
 ```bash
-docker logs graph | grep 'Channel started'
+docker logs -f graph
 ```
 
-Expected output includes:
+After startup completes, the log includes:
 
 ```text
 Channel started at port 8182.
 ```
 
-If AGS exits instead of starting, check `docker logs graph` for a `default-ttl` error. If present, set the namespace TTL to 0 with `asadm` and restart:
+### TTL on the Aerospike namespace
+
+If AGS fails to start with a `default-ttl` error, set the namespace TTL to `0`:
+
+1. Start the Aerospike Tools container:
 
 ```bash
-docker run --rm --network ags-net aerospike/aerospike-tools \
-  asadm -h aerospike -e "enable; manage config namespace NAMESPACE param default-ttl to 0"
+docker run -it aerospike/aerospike-tools asadm -h HOSTNAME
+```
+
+Replace `HOSTNAME` with the hostname or IP of your Aerospike server. If Aerospike is
+running on a Docker network (for example `ags-net` from [Aerospike Database in Docker](#aerospike-database-in-docker)):
+
+```bash
+docker run -it --network ags-net aerospike/aerospike-tools asadm -h aerospike
+```
+
+2. At the `Admin>` prompt, enable dynamic configuration:
+
+```text
+enable
+```
+
+3. Set `default-ttl` to `0`:
+
+```text
+manage config namespace NAMESPACE param default-ttl to 0
+```
+
+4. Restart AGS:
+
+```bash
+docker start graph
 ```
 
 ### Connect with a Gremlin driver
 
-AGS speaks TinkerPop 3.7.x. Use a 3.7.x driver. A 3.8.x driver will fail with
-a `Could not locate method` error.
+With AGS running and port 8182 published (as in the steps above), connect to it from
+your application using any TinkerPop 3.7.x driver. Use exactly 3.7.x. A 3.8.x driver
+will fail with a `Could not locate method` error.
 
-Python — install `gremlin-python` at the matching version, then run:
+#### Python
+
+1. Install the driver:
 
 ```bash
 pip install 'gremlinpython>=3.7,<3.8'
 ```
 
-Java — use the TinkerPop 3.7.x driver:
-
-```xml
-<dependency>
-  <groupId>org.apache.tinkerpop</groupId>
-  <artifactId>gremlin-driver</artifactId>
-  <version>3.7.3</version>
-</dependency>
-```
+2. Connect to AGS and run a traversal:
 
 ```python
 from gremlin_python.process.anonymous_traversal import traversal
@@ -172,17 +238,29 @@ g = traversal().with_remote(
     DriverRemoteConnection("ws://localhost:8182/gremlin", "g")
 )
 
-# Create a couple of vertices and an edge
+# Write two vertices and an edge
 alice = g.addV("person").property("name", "alice").next()
 bob   = g.addV("person").property("name", "bob").next()
 g.add_e("knows").from_(alice).to(bob).property("since", 2020).iterate()
 
-# Traverse
+# Read them back
 friends = g.V().has("person", "name", "alice").out("knows").values("name").to_list()
 print(friends)  # ['bob']
 ```
 
-Java, using the TinkerPop driver (imports omitted for brevity):
+#### Java
+
+1. Create a Maven project if you do not have one, then add the driver to your `pom.xml`:
+
+```xml
+<dependency>
+  <groupId>org.apache.tinkerpop</groupId>
+  <artifactId>gremlin-driver</artifactId>
+  <version>3.7.3</version>
+</dependency>
+```
+
+2. Connect to AGS and run a traversal (imports omitted for brevity):
 
 ```java
 Cluster cluster = Cluster.build("localhost").port(8182).create();
@@ -192,10 +270,8 @@ List<Object> friends = g.V().has("person", "name", "alice")
                           .out("knows").values("name").toList();
 ```
 
-All TinkerPop-compatible drivers work the same way. A more
-complete walk-through, including loading sample datasets (the air-routes
-graph and a synthetic schema generator), is in
-[`docs/SETUP.md`](docs/SETUP.md).
+Any other TinkerPop-compatible driver works the same way. A more complete walk-through,
+including loading sample datasets, is in [`docs/SETUP.md`](docs/SETUP.md).
 
 For more runnable end-to-end examples, notebooks, sample datasets, bulk-load
 recipes, and application patterns see the companion repository
@@ -204,19 +280,18 @@ recipes, and application patterns see the companion repository
 
 ## Configuration
 
-Configuration is supplied as a standard Java `.properties` file mounted
-into the container, or as environment
-variables. A minimal `aerospike-graph.properties` (see [Connection values](#connection-values) for where `HOSTNAME`, `PORT`, and `NAMESPACE` come from):
+The Docker run commands above pass configuration as `-e` environment variables. For
+deployments with more settings, you can instead write a properties file and mount it
+into the container. Both approaches use the same property names.
+
+A minimal `aerospike-graph.properties`:
 
 ```properties
-aerospike.client.host=HOSTNAME
-aerospike.client.port=PORT
+aerospike.client.host=HOSTNAME:PORT
 aerospike.client.namespace=NAMESPACE
 ```
 
-The namespace must have the [`default-ttl`](https://aerospike.com/docs/database/reference/config#namespace__default-ttl) configuration option set to `0`. See [TTL on the Aerospike namespace](https://aerospike.com/docs/graph/deploy/docker#ttl-on-the-aerospike-namespace).
-
-Pass it to the container:
+Mount it with the `-v` flag instead of the `-e` flags:
 
 ```bash
 docker run -d --name graph \
@@ -225,13 +300,14 @@ docker run -d --name graph \
   aerospike/aerospike-graph-service:latest
 ```
 
-### Environment variables and properties
+The mount path inside the container must be
+`/opt/aerospike-graph/aerospike-graph.properties`. The local path (`$PWD/...`) can be
+anywhere on your machine.
 
-The container reads environment variables whose names start with `aerospike`, using the same keys as in a properties file (for example `aerospike.client.host=HOSTNAME:PORT` and `aerospike.client.namespace=NAMESPACE`).
-
-For the full option reference (auth, TLS, caching, indexing,
-Spark executor tuning, metrics, and JVM heap sizing), see
-[`docs/CONFIG_OPTIONS.md`](docs/CONFIG_OPTIONS.md) and the [Configuration reference](https://aerospike.com/docs/graph/reference/config) on aerospike.com.
+For the full list of available properties (auth, TLS, caching, indexing, metrics, and
+JVM heap sizing), see [`docs/CONFIG_OPTIONS.md`](docs/CONFIG_OPTIONS.md) and the
+[Configuration reference](https://aerospike.com/docs/graph/reference/config) on
+aerospike.com.
 
 ## Documentation
 
@@ -331,7 +407,7 @@ python3 scripts/build-docker.py --tags firefly:dev --platforms linux/amd64
 - `--slim`: builds only the graph JAR and uses [`docker/Dockerfile-slim`](docker/Dockerfile-slim). The image has no bulk loader (smaller footprint, same idea as `aerospike/aerospike-graph-service:latest-slim` on Docker Hub).
 - `--use_local`: skip Maven and reuse JARs already present under `*/target/`.
 
-Run the image you built. Use the same `HOSTNAME:PORT` and `NAMESPACE` values as in [Connection values](#connection-values):
+Run the image you built. Replace `HOSTNAME:PORT` and `NAMESPACE` as in [Run AGS with Docker](#run-ags-with-docker):
 
 ```bash
 docker run -d -p 8182:8182 \

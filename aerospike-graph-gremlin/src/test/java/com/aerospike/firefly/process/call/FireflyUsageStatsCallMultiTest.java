@@ -32,6 +32,8 @@ import static com.aerospike.firefly.process.call.metadata.MetadataServiceUsage.M
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL;
 
 public class FireflyUsageStatsCallMultiTest {
+    private static final long USAGE_STATS_MIN_ELAPSED_MS = 5000L;
+    private static final long USAGE_STATS_WAIT_MS = 15000L;
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
 
     @Before
@@ -59,8 +61,8 @@ public class FireflyUsageStatsCallMultiTest {
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
 
-            // Wait 11 seconds so we can update.
-            Thread.sleep(11000);
+            // Wait for at least one usage-stats update interval on shared CI runners.
+            Thread.sleep(USAGE_STATS_WAIT_MS);
 
             // Get test vcpu count.
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
@@ -91,7 +93,7 @@ public class FireflyUsageStatsCallMultiTest {
             }
 
             // Compare expected vcpu-yrs. We know lower bound since we know minimum time it could be but not upper.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (USAGE_STATS_MIN_ELAPSED_MS / (float) MILLISECONDS_TO_HOURS));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }

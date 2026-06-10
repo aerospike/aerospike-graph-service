@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Copyright 2022-2026 Aerospike, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-aerospike.client.host=172.17.0.1:3000
-aerospike.graph-service.ssl.enabled=true
-aerospike.graph-service.ssl.keyStore=${repo.root}/.github/aerospike/tls/keystore.jks
-aerospike.graph-service.ssl.keyStorePassword=changeit
+set -euo pipefail
+
+mapfile -t aerospike_containers < <(docker ps -aq --filter "ancestor=aerospike/aerospike-server-enterprise")
+if ((${#aerospike_containers[@]} > 0)); then
+  docker rm -f "${aerospike_containers[@]}"
+fi

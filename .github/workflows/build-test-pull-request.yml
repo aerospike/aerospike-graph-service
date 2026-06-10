@@ -229,7 +229,11 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
           bash scripts/map_aerospike_test_host.sh
-          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
+          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test -Dtest='!TestAirRoutes50k,!CacheIntegrationTest' --no-transfer-progress
+          bash scripts/stop_aerospike_cluster.sh
+          bash -x scripts/start_aerospike.sh
+          bash scripts/map_aerospike_test_host.sh
+          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=TestAirRoutes50k,CacheIntegrationTest --no-transfer-progress
   test-firefly-structure:
     name: Test Packed Structure Tests
     timeout-minutes: 120
@@ -925,11 +929,15 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
           GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
           GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
         run: |
           docker run -d -p 8182:8182  \
+            -e AWS_ACCESS_KEY_ID \
+            -e AWS_SECRET_ACCESS_KEY \
+            -e AWS_DEFAULT_REGION \
             -v ${{ github.workspace }}/conf/docker-bulk-load/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -v ${{ github.workspace }}/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
             firefly

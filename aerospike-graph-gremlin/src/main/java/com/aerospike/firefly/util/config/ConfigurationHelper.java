@@ -22,6 +22,7 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.LoggerUtil;
+import com.aerospike.firefly.util.RepoPaths;
 import io.netty.channel.epoll.Epoll;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
@@ -714,7 +715,7 @@ public final class ConfigurationHelper {
                     }
                     LOG.debug("config: [{}:{}]", key, maskedValue);
                 }
-                configData.put(key, value);
+                configData.put(key, RepoPaths.expand(String.valueOf(value)));
             });
             return new MapConfiguration(configData);
         } catch (final IOException e) {
@@ -735,7 +736,7 @@ public final class ConfigurationHelper {
                 props.load(reader);
                 HashMap<String, Object> configData = new HashMap<>();
                 props.keySet().forEach(it -> {
-                    configData.put(it.toString().toLowerCase(), props.get(it.toString()));
+                    configData.put(it.toString().toLowerCase(), RepoPaths.expand(String.valueOf(props.get(it.toString()))));
                 });
                 return new MapConfiguration(configData);
             }

@@ -19,6 +19,7 @@ package com.aerospike.firefly.runtime;
 import com.aerospike.firefly.runtime.metrics.ServerMetrics;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.transaction.FireflyTransactionOpProcessor;
+import com.aerospike.firefly.util.RepoPaths;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.ReflectionHelper;
 import com.aerospike.firefly.util.WarmupUtil;
@@ -90,6 +91,9 @@ public class FireflyServer {
         serverStarted = new CompletableFuture<>();
         try {
             final Settings settings = Settings.read(confPath);
+            if (settings.graphs != null) {
+                settings.graphs.replaceAll((graphName, graphPath) -> RepoPaths.expand(graphPath));
+            }
 
             gremlinServer = new GremlinServer(settings);
             serverStarted = CompletableFuture.allOf(gremlinServer.start());

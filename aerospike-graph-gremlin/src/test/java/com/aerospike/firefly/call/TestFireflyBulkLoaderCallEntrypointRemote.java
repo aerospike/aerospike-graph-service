@@ -21,6 +21,7 @@ import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static com.aerospike.firefly.util.BulkLoadTestUtil.waitForBulkLoad;
@@ -57,6 +58,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
         }
     }
 
+    @Ignore("gha-ci-firefly-bulkloader returns 403 on GitHub-hosted CI until bucket policy allows GHA egress")
     @Test
     public void testRemoteEntryPointS3() throws Exception {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {

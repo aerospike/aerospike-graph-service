@@ -16,6 +16,7 @@
 
 package com.aerospike.firefly.call;
 
+import com.aerospike.firefly.util.RemoteDockerTestHost;
 import org.apache.commons.collections.IteratorUtils;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
@@ -28,7 +29,7 @@ import static com.aerospike.firefly.util.BulkLoadTestUtil.waitForBulkLoad;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
 public class TestFireflyBulkLoaderCallEntrypointRemote {
-    private static final String HOST = "localhost";
+    private static final String HOST = RemoteDockerTestHost.gremlinHost();
     private static final int PORT = 8182;
     private static final Cluster.Builder BUILDER = Cluster.build().addContactPoint(HOST).port(PORT).enableSsl(false);
     private static final Cluster CLUSTER = BUILDER.create();

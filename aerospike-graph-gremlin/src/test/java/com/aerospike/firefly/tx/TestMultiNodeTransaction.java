@@ -16,6 +16,7 @@
 
 package com.aerospike.firefly.tx;
 
+import com.aerospike.firefly.util.RemoteDockerTestHost;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
@@ -61,9 +62,9 @@ public class TestMultiNodeTransaction {
 
     @Before
     public void setUp() {
-        drc1 = DriverRemoteConnection.using("172.17.0.1", 8182, "g");
-        drc2 = DriverRemoteConnection.using("172.17.0.1", 8183, "g");
-        drc3 = DriverRemoteConnection.using("172.17.0.1", 8184, "g");
+        drc1 = DriverRemoteConnection.using(RemoteDockerTestHost.gremlinHost(), 8182, "g");
+        drc2 = DriverRemoteConnection.using(RemoteDockerTestHost.gremlinHost(), 8183, "g");
+        drc3 = DriverRemoteConnection.using(RemoteDockerTestHost.gremlinHost(), 8184, "g");
         g1 = traversal().withRemote(drc1);
         g2 = traversal().withRemote(drc2);
         g3 = traversal().withRemote(drc3);
@@ -219,7 +220,7 @@ public class TestMultiNodeTransaction {
             tasks.add(() -> {
                 DriverRemoteConnection drc = null;
                 try {
-                    drc = DriverRemoteConnection.using("172.17.0.1", port, "g");
+                    drc = DriverRemoteConnection.using(RemoteDockerTestHost.gremlinHost(), port, "g");
                     GraphTraversalSource g = traversal().withRemote(drc);
 
                     // Begin txn per thread
@@ -284,7 +285,7 @@ public class TestMultiNodeTransaction {
                 do {
                     try {
                         attemptCount++;
-                        drc = DriverRemoteConnection.using("172.17.0.1", port, "g");
+                        drc = DriverRemoteConnection.using(RemoteDockerTestHost.gremlinHost(), port, "g");
                         GraphTraversalSource g = traversal().withRemote(drc);
                         GraphTraversalSource tx = g.tx().begin();
 
@@ -330,7 +331,7 @@ public class TestMultiNodeTransaction {
             fs.add(Executors.callable(() -> {
                 DriverRemoteConnection drc = null;
                 try {
-                    drc = DriverRemoteConnection.using("172.17.0.1", port, "g");
+                    drc = DriverRemoteConnection.using(RemoteDockerTestHost.gremlinHost(), port, "g");
                     GraphTraversalSource g = traversal().withRemote(drc);
                     GraphTraversalSource tx = g.tx().begin();
 

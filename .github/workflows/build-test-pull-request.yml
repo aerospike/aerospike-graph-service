@@ -126,10 +126,14 @@ jobs:
           python3 ./scripts/build-docker.py --tags aerospike/firefly --slim
           
           docker run -d -p 8182:8182  \
+            --add-host=host.docker.internal:host-gateway \
+            -e aerospike.client.host=host.docker.internal \
             -v ${{ github.workspace }}/conf/docker-bulk-load/:/opt/aerospike-graph/custom/ \
             -v ${{ github.workspace }}/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
             aerospike/firefly
-          
+
+          bash scripts/wait_for_gremlin_server.sh
+
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark --no-transfer-progress
   test-firefly-chainable-maven:
     name: Test Chainable Maven
@@ -381,11 +385,12 @@ jobs:
           
           echo "Running docker image with transactions enabled"
           docker run -d -p 8182:8182  \
+            --add-host=host.docker.internal:host-gateway \
+            -e aerospike.client.host=host.docker.internal \
             -v ${{ github.workspace }}/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -e aerospike.graph.tx.enabled=true firefly
 
-          echo "Sleeping for 10 seconds while docker image starts"
-          sleep 10
+          bash scripts/wait_for_gremlin_server.sh
           
           echo "Running Tinkerpop transactions test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTinkerpopTransactions --no-transfer-progress
@@ -398,15 +403,23 @@ jobs:
           echo "Running multi node transaction test"
           
           docker run -d -p 8182:8182  \
+            --add-host=host.docker.internal:host-gateway \
+            -e aerospike.client.host=host.docker.internal \
             -v ${{ github.workspace }}/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -e aerospike.graph.tx.enabled=true firefly
           docker run -d -p 8183:8182  \
+            --add-host=host.docker.internal:host-gateway \
+            -e aerospike.client.host=host.docker.internal \
             -v ${{ github.workspace }}/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -e aerospike.graph.tx.enabled=true firefly
           docker run -d -p 8184:8182  \
+            --add-host=host.docker.internal:host-gateway \
+            -e aerospike.client.host=host.docker.internal \
             -v ${{ github.workspace }}/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -e aerospike.graph.tx.enabled=true firefly
-          sleep 10
+          bash scripts/wait_for_gremlin_server.sh 127.0.0.1 8182
+          bash scripts/wait_for_gremlin_server.sh 127.0.0.1 8183
+          bash scripts/wait_for_gremlin_server.sh 127.0.0.1 8184
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestMultiNodeTransaction --no-transfer-progress
   test-firefly-process-1:
@@ -861,9 +874,11 @@ jobs:
           bash -x scripts/start_aerospike.sh
 
           echo "Running docker image with custom yaml file"
-          docker run -d -p 8182:8182 -v ${{ github.workspace }}/conf/test-custom-configs-usage-stats/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
-          echo "Sleeping for 10 seconds while gremlin-server starts"
-          sleep 10
+          docker run -d -p 8182:8182 \
+            --add-host=host.docker.internal:host-gateway \
+            -e aerospike.client.host=host.docker.internal \
+            -v ${{ github.workspace }}/conf/test-custom-configs-usage-stats/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
+          bash scripts/wait_for_gremlin_server.sh 127.0.0.1 8182 180 20
           
           echo "Running usage test"
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyUsageStatsCallMultiTest --no-transfer-progress
@@ -875,8 +890,7 @@ jobs:
         run: |
           echo "Running docker image with secrets"
           docker run -d --name firefly -p 8182:8182 -v ${{ github.workspace }}/conf/test-secret-masking/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -e JAVA_OPTIONS="-Djavax.net.ssl.trustStore=/root/aerospike/truststore.jks -Djavax.net.ssl.keyStore=/root/aerospike/keystore.jks -Djavax.net.ssl.trustStorePassword=MASKME123 -Djavax.net.ssl.keyStorePassword=MASKME123" firefly
-          echo "Sleeping for 10 seconds while gremlin-server starts"
-          sleep 10
+          bash scripts/wait_for_gremlin_server.sh
 
           echo "Showing docker image logging..."
           docker logs firefly
@@ -886,8 +900,7 @@ jobs:
         run: |
           echo "Running docker image with custom yaml file"
           docker run -d -p 8182:8182 -v ${{ github.workspace }}/conf/test-custom-configs:/opt/aerospike-graph/custom firefly
-          echo "Sleeping for 10 seconds while gremlin-server starts"
-          sleep 10
+          bash scripts/wait_for_gremlin_server.sh
           
           echo "Running connection test"
           mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest --no-transfer-progress
@@ -899,8 +912,7 @@ jobs:
           echo "Running docker image with custom properties file"
           docker run -d -p 8182:8182 -v ${{ github.workspace }}/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
 
-          echo "Sleeping for 10 seconds while gremlin-server starts"
-          sleep 10
+          bash scripts/wait_for_gremlin_server.sh
 
           echo "Running ValidConnectionTest"
           mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest --no-transfer-progress
@@ -909,8 +921,7 @@ jobs:
         run: |
           echo "Running docker image with security enabled"
           docker run -d -p 8182:8182 -p 9090:9090 -v ${{ github.workspace }}/conf/test-security/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -e aerospike.graph.audit.log.enabled=true firefly
-          echo "Sleeping for 10 seconds while gremlin-server starts"
-          sleep 10
+          bash scripts/wait_for_gremlin_server.sh
 
           echo "Running Security Test"
           mvn test -pl aerospike-graph-gremlin -Dtest=JwtAuthenticationDockerTest --no-transfer-progress
@@ -919,8 +930,7 @@ jobs:
         run: |
           echo "Running docker image with prometheus"
           docker run -d -p 8182:8182 -p 9090:9090 -v ${{ github.workspace }}/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
-          echo "Sleeping for 10 seconds while gremlin-server starts"
-          sleep 10
+          bash scripts/wait_for_gremlin_server.sh
 
           echo "Running Prometheus Test"
           mvn test -pl aerospike-graph-gremlin -Dtest=PrometheusExporterTest --no-transfer-progress
@@ -935,6 +945,8 @@ jobs:
           GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
         run: |
           docker run -d -p 8182:8182  \
+            --add-host=host.docker.internal:host-gateway \
+            -e aerospike.client.host=host.docker.internal \
             -e AWS_ACCESS_KEY_ID \
             -e AWS_SECRET_ACCESS_KEY \
             -e AWS_DEFAULT_REGION \
@@ -942,19 +954,19 @@ jobs:
             -v ${{ github.workspace }}/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
             firefly
           
-          echo "Sleeping for 10 seconds while docker image starts"
-          sleep 10
+          bash scripts/wait_for_gremlin_server.sh
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
       - name: Test Firefly Docker Runtime (Default Config)
         run: |
           docker run -d -p 8182:8182  \
+            --add-host=host.docker.internal:host-gateway \
+            -e aerospike.client.host=host.docker.internal \
             -v ${{ github.workspace }}/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             firefly
           
-          echo "Sleeping for 10 seconds while docker image starts"
-          sleep 10
+          bash scripts/wait_for_gremlin_server.sh
           
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepRemoteTest --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTxDisabled --no-transfer-progress
@@ -962,11 +974,12 @@ jobs:
       - name: Test Firefly Docker Runtime (Scan Disabled)
         run: |
           docker run -d -p 8182:8182  \
+            --add-host=host.docker.internal:host-gateway \
+            -e aerospike.client.host=host.docker.internal \
             -v ${{ github.workspace }}/conf/aerospike-graph-scan-disabled.properties:/opt/aerospike-graph/aerospike-graph.properties \
             firefly
           
-          echo "Sleeping for 10 seconds while docker image starts"
-          sleep 10
+          bash scripts/wait_for_gremlin_server.sh
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestScanDisabledDocker --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
@@ -1019,9 +1032,14 @@ jobs:
           bash -x scripts/start_aerospike_tls.sh
 
           echo "Running docker image with SSL enabled on GLV<->Gremlin Server and TLS enabled on AGS<->Aerospike DB"
-          docker run -d -p 8182:8182 -v ${{ github.workspace }}/conf/test-tls/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/aerospike-client-tls/aerospike.crt -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/gremlin-server-tls/aerospike.crt -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.key:/opt/aerospike-graph/gremlin-server-tls/aerospike.key firefly
-          echo "Sleeping for 10 seconds while gremlin-server starts"
-          sleep 10
+          docker run -d -p 8182:8182 \
+            --add-host=host.docker.internal:host-gateway \
+            -e aerospike.client.host=host.docker.internal:test-tls:4303 \
+            -v ${{ github.workspace }}/conf/test-tls/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/aerospike-client-tls/aerospike.crt \
+            -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/gremlin-server-tls/aerospike.crt \
+            -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.key:/opt/aerospike-graph/gremlin-server-tls/aerospike.key firefly
+          bash scripts/wait_for_gremlin_server.sh
 
           echo "Running TLS test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTLSIntegration --no-transfer-progress

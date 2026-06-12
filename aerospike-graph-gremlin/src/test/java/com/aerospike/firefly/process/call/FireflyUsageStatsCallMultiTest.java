@@ -33,7 +33,7 @@ import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.USAGE_S
 
 public class FireflyUsageStatsCallMultiTest {
     private static final long USAGE_STATS_MIN_ELAPSED_MS = 5000L;
-    private static final long USAGE_STATS_WAIT_MS = 15000L;
+    private static final long USAGE_STATS_WAIT_MS = 25000L;
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
 
     @Before

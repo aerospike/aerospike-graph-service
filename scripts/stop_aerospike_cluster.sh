@@ -18,7 +18,7 @@ set -euo pipefail
 # Match by image name: Docker's ancestor filter does not match tagged images
 # such as aerospike/aerospike-server-enterprise:8.1.
 mapfile -t aerospike_containers < <(
-  docker ps -aq --format '{{.ID}} {{.Image}}' \
+  docker ps -a --format '{{.ID}} {{.Image}}' \
     | awk '$2 ~ /^aerospike\/aerospike-server-enterprise/ { print $1 }'
 )
 

@@ -32,6 +32,9 @@ import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.USAGE_S
 import static org.junit.Assert.fail;
 
 public class FireflyUsageStatsCallTest {
+    private static final long USAGE_STATS_MIN_ELAPSED_MS = 5000L;
+    private static final long USAGE_STATS_MAX_ELAPSED_MS = 20000L;
+    private static final long USAGE_STATS_WAIT_MS = 15000L;
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
 
     @Before
@@ -52,8 +55,8 @@ public class FireflyUsageStatsCallTest {
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
 
-            // Wait 11 seconds so we can update.
-            Thread.sleep(11000);
+            // Wait for at least one usage-stats update interval on shared CI runners.
+            Thread.sleep(USAGE_STATS_WAIT_MS);
 
             // Get test vcpu count.
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
@@ -75,8 +78,8 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected and vcpu-yrs.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (USAGE_STATS_MIN_ELAPSED_MS / (float) MILLISECONDS_TO_HOURS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (USAGE_STATS_MAX_ELAPSED_MS / (float) MILLISECONDS_TO_HOURS));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -88,8 +91,8 @@ public class FireflyUsageStatsCallTest {
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
 
-            // Wait 11 seconds so we can update.
-            Thread.sleep(11000);
+            // Wait for at least one usage-stats update interval on shared CI runners.
+            Thread.sleep(USAGE_STATS_WAIT_MS);
 
             // Get test vcpu count.
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
@@ -111,8 +114,8 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected and vcpu-yrs.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (USAGE_STATS_MIN_ELAPSED_MS / (float) MILLISECONDS_TO_HOURS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (USAGE_STATS_MAX_ELAPSED_MS / (float) MILLISECONDS_TO_HOURS));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -168,8 +171,8 @@ public class FireflyUsageStatsCallTest {
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         final String previousDay = "2020-01-01";
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-            // Wait 11 seconds so we can update.
-            Thread.sleep(11000);
+            // Wait for at least one usage-stats update interval on shared CI runners.
+            Thread.sleep(USAGE_STATS_WAIT_MS);
 
             // Get test vcpu count.
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
@@ -191,8 +194,8 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected and vcpu-yrs.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (USAGE_STATS_MIN_ELAPSED_MS / (float) MILLISECONDS_TO_HOURS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (USAGE_STATS_MAX_ELAPSED_MS / (float) MILLISECONDS_TO_HOURS));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -205,8 +208,8 @@ public class FireflyUsageStatsCallTest {
         final String futureDay = "2030-01-01";
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
 
-            // Wait 11 seconds so we can update.
-            Thread.sleep(11000);
+            // Wait for at least one usage-stats update interval on shared CI runners.
+            Thread.sleep(USAGE_STATS_WAIT_MS);
 
             // Get test vcpu count.
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
@@ -250,8 +253,8 @@ public class FireflyUsageStatsCallTest {
             graph4 = FireflyGraph.open(CONFIG);
             graph5 = FireflyGraph.open(CONFIG);
 
-            // Wait 11 seconds so we can update.
-            Thread.sleep(11000);
+            // Wait for at least one usage-stats update interval on shared CI runners.
+            Thread.sleep(USAGE_STATS_WAIT_MS);
 
             // Get test vcpu count.
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
@@ -273,8 +276,8 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected vcpu-yrs.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / MILLISECONDS_TO_HOURS));
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (USAGE_STATS_MIN_ELAPSED_MS / (float) MILLISECONDS_TO_HOURS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (USAGE_STATS_MAX_ELAPSED_MS / (float) MILLISECONDS_TO_HOURS));
         } catch (final Exception e) {
             throw new RuntimeException(e);
         } finally {

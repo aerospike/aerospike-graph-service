@@ -27,17 +27,17 @@ public class TestPerformanceModes {
     private static final DockerUtil DOCKER_UTIL = new DockerUtil();
 
     private static final String[] DEFAULT_ENV_VARIABLES = new String[]{
-            "aerospike.client.host=172.17.0.1:3000"};
+            "aerospike.client.host=host.docker.internal:3000"};
     private static final String[] GREMLIN_POOL_ENV_VARIABLES = new String[]{
             "aerospike.graph-service.gremlinPool=51",
-            "aerospike.client.host=172.17.0.1:3000"};
+            "aerospike.client.host=host.docker.internal:3000"};
     private static final String[] THREAD_POOL_WORKER_ENV_VARIABLES = new String[]{
             "aerospike.graph-service.threadPoolWorker=41",
-            "aerospike.client.host=172.17.0.1:3000"};
+            "aerospike.client.host=host.docker.internal:3000"};
     private static final String[] GREMLIN_POOL_AND_THREAD_POOL_WORKER_ENV_VARIABLES = new String[]{
             "aerospike.graph-service.gremlinPool=21",
             "aerospike.graph-service.threadPoolWorker=11",
-            "aerospike.client.host=172.17.0.1:3000"};
+            "aerospike.client.host=host.docker.internal:3000"};
 
     public void testDockerImageSettings(final String[] environmentVariables,
                                       final int expectedGremlinPool,

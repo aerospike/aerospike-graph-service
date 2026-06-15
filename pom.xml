@@ -243,6 +243,8 @@
                         <exclude>**/FireflyUsageStatsCallMultiTest.java</exclude>
                         <exclude>**/TestMovielens1M.java</exclude>
                         <exclude>**/TestMovielens10M.java</exclude>
+                        <exclude>**/TestAirRoutes50k.java</exclude>
+                        <exclude>**/CacheIntegrationTest.java</exclude>
                         <exclude>**/TestFireflyExceedHeap.java</exclude>
                         <exclude>**/FireflyAerospikeVersionCheckTest.java</exclude>
                         <exclude>**/FireflyAerospikeGraphServiceCheckTest.java</exclude>

@@ -19,13 +19,14 @@ package com.aerospike.firefly.call;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import com.aerospike.firefly.util.RemoteDockerTestHost;
 import org.junit.Assert;
 import org.junit.Test;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
 public class TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark {
-    private static final String HOST = "172.17.0.1";
+    private static final String HOST = RemoteDockerTestHost.gremlinHost();
     private static final int PORT = 8182;
     private static final Cluster.Builder BUILDER = Cluster.build().addContactPoint(HOST).port(PORT).enableSsl(false);
     private static final Cluster CLUSTER = BUILDER.create();

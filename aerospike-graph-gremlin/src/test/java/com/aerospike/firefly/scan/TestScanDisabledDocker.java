@@ -16,6 +16,7 @@
 
 package com.aerospike.firefly.scan;
 
+import com.aerospike.firefly.util.RemoteDockerTestHost;
 import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
@@ -35,7 +36,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
  * This test is designed to run against a Docker container with the default configuration.
  */
 public class TestScanDisabledDocker {
-    private static final String HOST = "172.17.0.1";
+    private static final String HOST = RemoteDockerTestHost.gremlinHost();
     private static final int PORT = 8182;
     private static final String SCAN_OPTION_KEY = "aerospike.graph.scan.enabled";
     private static final Cluster.Builder BUILDER = Cluster.build().addContactPoint(HOST).port(PORT).enableSsl(false);

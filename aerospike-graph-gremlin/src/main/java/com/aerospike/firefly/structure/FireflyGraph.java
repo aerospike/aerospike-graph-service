@@ -232,7 +232,7 @@ import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.QUERY_T
 
 // TODO: Should fix these tests in OLAP.
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupCountTest", method = "g_V_both_groupCountXaX_byXlabelX_asXbX_barrier_whereXselectXaX_selectXsoftwareX_isXgtX2XXX_selectXbX_name", reason = "Temporary, will fix.", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.SelectTest", method = "g_V_outXcreatedX_unionXasXinternaldataset_inXcreatedX_hasXname_markoX_selectXinternaldataset__asXinternaldataset_inXcreatedX_inXknowsX_hasXname_markoX_selectXinternaldatasetX_groupCount_byXnameX", reason = "Temporary, will fix.", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.SelectTest", method = "g_V_outXcreatedX_unionXasXprojectX_inXcreatedX_hasXname_markoX_selectXprojectX__asXprojectX_inXcreatedX_inXknowsX_hasXname_markoX_selectXprojectXX_groupCount_byXnameX", reason = "Temporary, will fix.", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})
 
 public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static final String FIREFLY_CONFIGURATION_VARIABLE_NAME = "FIREFLY_CONFIGURATION";

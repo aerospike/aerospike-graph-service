@@ -14,11 +14,15 @@
 
 name: Publish Dev (QE)
 
+# Automatic publishing is disabled until QE registry access is restored on
+# GitHub-hosted runners. Re-enable the push triggers below when ready.
 on:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+-qe-**'
-    branches: [3.x-dev]
+  workflow_dispatch:
+# on:
+#   push:
+#     tags:
+#       - 'v[0-9]+.[0-9]+.[0-9]+-qe-**'
+#     branches: [3.x-dev]
 
 env:
   QE_DOCKER_REGISTRY: secure.docker.qe.aerospike.com

@@ -15,7 +15,13 @@
 
 set -euo pipefail
 
-mapfile -t aerospike_containers < <(docker ps -aq --filter "ancestor=aerospike/aerospike-server-enterprise")
+# Match by image name: Docker's ancestor filter does not match tagged images
+# such as aerospike/aerospike-server-enterprise:8.1.
+mapfile -t aerospike_containers < <(
+  docker ps -aq --format '{{.ID}} {{.Image}}' \
+    | awk '$2 ~ /^aerospike\/aerospike-server-enterprise/ { print $1 }'
+)
+
 if ((${#aerospike_containers[@]} > 0)); then
   docker rm -f "${aerospike_containers[@]}"
 fi

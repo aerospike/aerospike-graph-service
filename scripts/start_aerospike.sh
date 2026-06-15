@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -euo pipefail
+
 if [ ! -f .github/aerospike/features.conf ]; then
   if [ -z "$AEROSPIKE_FEATURES_B64" ]; then
     echo "no AEROSPIKE_FEATURES_B64 env or features file present at .github/aerospike/features.conf"

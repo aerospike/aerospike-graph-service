@@ -262,7 +262,7 @@ jobs:
           bash scripts/stop_aerospike_cluster.sh
           bash -x scripts/start_aerospike.sh
           bash scripts/map_aerospike_test_host.sh
-          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=CacheIntegrationTest --no-transfer-progress
+          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test -Dtest=CacheIntegrationTest --no-transfer-progress
   test-firefly-structure:
     name: Test Packed Structure Tests
     timeout-minutes: 120

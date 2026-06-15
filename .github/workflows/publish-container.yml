@@ -12,16 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Publish RC
+# Publish RC container images (legacy workflow).
+#
+# Superseded by composable-release.yml, which uses the Aerospike composable
+# CI/CD pipeline (shared-workflows) for JFrog artifact deploy plus GHCR images.
+# This workflow is retained for manual fallback only.
+
+name: Publish RC (legacy)
 
 # Publish the container if a tag of 'vX.Y.Z-rcW' is made.
 # Example: v0.0.1-rc1, v0.1.0-rc2, v1.0.0-rc3, etc.
 # THIS WILL NOT RUN ON TAGS WITHOUT A DASH IN THEM (release candidates only)
 
 on:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+'
+  workflow_dispatch:
 
 env:
   GITHUB_REPOSITORY_NAME: ${{ github.repository_owner }}

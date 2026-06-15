@@ -1,0 +1,307 @@
+# Copyright 2022-2026 Aerospike, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Composable CI/CD release pipeline for Aerospike Graph Service (Firefly).
+#
+# Follows the composable artifact pipeline from:
+# https://aerospike.atlassian.net/wiki/spaces/DevOps/pages/5060460576/Composable+CI+CD
+#
+# Flow: extract-version -> build -> collect -> publish GHCR images (custom) ->
+#       sign -> deploy (JFrog) -> create-release-bundle
+#
+# Prerequisites (Platform / #devops):
+#   - OIDC mapping for aerospike/aerospike-graph-service in citrusleaf/tf-artifactory
+#     under the `graph` JFrog project.
+#   - Org-level signing secrets (GPG) available to this repository.
+
+name: Composable Release (JFrog + GHCR)
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version override (leave empty to read from the tag or VERSION file)
+        required: false
+        default: ""
+
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+  attestations: write
+
+env:
+  SHARED_WORKFLOWS_REF: v3.7.0
+  SHARED_WORKFLOWS_SHA: bd168dedaa4fc0b17a560541779d815540eded2d
+  JF_PROJECT: graph
+  JF_BUILD_NAME: firefly
+  OIDC_PROVIDER: gh-aerospike
+  OIDC_AUDIENCE: aerospike
+  GITHUB_IMAGE_NAME: firefly
+
+concurrency:
+  group: firefly-composable-release
+  cancel-in-progress: false
+
+jobs:
+  extract-version:
+    name: Extract version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          fetch-depth: 0
+
+      - name: Checkout shared-workflows actions
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          repository: aerospike/shared-workflows
+          ref: ${{ env.SHARED_WORKFLOWS_REF }}
+          path: shared-workflows
+          sparse-checkout: .github/actions
+          sparse-checkout-cone-mode: false
+
+      - name: Extract version
+        id: extract
+        uses: ./shared-workflows/.github/actions/extract-version-from-tag
+        with:
+          version: ${{ github.event.inputs.version }}
+
+  build-java:
+    name: Build Maven artifacts
+    needs: extract-version
+    uses: aerospike/shared-workflows/.github/workflows/reusable_execute-build.yaml@bd168dedaa4fc0b17a560541779d815540eded2d # v3.7.0
+    with:
+      gh-workflows-ref: ${{ env.SHARED_WORKFLOWS_REF }}
+      jf-project: ${{ env.JF_PROJECT }}
+      jf-build-name: ${{ env.JF_BUILD_NAME }}
+      jf-build-id: ${{ github.run_id }}-${{ github.run_attempt }}-buildinfo-java-x86_64
+      build-env: VERSION=${{ needs.extract-version.outputs.version }}
+      build-script: |
+        set -euo pipefail
+        mvn -ntp -B versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false
+        mvn clean install -DskipTests --no-transfer-progress
+        for module in aerospike-graph-gremlin aerospike-graph-bulk-loader aerospike-graph-olap; do
+          if find "$module/target" -maxdepth 1 -name '*-SNAPSHOT.jar' | grep -q .; then
+            echo "::error::SNAPSHOT jar in $module/target — set version before releasing"
+            exit 1
+          fi
+        done
+        mkdir -p output/jars
+        for module in aerospike-graph-gremlin aerospike-graph-bulk-loader aerospike-graph-olap aerospike-graph-api; do
+          if compgen -G "$module/target/*.jar" > /dev/null; then
+            cp "$module/target"/*.jar output/jars/
+            artifact_id=$(mvn -q -pl "$module" help:evaluate -Dexpression=project.artifactId -DforceStdout)
+            cp "$module/pom.xml" "output/jars/${artifact_id}-${VERSION}.pom"
+          fi
+        done
+      gh-artifact-directory: output
+      gh-artifact-name: build-artifacts-java-x86_64
+      oidc-provider-name: ${{ env.OIDC_PROVIDER }}
+      oidc-audience: ${{ env.OIDC_AUDIENCE }}
+      setup-java: true
+      java-version: "17"
+      java-distribution: temurin
+      java-cache: maven
+      runs-on: ubuntu-latest
+    secrets: inherit
+
+  collect:
+    name: Collect build artifacts
+    needs: build-java
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout shared-workflows actions
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          repository: aerospike/shared-workflows
+          ref: ${{ env.SHARED_WORKFLOWS_REF }}
+          path: shared-workflows
+          sparse-checkout: .github/actions
+          sparse-checkout-cone-mode: false
+
+      - name: Collect build artifacts
+        uses: ./shared-workflows/.github/actions/collect-build-artifacts
+
+  publish-ghcr:
+    name: Publish GHCR image (${{ matrix.label }})
+    needs: [extract-version, collect]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: fat-amd64
+            platform: linux/amd64
+            slim: false
+            tag_suffix: amd64
+          - label: fat-arm64
+            platform: linux/arm64
+            slim: false
+            tag_suffix: arm64
+          - label: slim-amd64
+            platform: linux/amd64
+            slim: true
+            tag_suffix: slim-amd64
+          - label: slim-arm64
+            platform: linux/arm64
+            slim: true
+            tag_suffix: slim-arm64
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io --username ${{ github.actor }} --password-stdin
+
+      - name: Set up Docker Buildx
+        uses: step-security/setup-buildx-action@f931205d68723ad9589fd2a7e2ece238bf9de341 # v4.0.0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: build-artifacts
+          path: artifact
+
+      - name: Stage JARs and publish image
+        env:
+          VERSION: ${{ needs.extract-version.outputs.version }}
+          PLATFORM: ${{ matrix.platform }}
+          SLIM: ${{ matrix.slim }}
+          TAG_SUFFIX: ${{ matrix.tag_suffix }}
+        run: |
+          set -euo pipefail
+          pip3 install python_on_whales
+          for module in aerospike-graph-gremlin aerospike-graph-bulk-loader aerospike-graph-olap; do
+            mkdir -p "$module/target"
+            jar=$(ls "artifact/jars/${module}-"*.jar 2>/dev/null | head -1 || true)
+            if [[ -n "$jar" ]]; then
+              cp "$jar" "$module/target/"
+            fi
+          done
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          base="ghcr.io/${owner}/${{ env.GITHUB_IMAGE_NAME }}"
+          version_image="${base}:${VERSION}-${TAG_SUFFIX}"
+          channel_image="${base}:unstable-${TAG_SUFFIX}"
+          extra=()
+          if [[ "$SLIM" == "true" ]]; then
+            extra+=(--slim)
+          fi
+          python3 scripts/build-docker.py \
+            --tags "$channel_image" "$version_image" \
+            --platforms "$PLATFORM" \
+            --push \
+            --use_local \
+            "${extra[@]}"
+
+  publish-ghcr-multi-arch:
+    name: Publish GHCR multi-arch manifest (${{ matrix.variant }})
+    needs: [extract-version, publish-ghcr]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        variant: [fat, slim]
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io --username ${{ github.actor }} --password-stdin
+
+      - name: Create multi-arch manifest
+        env:
+          VERSION: ${{ needs.extract-version.outputs.version }}
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          set -euo pipefail
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          base="ghcr.io/${owner}/${{ env.GITHUB_IMAGE_NAME }}"
+          if [[ "$VARIANT" == "slim" ]]; then
+            docker buildx imagetools create \
+              -t "${base}:unstable-slim" \
+              "${base}:unstable-slim-amd64" "${base}:unstable-slim-arm64"
+            docker buildx imagetools create \
+              -t "${base}:${VERSION}-slim" \
+              "${base}:${VERSION}-slim-amd64" "${base}:${VERSION}-slim-arm64"
+          else
+            docker buildx imagetools create \
+              -t "${base}:unstable" \
+              "${base}:unstable-amd64" "${base}:unstable-arm64"
+            docker buildx imagetools create \
+              -t "${base}:${VERSION}" \
+              "${base}:${VERSION}-amd64" "${base}:${VERSION}-arm64"
+          fi
+
+  sign:
+    name: Sign artifacts
+    needs: collect
+    uses: aerospike/shared-workflows/.github/workflows/reusable_sign-artifacts.yaml@bd168dedaa4fc0b17a560541779d815540eded2d # v3.7.0
+    with:
+      gh-workflows-ref: ${{ env.SHARED_WORKFLOWS_REF }}
+    secrets: inherit
+
+  deploy:
+    name: Deploy to JFrog
+    needs: [extract-version, sign]
+    if: always() && !cancelled() && needs.sign.result == 'success'
+    uses: aerospike/shared-workflows/.github/workflows/reusable_deploy-artifacts.yaml@bd168dedaa4fc0b17a560541779d815540eded2d # v3.7.0
+    with:
+      gh-workflows-ref: ${{ env.SHARED_WORKFLOWS_REF }}
+      jf-project: ${{ env.JF_PROJECT }}
+      jf-build-name: ${{ env.JF_BUILD_NAME }}
+      version: ${{ needs.extract-version.outputs.version }}
+      jf-build-id: ${{ github.run_id }}-${{ github.run_attempt }}
+      jf-metadata-build-id: ${{ github.run_id }}-${{ github.run_attempt }}-buildinfo
+      jar-group-id: com.aerospike
+      oidc-provider-name: ${{ env.OIDC_PROVIDER }}
+      oidc-audience: ${{ env.OIDC_AUDIENCE }}
+    secrets: inherit
+
+  create-release-bundle:
+    name: Create JFrog release bundle
+    needs: [deploy, extract-version]
+    if: always() && !cancelled() && needs.deploy.result == 'success'
+    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@bd168dedaa4fc0b17a560541779d815540eded2d # v3.7.0
+    with:
+      gh-workflows-ref: ${{ env.SHARED_WORKFLOWS_REF }}
+      jf-project: ${{ env.JF_PROJECT }}
+      jf-build-names: ${{ env.JF_BUILD_NAME }}:${{ github.run_id }}-${{ github.run_attempt }}
+      jf-bundle-name: firefly-release
+      version: ${{ needs.extract-version.outputs.version }}
+      oidc-provider-name: ${{ env.OIDC_PROVIDER }}
+      oidc-audience: ${{ env.OIDC_AUDIENCE }}
+      gh-bundle-metadata-artifact-name: ${{ needs.deploy.outputs.bundle-metadata-artifact-name }}

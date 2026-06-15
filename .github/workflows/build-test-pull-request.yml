@@ -258,7 +258,7 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
           bash scripts/map_aerospike_test_host.sh
-          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test -Dtest='!CacheIntegrationTest,!BenchmarkTest*,!TestMovielens*,!TestAirRoutes50k' --no-transfer-progress
+          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
           bash scripts/stop_aerospike_cluster.sh
           bash -x scripts/start_aerospike.sh
           bash scripts/map_aerospike_test_host.sh

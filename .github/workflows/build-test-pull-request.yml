@@ -58,6 +58,31 @@ jobs:
           echo "::error::label after reviewing the diff. See CONTRIBUTING.md."
           exit 1
 
+  olap-guard:
+    # OLAP jobs are heavy (Spark, long runtime). They run only when a maintainer
+    # adds the `olap-ci` label to the pull request.
+    name: OLAP CI (requires olap-ci label)
+    needs: ci-guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
+
+      - name: Gate
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          if grep -q '"olap-ci"' <<<"$LABELS"; then
+            echo "olap-ci label present — OLAP test jobs will run."
+          else
+            echo "No olap-ci label — OLAP test jobs are skipped."
+            echo "Add the 'olap-ci' label to this PR to enable OLAP CI."
+          fi
+
   build-firefly-maven:
     needs: ci-guard
     name: Build Firefly Maven
@@ -539,7 +564,8 @@ jobs:
   test-local-computer-process-1:
     name: Test Local Computer Process Tests 1
     timeout-minutes: 120
-    needs: ci-guard
+    needs: [ci-guard, olap-guard]
+    if: contains(github.event.pull_request.labels.*.name, 'olap-ci')
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -579,7 +605,8 @@ jobs:
   test-local-computer-process-2:
     name: Test Local Computer Process Tests 2 (map)
     timeout-minutes: 120
-    needs: ci-guard
+    needs: [ci-guard, olap-guard]
+    if: contains(github.event.pull_request.labels.*.name, 'olap-ci')
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -618,7 +645,8 @@ jobs:
   test-local-computer-process-3:
     name: Test Local Computer Process Tests 3 (filter)
     timeout-minutes: 120
-    needs: ci-guard
+    needs: [ci-guard, olap-guard]
+    if: contains(github.event.pull_request.labels.*.name, 'olap-ci')
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -657,7 +685,8 @@ jobs:
   test-local-computer-process-4:
     name: Test Local Computer Process Tests 4 (branch)
     timeout-minutes: 120
-    needs: ci-guard
+    needs: [ci-guard, olap-guard]
+    if: contains(github.event.pull_request.labels.*.name, 'olap-ci')
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)

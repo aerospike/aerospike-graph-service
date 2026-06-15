@@ -55,9 +55,13 @@ public final class RepoPaths {
         if (value == null) {
             return null;
         }
-        String expanded = value.replace(PLACEHOLDER, repoRoot());
+        if (!value.contains(PLACEHOLDER) && LEGACY_REPO_ROOTS.stream().noneMatch(value::contains)) {
+            return value;
+        }
+        final String root = repoRoot();
+        String expanded = value.replace(PLACEHOLDER, root);
         for (final String legacyRoot : LEGACY_REPO_ROOTS) {
-            expanded = expanded.replace(legacyRoot, repoRoot());
+            expanded = expanded.replace(legacyRoot, root);
         }
         return expanded;
     }

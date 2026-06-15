@@ -31,6 +31,8 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 public class TestFireflyBulkLoaderCallEntrypointRemote {
     private static final String HOST = RemoteDockerTestHost.gremlinHost();
     private static final int PORT = 8182;
+    /** Cold CI runners need extra time for Spark/bulk-loader initialization over Gremlin. */
+    private static final long BULK_LOAD_EVALUATION_TIMEOUT_MS = 60_000L;
     private static final Cluster.Builder BUILDER = Cluster.build().addContactPoint(HOST).port(PORT).enableSsl(false);
     private static final Cluster CLUSTER = BUILDER.create();
 
@@ -39,7 +41,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
             g.V().drop().iterate();
             g.E().drop().iterate();
-            g.call("aerospike.graphloader.admin.bulk-load.load")
+            g.with("evaluationTimeout", BULK_LOAD_EVALUATION_TIMEOUT_MS).call("aerospike.graphloader.admin.bulk-load.load")
                     .with("aerospike.graphloader.config", "/opt/aerospike-graph/etc/config.properties")
                     .next();
             waitForBulkLoad(g);
@@ -51,7 +53,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
             g.V().drop().iterate();
             g.E().drop().iterate();
-            g.call("aerospike.graphloader.admin.bulk-load.load")
+            g.with("evaluationTimeout", BULK_LOAD_EVALUATION_TIMEOUT_MS).call("aerospike.graphloader.admin.bulk-load.load")
                     .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/vertices")
                     .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/edges")
                     .next();
@@ -65,7 +67,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
             g.V().drop().iterate();
             g.E().drop().iterate();
-            g.with("evaluationTimeout", 60000).call("aerospike.graphloader.admin.bulk-load.load")
+            g.with("evaluationTimeout", BULK_LOAD_EVALUATION_TIMEOUT_MS).call("aerospike.graphloader.admin.bulk-load.load")
                     .with("aerospike.graphloader.vertices", "s3://gha-ci-firefly-bulkloader/vertices_ags3/")
                     .with("aerospike.graphloader.edges", "s3://gha-ci-firefly-bulkloader/edges_ags3/")
                     .with("aerospike.graphloader.remote-user", System.getenv("AWS_ACCESS_KEY_ID"))
@@ -80,7 +82,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
             g.V().drop().iterate();
             g.E().drop().iterate();
-            g.with("evaluationTimeout", 60000).call("aerospike.graphloader.admin.bulk-load.load")
+            g.with("evaluationTimeout", BULK_LOAD_EVALUATION_TIMEOUT_MS).call("aerospike.graphloader.admin.bulk-load.load")
                     .with("aerospike.graphloader.vertices", "gs://gha-ci-firefly-bulkloader/vertices_ags3/")
                     .with("aerospike.graphloader.edges", "gs://gha-ci-firefly-bulkloader/edges_ags3/")
                     .with("aerospike.graphloader.remote-user", System.getenv("GCS_PRIVATE_KEY_ID"))
@@ -112,7 +114,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
             g.V().drop().iterate();
             g.E().drop().iterate();
-            g.call("aerospike.graphloader.admin.bulk-load.load")
+            g.with("evaluationTimeout", BULK_LOAD_EVALUATION_TIMEOUT_MS).call("aerospike.graphloader.admin.bulk-load.load")
                     .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/dupe-vid-vertices")
                     .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/dupe-vid-edges")
                     .next();
@@ -136,7 +138,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
             g.V().drop().iterate();
             g.E().drop().iterate();
-            g.call("aerospike.graphloader.admin.bulk-load.load")
+            g.with("evaluationTimeout", BULK_LOAD_EVALUATION_TIMEOUT_MS).call("aerospike.graphloader.admin.bulk-load.load")
                     .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/bad-edge-vertices")
                     .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/bad-edge-edges")
                     .next();
@@ -160,7 +162,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
             g.V().drop().iterate();
             g.E().drop().iterate();
-            g.call("aerospike.graphloader.admin.bulk-load.load")
+            g.with("evaluationTimeout", BULK_LOAD_EVALUATION_TIMEOUT_MS).call("aerospike.graphloader.admin.bulk-load.load")
                     .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/bad-entry-vertices")
                     .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/bad-entry-edges")
                     .next();

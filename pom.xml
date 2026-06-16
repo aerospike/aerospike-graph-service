@@ -109,7 +109,7 @@
         <grpc.version>1.76.3</grpc.version>
         <jetbrains-annotations.version>17.0.0</jetbrains-annotations.version>
         <nimbus-jose-jwt.version>9.37.4</nimbus-jose-jwt.version>
-        <guice.version>4.2.3</guice.version>
+        <guice.version>7.0.0</guice.version>
         <docker-java.version>3.3.6</docker-java.version>
         <opentelemetry.version>1.44.1</opentelemetry.version>
         <opentelemetry-semconv.version>1.40.0</opentelemetry-semconv.version>

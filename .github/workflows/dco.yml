@@ -19,6 +19,9 @@ name: DCO
 # `git commit -s` or an explicit `Signed-off-by: Name <email>` trailer
 # matching the commit author.
 #
+# Dependabot PRs are exempt: bot-authored dependency updates do not
+# require a human DCO sign-off.
+#
 # The check runs against all commits that would land in the base branch
 # after merge, not just the PR tip.
 
@@ -36,6 +39,7 @@ permissions:
 jobs:
   dco:
     name: DCO sign-off check
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

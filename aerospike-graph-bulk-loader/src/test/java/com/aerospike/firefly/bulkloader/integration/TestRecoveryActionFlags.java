@@ -60,7 +60,8 @@ public class TestRecoveryActionFlags {
     }
 
     private String getDefaultConfig() {
-        RecoveryUtil.writeTempEdgeDirectory(graph.getBaseGraph(), "/home/runner/work/firefly/firefly/aerospike-graph-bulk-loader/src/test/resources/recoverydata/testing-recovery/recovery/edge/");
+        RecoveryUtil.writeTempEdgeDirectory(graph.getBaseGraph(),
+                Path.of("src/test/resources/recoverydata/testing-recovery/recovery/edge/").toAbsolutePath() + "/");
         return DEFAULT_CONFIG;
     }
 

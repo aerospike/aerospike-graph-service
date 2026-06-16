@@ -142,8 +142,8 @@ public class DockerUtil {
         final String containerId = dockerClient.createContainerCmd(dockerImage + ":" + tag)
                 .withName(dockerImageTag)
                 .withExposedPorts(tcp8182)
-                .withHostConfig(new HostConfig().withPortBindings(portBindings))
-                .withEnv("aerospike.client.host=172.17.0.1:3000")
+                .withHostConfig(hostConfigWithPublishedPort(portBindings))
+                .withEnv("aerospike.client.host=" + RemoteDockerTestHost.aerospikeHostFromContainerWithPort(3000))
                 .exec().getId();
 
         // Start the container.
@@ -224,7 +224,7 @@ public class DockerUtil {
         final String containerId = dockerClient.createContainerCmd(dockerImage)
                 .withName(dockerImageName)
                 .withExposedPorts(tcp8182)
-                .withHostConfig(new HostConfig().withPortBindings(portBindings))
+                .withHostConfig(hostConfigWithPublishedPort(portBindings))
                 .withEnv(environmentVariables)
                 .exec().getId();
 
@@ -249,6 +249,12 @@ public class DockerUtil {
         }
 
         return containerId;
+    }
+
+    private static HostConfig hostConfigWithPublishedPort(final Ports portBindings) {
+        return HostConfig.newHostConfig()
+                .withPortBindings(portBindings)
+                .withExtraHosts("host.docker.internal:host-gateway");
     }
 
     public Queue<String> getLogs(final String containerId) throws InterruptedException {

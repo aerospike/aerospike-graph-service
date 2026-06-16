@@ -20,6 +20,7 @@ import com.aerospike.client.Record;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.RemoteDockerTestHost;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
@@ -52,7 +53,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 import static org.junit.Assert.assertEquals;
 
 public class TestTinkerpopTransactions {
-    private static final String HOST = "172.17.0.1";
+    private static final String HOST = RemoteDockerTestHost.gremlinHost();
     private static final int PORT = 8182;
     private static DriverRemoteConnection REMOTE;
     private GraphTraversalSource g;

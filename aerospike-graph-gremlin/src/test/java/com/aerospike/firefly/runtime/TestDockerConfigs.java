@@ -51,14 +51,14 @@ public class TestDockerConfigs {
     @Test
     public void testMinConnPerNodeGreaterThanMaxConnPerNode() throws InterruptedException {
         testDockerImageSettings(new String[]{
-                "aerospike.client.host=172.17.0.1:3000",
+                "aerospike.client.host=host.docker.internal:3000",
                 "aerospike.client.clientPolicy.maxConnsPerNode=1",
                 "aerospike.client.clientPolicy.minConnsPerNode=2"});
     }
 
     @Test
     public void testMultiTenantSettingsEmpty() throws InterruptedException {
-        final String[] environmentVariables = new String[]{"aerospike.client.host=172.17.0.1:3000"};
+        final String[] environmentVariables = new String[]{"aerospike.client.host=host.docker.internal:3000"};
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundMsg0 = false;
@@ -81,7 +81,7 @@ public class TestDockerConfigs {
     @Test
     public void testMultiTenantSettingsWithEnvVariables() throws InterruptedException {
         final String[] environmentVariables = new String[]{
-                "aerospike.client.host=172.17.0.1:3000",
+                "aerospike.client.host=host.docker.internal:3000",
                 "aerospike.graph-service.graphs=graph,modern"};
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
@@ -108,7 +108,7 @@ public class TestDockerConfigs {
     @Test
     public void testGraphNameValidation() throws InterruptedException {
         final String[] environmentVariables = new String[]{
-                "aerospike.client.host=172.17.0.1:3000",
+                "aerospike.client.host=host.docker.internal:3000",
                 "aerospike.graph-service.graphs=graph,modern!"};
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
@@ -126,7 +126,7 @@ public class TestDockerConfigs {
     @Test
     public void testValidMetricConfiguration() throws InterruptedException {
         final String[] environmentVariables = new String[]{
-                "aerospike.client.host=172.17.0.1:3000",
+                "aerospike.client.host=host.docker.internal:3000",
                 "aerospike.graph-service.metrics.slf4jReporter.interval=170000",
                 "aerospike.graph-service.metrics.csvReporter.enabled=false"
         };
@@ -160,7 +160,7 @@ public class TestDockerConfigs {
     @Test
     public void testInvalidMetricType() throws InterruptedException {
         final String[] environmentVariables = new String[]{
-                "aerospike.client.host=172.17.0.1:3000",
+                "aerospike.client.host=host.docker.internal:3000",
                 "aerospike.graph-service.metrics.bobReporter.interval=170000"
         };
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
@@ -179,7 +179,7 @@ public class TestDockerConfigs {
     @Test
     public void testInvalidMetricConfigKey() throws InterruptedException {
         final String[] environmentVariables = new String[]{
-                "aerospike.client.host=172.17.0.1:3000",
+                "aerospike.client.host=host.docker.internal:3000",
                 "aerospike.graph-service.metrics.slf4jReporter.bob=over9000"
         };
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
@@ -198,7 +198,7 @@ public class TestDockerConfigs {
     @Test
     public void testGitCommitHashLog() throws InterruptedException {
         final String[] environmentVariables = new String[]{
-                "aerospike.client.host=172.17.0.1:3000"};
+                "aerospike.client.host=host.docker.internal:3000"};
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundMsg = false;

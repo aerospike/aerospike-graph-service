@@ -26,7 +26,7 @@ import static org.junit.Assert.assertTrue;
 public class TestDockerShutdown {
 
     private static final String[] DEFAULT_ENV_VARIABLES = new String[]{
-            "aerospike.client.host=172.17.0.1:3000",
+            "aerospike.client.host=host.docker.internal:3000",
             "aerospike.graph.auto.preheat.enabled=false",
             "aerospike.graph.http.enabled=false",
     };

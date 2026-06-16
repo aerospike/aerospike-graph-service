@@ -94,6 +94,21 @@ A GitHub Action enforces this on every PR.
 - Once approved, a maintainer merges. Contributors cannot
   self-merge.
 
+### Auto-merge (maintainers)
+
+Maintainers can queue a reviewed PR to merge automatically once all
+required checks and approvals are satisfied:
+
+1. An org admin must enable **Allow auto-merge** in the repository
+   settings (`Settings → General → Pull Requests`) if it is not already
+   on. This is a one-time setup per repository.
+2. Review and approve the PR as usual.
+3. Add the `automerge` label. GitHub merges with **rebase** when branch
+   protection requirements are met.
+
+Remove the `automerge` label to cancel. A force-push clears the
+auto-merge queue; add the label again to re-queue after review.
+
 ## CI for pull requests from forks
 
 Some of our workflows (`build-test-pull-request.yml`, `l3-test.yml`,

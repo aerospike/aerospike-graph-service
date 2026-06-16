@@ -109,23 +109,33 @@ required checks and approvals are satisfied:
 Remove the `automerge` label to cancel. A force-push clears the
 auto-merge queue; add the label again to re-queue after review.
 
-## CI for pull requests from forks
+## CI for pull requests from forks and Dependabot
 
 Some of our workflows (`build-test-pull-request.yml`, `l3-test.yml`,
-`snyk.yml`) provision EC2 / GCP resources and therefore require
-repository secrets (AWS, GCP, Snyk, license keys). To keep those
-secrets out of reach of untrusted code, every such workflow starts
-with a `ci-guard` job that blocks the rest of the workflow unless:
+`snyk.yml`) provision cloud resources and therefore require
+repository secrets (AWS, GCP, Snyk, Aerospike license keys). GitHub
+does not expose those secrets to workflows triggered by Dependabot, and
+we keep them out of reach of untrusted fork code. Every such workflow
+starts with a `ci-guard` job that blocks the rest of the workflow unless:
 
-1. the PR is from a branch in this repository, **or**
+1. the PR is from a branch in this repository and was **not** opened by
+   Dependabot, **or**
 2. a maintainer has added the `trusted-ci` label to the PR.
 
-If you're contributing from a fork, expect the first CI run on your PR
-to show a single failed `ci-guard` check and no downstream jobs. A
-maintainer will review the diff, add `trusted-ci`, and re-run CI.
-Maintainers: remove `trusted-ci` and review the diff again
-after every force-push to the PR. The label must only cover the
-commits you have actually seen.
+**Fork PRs:** expect the first CI run to show a single failed
+`ci-guard` check and no downstream jobs. A maintainer will review the
+diff, add `trusted-ci`, and re-run CI.
+
+**Dependabot PRs:** the initial Dependabot-triggered run also lacks
+secrets, so integration tests cannot start Aerospike. After reviewing
+the bump, a maintainer adds `trusted-ci`, then pushes any commit to the
+Dependabot branch (an empty commit is fine) or uses **Re-run all jobs**
+in the GitHub web UI so CI executes with secrets. Add `automerge` when
+you want the PR to merge automatically once checks pass.
+
+Maintainers: remove `trusted-ci` and review the diff again after every
+force-push to the PR. The label must only cover the commits you have
+actually seen.
 
 ## Getting help
 

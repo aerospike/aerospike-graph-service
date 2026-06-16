@@ -38,6 +38,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           BASE_REPO: ${{ github.repository }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
           set -euo pipefail
@@ -45,13 +46,20 @@ jobs:
             echo "Non-PR event ($EVENT) — ci-guard allows."
             exit 0
           fi
-          if [[ "$HEAD_REPO" == "$BASE_REPO" ]]; then
+          if [[ "$HEAD_REPO" == "$BASE_REPO" && "$AUTHOR" != "dependabot[bot]" ]]; then
             echo "Same-repo PR ($HEAD_REPO) — ci-guard allows."
             exit 0
           fi
           if grep -q '"trusted-ci"' <<<"$LABELS"; then
-            echo "Fork PR carries 'trusted-ci' label — ci-guard allows."
+            echo "PR carries 'trusted-ci' label — ci-guard allows."
             exit 0
+          fi
+          if [[ "$AUTHOR" == "dependabot[bot]" ]]; then
+            echo "::error::Dependabot PRs must carry the 'trusted-ci' label before"
+            echo "::error::CI with secrets will run. A maintainer must add the"
+            echo "::error::label and re-run workflows after reviewing the diff."
+            echo "::error::See CONTRIBUTING.md."
+            exit 1
           fi
           echo "::error::Fork PRs must carry the 'trusted-ci' label before"
           echo "::error::CI with secrets will run. A maintainer will add the"

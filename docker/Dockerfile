@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM alpine:latest@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11 AS build
+FROM alpine:latest@sha256:fa1b3b8cd12d2b2ded5ef366f99b5a7556884646af680404989d626535a3ac14 AS build
 
 # Set input arguments.
 ARG FIREFLY_GRAPH
@@ -45,7 +45,7 @@ WORKDIR /opt
 # For Windows users fix for line endings
 RUN dos2unix /opt/scripts/gremlin-server-docker.sh /opt/scripts/firefly-server.sh
 
-FROM alpine:latest@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11 AS main
+FROM alpine:latest@sha256:fa1b3b8cd12d2b2ded5ef366f99b5a7556884646af680404989d626535a3ac14 AS main
 
 # Set environment variables.
 ENV CONF_DIR="/opt/conf"

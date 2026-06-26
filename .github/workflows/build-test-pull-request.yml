@@ -103,7 +103,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Build Maven Project
@@ -134,7 +134,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Build Docker Image
@@ -183,7 +183,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Build maven
@@ -244,7 +244,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Test with Maven
@@ -286,7 +286,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Test with Maven
@@ -324,7 +324,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Run Firefly nsup Tests
@@ -356,7 +356,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Run Firefly mrt tests
@@ -394,7 +394,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Build docker
@@ -470,7 +470,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Test with Maven
@@ -508,7 +508,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Test with Maven
@@ -546,7 +546,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Test with Maven
@@ -585,7 +585,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Test with Maven
@@ -626,7 +626,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Test with Maven
@@ -666,7 +666,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Test with Maven
@@ -706,7 +706,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Test with Maven
@@ -745,7 +745,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Test with Maven
@@ -778,7 +778,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Test with Maven
@@ -811,7 +811,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Test with Maven
@@ -843,7 +843,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Test with Maven
@@ -875,7 +875,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Test with Maven
@@ -919,7 +919,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Build docker
@@ -1078,7 +1078,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Build docker
@@ -1133,7 +1133,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Run multi Firefly usage test
@@ -1162,7 +1162,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
       - name: Snyk Test

@@ -44,6 +44,7 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -102,16 +103,18 @@ public class HttpServer {
 
         // Bootstrap http server with request handler on provided port.
         vertxHttpServer = vertx.createHttpServer();
-        vertxHttpServer
-                .requestHandler(router)
-                .listen(port)
-                .onComplete(res -> {
-                    if (res.succeeded()) {
-                        LOG.info("HttpServer is now listening on port {}.", port);
-                    } else {
-                        LOG.error("HttpServer failed to bind with error {}.", res.cause().getMessage());
-                    }
-                });
+        try {
+            vertxHttpServer
+                    .requestHandler(router)
+                    .listen(port)
+                    .toCompletionStage()
+                    .toCompletableFuture()
+                    .get(30, TimeUnit.SECONDS);
+            LOG.info("HttpServer is now listening on port {}.", port);
+        } catch (final Exception e) {
+            LOG.error("HttpServer failed to bind on port {}.", port, e);
+            throw new RuntimeException("HttpServer failed to bind on port " + port, e);
+        }
     }
 
     // Not required except for bulk loader which hangs if it does not close this.

@@ -123,7 +123,7 @@ jobs:
           gzip: false
           process_gcloudignore: false
       - name: Publish L3 Runtime Results
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1.20.7
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
         with:
           name: Publish Benchmark Results
           tool: 'customSmallerIsBetter'
@@ -142,7 +142,7 @@ jobs:
           gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo cat ./firefly/aerospike-graph-gremlin/target/benchmark.json" > ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json
           gcloud storage cp ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ github.ref_name }}/benchmark.json
       - name: Publish Benchmark Results
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1.20.7
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
         with:
           name: Publish Benchmark Results
           tool: 'customSmallerIsBetter'

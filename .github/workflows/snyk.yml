@@ -62,6 +62,9 @@ jobs:
     needs: ci-guard
     name: Snyk Vulnerability Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -84,3 +87,11 @@ jobs:
         run: |
           mvn clean install -DskipTests
           mvn snyk:test@snyk-test
+      - name: Close auto-generated weekly Snyk PR
+        if: success() && startsWith(github.head_ref, 'weekly-snyk-')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr close "${{ github.event.pull_request.number }}" \
+            --delete-branch \
+            --comment 'Snyk vulnerability check passed for the weekly no-diff build; closing this auto-generated PR.'

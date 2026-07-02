@@ -72,8 +72,8 @@ jobs:
           gcloud storage cp gs://incremental-datasets/${{ steps.read_property.outputs.benchmark }}/benchmark_name.txt ${{ github.workspace }}/benchmark_name.txt
       - name: Download, Install, and Configure Aerolab
         run: |
-          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.3.0/aerolab-linux-amd64-7.3.0.zip
-          unzip aerolab-linux-amd64-7.3.0.zip -d /usr/local/bin/
+          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.10.1/aerolab-linux-amd64-7.10.1.zip
+          unzip aerolab-linux-amd64-7.10.1.zip -d /usr/local/bin/
           aerolab config backend -t gcp -o firefly-aerospike
       - name: Deploy Aerospike Cluster to GCP
         env:

@@ -87,23 +87,25 @@
         <tinkerpop.version>3.7.3</tinkerpop.version>
         <junit.version>4.13.2</junit.version>
         <hamcrest.version>2.2</hamcrest.version>
-        <logback.version>1.5.32</logback.version>
+        <logback.version>1.5.37</logback.version>
         <slf4j.version>2.0.18</slf4j.version>
+        <log4j.version>2.25.4</log4j.version>
         <guava.version>31.1-jre</guava.version>
         <resilience4j.version>1.7.1</resilience4j.version>
         <spark.version>3.5.8</spark.version>
-        <vertx.version>4.5.26</vertx.version>
+        <vertx.version>4.5.28</vertx.version>
+        <jackson.version>2.21.4</jackson.version>
         <prometheus.version>0.16.0</prometheus.version>
         <awssdk.version>1.12.797</awssdk.version>
-        <netty.version>4.1.132.Final</netty.version>
-        <caffeine.version>3.2.3</caffeine.version>
+        <netty.version>4.1.135.Final</netty.version>
+        <caffeine.version>3.2.4</caffeine.version>
         <jmh.version>1.37</jmh.version>
         <commons-cli.version>1.5.0</commons-cli.version>
         <commons-io.version>2.21.0</commons-io.version>
         <commons-compress.version>1.28.0</commons-compress.version>
         <ivy.version>2.5.3</ivy.version>
         <zookeeper.version>3.9.5</zookeeper.version>
-        <jettison.version>1.5.5</jettison.version>
+        <jettison.version>1.5.6</jettison.version>
         <lz4-java.version>1.10.4</lz4-java.version>
         <protobuf.version>3.25.9</protobuf.version>
         <grpc.version>1.76.3</grpc.version>
@@ -111,13 +113,13 @@
         <nimbus-jose-jwt.version>9.37.4</nimbus-jose-jwt.version>
         <guice.version>4.2.3</guice.version>
         <docker-java.version>3.3.6</docker-java.version>
-        <opentelemetry.version>1.44.1</opentelemetry.version>
-        <opentelemetry-semconv.version>1.40.0</opentelemetry-semconv.version>
+        <opentelemetry.version>1.63.0</opentelemetry.version>
+        <opentelemetry-semconv.version>1.41.1</opentelemetry-semconv.version>
         <gcs-connector.version>hadoop3-2.2.33</gcs-connector.version>
         <!-- MAVEN PLUGIN VERSIONS -->
-        <mvn-shade-plugin.version>3.6.0</mvn-shade-plugin.version>
+        <mvn-shade-plugin.version>3.6.2</mvn-shade-plugin.version>
         <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>
-        <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
+        <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <snyk-maven-plugin.version>2.3.0</snyk-maven-plugin.version>
         <license-maven-plugin.version>2.5.0</license-maven-plugin.version>
@@ -128,6 +130,154 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
+
+    <!-- MANAGED DEPENDENCY VERSIONS (INHERITED BY ALL SUBMODULES) -->
+    <dependencyManagement>
+        <dependencies>
+            <!-- BOM imports: align each dependency family to one release train. -->
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.amazonaws</groupId>
+                <artifactId>aws-java-sdk-bom</artifactId>
+                <version>${awssdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- io.opentelemetry.semconv is a separate group/version, not managed by this BOM. -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom</artifactId>
+                <version>${opentelemetry.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.prometheus</groupId>
+                <artifactId>simpleclient_bom</artifactId>
+                <version>${prometheus.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMGOOGLEPROTOBUF-8055227 and -8055228 in gcs-connector@hadoop3-2.2.29 -->
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-bom</artifactId>
+                <version>${protobuf.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Pins all granular io.netty:* modules (transitive via Vert.x/gRPC/etc.) to one safe version. -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-bom</artifactId>
+                <version>${slf4j.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-bom</artifactId>
+                <version>${docker-java.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Whole-family BOMs: keep every artifact in the family aligned (a single managed entry would
+                 leave siblings behind, e.g. log4j-core bumped but log4j-api stale). Version-only, applied
+                 on demand: pulled in only when spark/gcs actually request the family. -->
+            <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHELOGGINGLOG4J-15967769 in spark-core_2.12@3.5.8 -->
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-bom</artifactId>
+                <version>${log4j.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-IOGRPC-13786834 in gcs-connector@hadoop3-2.2.29 -->
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-bom</artifactId>
+                <version>${grpc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Vert.x version managed manually instead of via its BOM: the Vert.x BOM would also pin
+                 io.netty:* to an older version. These entries set the version only (applied when a module
+                 requests the artifact), giving BOM-like behavior without overriding netty. -->
+            <dependency>
+                <groupId>io.vertx</groupId>
+                <artifactId>vertx-core</artifactId>
+                <version>${vertx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.vertx</groupId>
+                <artifactId>vertx-web</artifactId>
+                <version>${vertx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.vertx</groupId>
+                <artifactId>vertx-dropwizard-metrics</artifactId>
+                <version>${vertx.version}</version>
+            </dependency>
+
+            <!-- Forced safe versions of vulnerable transitive dependencies. -->
+            <dependency>
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECOMMONS-6254296 in spark-core_2.12@3.5.8 -->
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>${commons-compress.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEIVY-5847858 in spark-core_2.12@3.5.8 -->
+                <groupId>org.apache.ivy</groupId>
+                <artifactId>ivy</artifactId>
+                <version>${ivy.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEZOOKEEPER-15443353 in spark-core_2.12@3.5.8 -->
+                <groupId>org.apache.zookeeper</groupId>
+                <artifactId>zookeeper</artifactId>
+                <version>${zookeeper.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGCODEHAUSJETTISON-3168085 in spark-core_2.12@3.5.8 -->
+                <groupId>org.codehaus.jettison</groupId>
+                <artifactId>jettison</artifactId>
+                <version>${jettison.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECOMMONS-6475534 in gremlin-core@3.7.3 -->
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-configuration2</artifactId>
+                <version>2.10.1</version>
+            </dependency>
+            <dependency>
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMMONSBEANUTILS-10259368 in gremlin-core@3.7.3 -->
+                <groupId>commons-beanutils</groupId>
+                <artifactId>commons-beanutils</artifactId>
+                <version>1.11.0</version>
+            </dependency>
+            <dependency>
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMNIMBUSDS-6247633 in gremlin-test@3.7.3 -->
+                <groupId>com.nimbusds</groupId>
+                <artifactId>nimbus-jose-jwt</artifactId>
+                <version>${nimbus-jose-jwt.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <!-- DEPLOYMENT REPOSITORIES -->
     <repositories>

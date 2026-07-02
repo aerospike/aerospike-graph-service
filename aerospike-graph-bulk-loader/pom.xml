@@ -50,6 +50,11 @@
             <version>${hamcrest.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- Version managed centrally by netty-bom in the root pom. -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.apache.tinkerpop</groupId>
             <artifactId>tinkergraph-gremlin</artifactId>
@@ -68,7 +73,6 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
@@ -87,31 +91,9 @@
             <version>${jmh.version}</version>
             <scope>test</scope>
         </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECOMMONS-6254296 in spark-core_2.12@3.5.8 -->
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-compress</artifactId>
-            <version>${commons-compress.version}</version>
-        </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEIVY-5847858 in spark-core_2.12@3.5.8 -->
-        <dependency>
-            <groupId>org.apache.ivy</groupId>
-            <artifactId>ivy</artifactId>
-            <version>${ivy.version}</version>
-        </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEZOOKEEPER-15443353 in spark-core_2.12@3.5.8 -->
-        <dependency>
-            <groupId>org.apache.zookeeper</groupId>
-            <artifactId>zookeeper</artifactId>
-            <version>${zookeeper.version}</version>
-        </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGCODEHAUSJETTISON-3168085 in spark-core_2.12@3.5.8 -->
-        <dependency>
-            <groupId>org.codehaus.jettison</groupId>
-            <artifactId>jettison</artifactId>
-            <version>${jettison.version}</version>
-        </dependency>
-        <!-- Fixes [https://security.snyk.io/vuln/SNYK-JAVA-ORGLZ4-14151788 in spark-core_2.12@3.5.8 -->
+        <!-- Direct (not dependency-managed): this is a patched fork under a different groupId that
+             replaces the excluded org.lz4:lz4-java, so nothing pulls it transitively. -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGLZ4-14151788 in spark-core_2.12@3.5.8 -->
         <dependency>
             <groupId>at.yawk.lz4</groupId>
             <artifactId>lz4-java</artifactId>
@@ -163,45 +145,22 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-s3</artifactId>
-            <version>${awssdk.version}</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-dynamodb</artifactId>
-            <version>${awssdk.version}</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-core</artifactId>
-            <version>${awssdk.version}</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>jmespath-java</artifactId>
-            <version>${awssdk.version}</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-kms</artifactId>
-            <version>${awssdk.version}</version>
-        </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMGOOGLEPROTOBUF-8055227 in gcs-connector@hadoop3-2.2.29 -->
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-            <version>${protobuf.version}</version>
-        </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMGOOGLEPROTOBUF-8055228 in gcs-connector@hadoop3-2.2.29 -->
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java-util</artifactId>
-            <version>${protobuf.version}</version>
-        </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-IOGRPC-13786834 in gcs-connector@hadoop3-2.2.29 -->
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-netty-shaded</artifactId>
-            <version>${grpc.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.cloud.bigdataoss</groupId>
@@ -238,7 +197,6 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jcl-over-slf4j</artifactId>
-            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>io.github.resilience4j</groupId>
@@ -339,12 +297,15 @@
                                         <exclude>META-INF/maven/com.nimbusds/nimbus-jose-jwt/**</exclude>
                                         <exclude>META-INF/maven/com.google.protobuf/protobuf-java-util/**</exclude>
                                         <exclude>META-INF/maven/com.google.protobuf/protobuf-java/**</exclude>
-                                        <exclude>META-INF/maven/org.apache.commons/commons-configuration2/**</exclude>
                                         <exclude>META-INF/maven/software.amazon.ion/ion-java/**</exclude>
-                                        <exclude>META-INF/maven/org.eclipse.jetty/jetty-server/**</exclude>
+                                        <exclude>META-INF/maven/org.eclipse.jetty/**</exclude>
+                                        <exclude>META-INF/maven/org.eclipse.jetty.websocket/**</exclude>
                                         <exclude>META-INF/maven/dnsjava/dnsjava/**</exclude>
                                         <exclude>META-INF/maven/org.apache.hadoop/hadoop-hdfs-client/**</exclude>
                                         <exclude>META-INF/maven/com.fasterxml.jackson.core/jackson-core/**</exclude>
+                                        <exclude>META-INF/maven/com.fasterxml.jackson.core/jackson-databind/**</exclude>
+                                        <exclude>META-INF/maven/org.jline/**</exclude>
+                                        <exclude>META-INF/maven/org.apache.commons/commons-compress/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

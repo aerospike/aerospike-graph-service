@@ -31,25 +31,12 @@
             <artifactId>aerospike-client-bc-jdk8</artifactId>
             <version>${aerospike-client.version}</version>
         </dependency>
-        <!-- Include Netty explicitly to ensure version compatibility -->
+        <!-- Version managed centrally by netty-bom in the root pom. -->
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>${netty.version}</version>
         </dependency>
         <!-- TINKERPOP -->
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECOMMONS-6475534 in gremlin-core@3.7.3 -->
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-configuration2</artifactId>
-            <version>2.10.1</version>
-        </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMMONSBEANUTILS-10259368 in gremlin-core@3.7.3 -->
-        <dependency>
-            <groupId>commons-beanutils</groupId>
-            <artifactId>commons-beanutils</artifactId>
-            <version>1.11.0</version>
-        </dependency>
         <dependency>
             <groupId>org.apache.tinkerpop</groupId>
             <artifactId>gremlin-core</artifactId>
@@ -67,26 +54,18 @@
             <scope>test</scope>
         </dependency>
         <!---VERTX -->
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-15365924 in vertx-core@4.5.25 -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <version>2.21.2</version>
-        </dependency>
+        <!-- Versions managed centrally in the root pom (manual entries, not the Vert.x BOM, to avoid pinning netty). -->
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>
-            <version>${vertx.version}</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-web</artifactId>
-            <version>${vertx.version}</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-dropwizard-metrics</artifactId>
-            <version>${vertx.version}</version>
         </dependency>
         <!---VERSION PARSING -->
         <dependency>
@@ -98,8 +77,8 @@
         <dependency>
             <groupId>io.prometheus</groupId>
             <artifactId>simpleclient</artifactId>
-            <version>${prometheus.version}</version>
         </dependency>
+        <!-- Not managed by simpleclient_bom (it manages simpleclient_vertx, not _vertx4). -->
         <dependency>
             <groupId>io.prometheus</groupId>
             <artifactId>simpleclient_vertx4</artifactId>
@@ -108,12 +87,10 @@
         <dependency>
             <groupId>io.prometheus</groupId>
             <artifactId>simpleclient_hotspot</artifactId>
-            <version>${prometheus.version}</version>
         </dependency>
         <dependency>
             <groupId>io.prometheus</groupId>
             <artifactId>simpleclient_dropwizard</artifactId>
-            <version>${prometheus.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.tinkerpop</groupId>
@@ -133,7 +110,6 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
@@ -155,7 +131,6 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-s3</artifactId>
-            <version>${awssdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.amazonaws</groupId>
@@ -201,12 +176,11 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jcl-over-slf4j</artifactId>
-            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>com.auth0</groupId>
             <artifactId>java-jwt</artifactId>
-            <version>4.4.0</version>
+            <version>4.5.2</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -229,13 +203,6 @@
             <groupId>com.github.stefanbirkner</groupId>
             <artifactId>system-rules</artifactId>
             <version>1.19.0</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMNIMBUSDS-6247633 in gremlin-test@3.7.3 -->
-        <dependency>
-            <groupId>com.nimbusds</groupId>
-            <artifactId>nimbus-jose-jwt</artifactId>
-            <version>${nimbus-jose-jwt.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -265,13 +232,11 @@
         <dependency>
             <groupId>com.github.docker-java</groupId>
             <artifactId>docker-java-core</artifactId>
-            <version>${docker-java.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.github.docker-java</groupId>
             <artifactId>docker-java-transport-httpclient5</artifactId>
-            <version>${docker-java.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -283,13 +248,12 @@
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-api</artifactId>
-            <version>${opentelemetry.version}</version>
         </dependency>
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-sdk</artifactId>
-            <version>${opentelemetry.version}</version>
         </dependency>
+        <!-- Separate group/version; not managed by opentelemetry-bom. -->
         <dependency>
             <groupId>io.opentelemetry.semconv</groupId>
             <artifactId>opentelemetry-semconv</artifactId>
@@ -298,7 +262,6 @@
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-zipkin</artifactId>
-            <version>${opentelemetry.version}</version>
         </dependency>
     </dependencies>
     <build>
@@ -443,12 +406,14 @@
                                         <exclude>META-INF/maven/com.nimbusds/nimbus-jose-jwt/**</exclude>
                                         <exclude>META-INF/maven/com.google.protobuf/protobuf-java-util/**</exclude>
                                         <exclude>META-INF/maven/com.google.protobuf/protobuf-java/**</exclude>
-                                        <exclude>META-INF/maven/org.apache.commons/commons-configuration2/**</exclude>
                                         <exclude>META-INF/maven/software.amazon.ion/ion-java/**</exclude>
-                                        <exclude>META-INF/maven/org.eclipse.jetty/jetty-server/**</exclude>
+                                        <exclude>META-INF/maven/org.eclipse.jetty/**</exclude>
+                                        <exclude>META-INF/maven/org.eclipse.jetty.websocket/**</exclude>
                                         <exclude>META-INF/maven/dnsjava/dnsjava/**</exclude>
                                         <exclude>META-INF/maven/org.apache.hadoop/hadoop-hdfs-client/**</exclude>
                                         <exclude>META-INF/maven/com.fasterxml.jackson.core/jackson-core/**</exclude>
+                                        <exclude>META-INF/maven/com.fasterxml.jackson.core/jackson-databind/**</exclude>
+                                        <exclude>META-INF/maven/org.jline/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

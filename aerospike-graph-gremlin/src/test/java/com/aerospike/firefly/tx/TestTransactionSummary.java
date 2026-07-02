@@ -68,29 +68,29 @@ public class TestTransactionSummary {
             gtx1 = g.tx().begin();
             GraphTraversalSource gtx2 = g.tx().begin();
 
-            gid1 = g.addV("labelg").property("p1", "foo").property("pshared", "foo").next();
             Object gtx1id1 = gtx1.addV("labelgtx1").property("gtx1p1", "foo").property("pshared", "foo").next();
             Object gtx2id1 = gtx2.addV("labelgtx2").property("gtx2p1", "foo").property("pshared", "foo").next();
+            gid1 = g.addV("labelg").property("p1", "foo").property("pshared", "foo").next();
 
-            gid2 = g.addV("labelshared").next();
             Object gtx1id2 = gtx1.addV("labelshared").next();
             Object gtx2id2 = gtx2.addV("labelshared").next();
+            gid2 = g.addV("labelshared").next();
 
-            g.V(gid2).property("p2", "foo").property("pshared", "foo").next();
             gtx1.V(gtx1id2).property("gtx1p2", "foo").property("pshared", "foo").next();
             gtx2.V(gtx2id2).property("gtx2p2", "foo").property("pshared", "foo").next();
+            g.V(gid2).property("p2", "foo").property("pshared", "foo").next();
 
-            g.addE("labelshared").property("p1", "foo").property("p2", "foo").from(__.V(gid1)).to(__.V(gid2)).next();
             gtx1.addE("labelshared").property("gtx1p1", "foo").property("gtx1p2", "foo").from(__.V(gtx1id1)).to(__.V(gtx1id2)).next();
             gtx2.addE("labelshared").property("gtx2p1", "foo").property("gtx2p2", "foo").from(__.V(gtx2id1)).to(__.V(gtx2id2)).next();
+            g.addE("labelshared").property("p1", "foo").property("p2", "foo").from(__.V(gid1)).to(__.V(gid2)).next();
 
-            Object eid = g.addE("labelg").from(__.V(gid1)).to(__.V(gid2)).id().next();
             Object gtx1eid = gtx1.addE("labelgtx1").from(__.V(gtx1id1)).to(__.V(gtx1id2)).id().next();
             Object gtx2eid = gtx2.addE("labelgtx2").from(__.V(gtx2id1)).to(__.V(gtx2id2)).id().next();
+            Object eid = g.addE("labelg").from(__.V(gid1)).to(__.V(gid2)).id().next();
 
-            g.E(eid).property("pshared", "foo").next();
             gtx1.E(gtx1eid).property("pshared", "foo").next();
             gtx2.E(gtx2eid).property("pshared", "foo").next();
+            g.E(eid).property("pshared", "foo").next();
             gtx1.tx().rollback();
             gtx2.tx().commit();
 

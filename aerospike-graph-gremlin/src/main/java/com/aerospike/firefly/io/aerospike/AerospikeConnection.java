@@ -259,8 +259,6 @@ public class AerospikeConnection implements AutoCloseable {
             throw e;
         }
 
-        FireflyAerospikeGraphServiceCheck.checkFeatureKey(aerospikeClient);
-
         if (ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.CLIENT_FAILURE_TEST, conf)) {
             return DiagnosticUtil.enableWriteFails(aerospikeClient, conf);
         } else {
@@ -789,6 +787,7 @@ public class AerospikeConnection implements AutoCloseable {
                         indexList.retainAll(set);
                     }
                 }
+                indexList.removeIf(indexName -> !isIndexFullyBuilt(db, indexName));
                 return indexList;
             } catch (final AerospikeException e) {
                 throw fromAerospikeException(e);
@@ -796,7 +795,7 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         /**
-         * Return list of usable expression indexes that are ready (state=RW) on all nodes.
+         * Return list of usable expression indexes that are ready (state=RW and fully built) on all nodes.
          *
          * @param db        AerospikeConnection
          * @param namespace Namespace.
@@ -829,10 +828,55 @@ public class AerospikeConnection implements AutoCloseable {
                         indexList.retainAll(set);
                     }
                 }
+                indexList.removeIf(indexName -> !isIndexFullyBuilt(db, indexName));
                 return indexList;
             } catch (final AerospikeException e) {
                 throw fromAerospikeException(e);
             }
+        }
+
+        /**
+         * Check whether a secondary index has finished its historical build on every node.
+         *
+         * The cluster-wide `sindex` info command flips a new index to state=RW as soon as
+         * it starts being maintained by writes, but querying it before the historical scan
+         * has populated existing records can still return INDEX_NOTREADABLE. We gate on the
+         * per-index `load_pct=100` reading from every node to close that window.
+         *
+         * @param db        AerospikeConnection
+         * @param indexName Name of the index to check.
+         * @return true if every node reports load_pct=100 for the index, false otherwise.
+         */
+        private static boolean isIndexFullyBuilt(final AerospikeConnection db, final String indexName) {
+            final List<String> infoResponses;
+            try {
+                infoResponses = getIndexStatuses(db, indexName);
+            } catch (final Exception e) {
+                LOG.debug("Failed to read load_pct for index '{}'; treating as not yet ready.", indexName, e);
+                return false;
+            }
+            if (infoResponses.isEmpty()) {
+                return false;
+            }
+            for (final String infoResponse : infoResponses) {
+                boolean loadPctSeen = false;
+                for (final String s : infoResponse.split(";")) {
+                    if (s.startsWith("load_pct=")) {
+                        loadPctSeen = true;
+                        try {
+                            if (Long.parseLong(s.split("=")[1]) < 100) {
+                                return false;
+                            }
+                        } catch (final NumberFormatException e) {
+                            return false;
+                        }
+                    }
+                }
+                if (!loadPctSeen) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         public static int getMaxParallelSindexes(final AerospikeConnection db, final String namespace) {

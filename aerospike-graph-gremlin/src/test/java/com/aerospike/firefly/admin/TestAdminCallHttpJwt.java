@@ -48,31 +48,31 @@ public class TestAdminCallHttpJwt {
             .withClaim("role", "READ")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     final static String noRole = JWT.create()
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     final static String validWrite = JWT.create()
             .withClaim("role", "READ_WRITE")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     final static String validAdmin = JWT.create()
             .withClaim("role", "ADMIN")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     final String validGraph0AdminGraph1Read = JWT.create()
             // read for graph0 and admin for graph1
             .withClaim("role", Map.of("0","ADMIN", "1", "READ"))
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     interface Check {
         void check(final String userCredentials);

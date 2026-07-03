@@ -76,8 +76,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           pip3 install python_on_whales
@@ -301,8 +301,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -342,8 +342,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -491,8 +491,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -528,8 +528,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -565,8 +565,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -602,8 +602,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           pip3 install pyyaml
@@ -641,8 +641,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -679,8 +679,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -717,8 +717,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -881,8 +881,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -920,8 +920,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -959,8 +959,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -999,8 +999,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1039,8 +1039,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1079,8 +1079,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1119,8 +1119,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1158,8 +1158,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1198,8 +1198,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1238,8 +1238,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -1416,8 +1416,8 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ vars.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ vars.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
           docker run -d -p 8182:8182  \
             --add-host=host.docker.internal:host-gateway \

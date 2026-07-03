@@ -14,18 +14,18 @@
 
 name: Secret Scan (gitleaks)
 
-# Runs a gitleaks scan on every PR + every push to a protected branch
-# (working-tree scope, fast), and once a week over the full history as a
-# belt-and-braces check. Uses the repo-local `.gitleaks.toml`, which
-# allow-lists the committed test-only TLS fixtures and their historical
-# paths.
+# Runs a gitleaks scan on every pull request and on pushes to main or
+# 3.x-dev (working-tree scope, fast), and once a week over the full
+# history as a belt-and-braces check. Uses the repo-local `.gitleaks.toml`,
+# which allow-lists the committed test-only TLS fixtures and their
+# historical paths.
 
 on:
   pull_request:
   push:
     branches:
       - main
-      - opensource-ready
+      - 3.x-dev
   schedule:
     # Sundays at 09:17 UTC
     - cron: '17 9 * * 0'

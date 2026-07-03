@@ -40,66 +40,66 @@ public class JwtAuthenticationFireflyServerTest {
             .withClaim("role", "ADMIN")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     final String validGraph0Admin = JWT.create()
             // admin for graph0 and no role for graph1
             .withClaim("role", Map.of("0","ADMIN"))
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     final String validGraph0ReadGraph1Admin = JWT.create()
             // read for graph0 and admin for graph1
             .withClaim("role", Map.of("0","READ", "1", "ADMIN"))
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     final String validGraph1Admin = JWT.create()
             // read for graph0 and admin for graph1
             .withClaim("role", Map.of("1", "ADMIN"))
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     final String validWrite = JWT.create()
             .withClaim("role", "READ_WRITE")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String validRead = JWT.create()
             .withClaim("role", "READ")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String invalidUser = JWT.create()
             .withClaim("role", "ADMIN")
             .withSubject("invalid_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String invalidIssuer = JWT.create()
             .withClaim("role", "ADMIN")
             .withSubject("lyndon_username")
             .withIssuer("invalid_aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String invalidRole = JWT.create()
             .withClaim("role", "ROLE")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String nullUsername = JWT.create()
             .withClaim("role", "ADMIN")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String nullIssuer = JWT.create()
             .withClaim("role", "ADMIN")
             .withSubject("lyndon_username")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String nullRole = JWT.create()
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String invalidSecret = JWT.create()
             .withClaim("role", "READ")
             .withSubject("lyndon_username")
@@ -109,7 +109,7 @@ public class JwtAuthenticationFireflyServerTest {
             .withClaim("role", "WRITE21")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     @BeforeClass
     public static void setup() {

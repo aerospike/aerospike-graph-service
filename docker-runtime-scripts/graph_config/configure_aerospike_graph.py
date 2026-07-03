@@ -564,6 +564,11 @@ def generate_java_options(java_options_file_path, max_heap, min_heap, tls_out_di
 
         system_cacerts = _find_system_cacerts()
         if system_cacerts:
+            # NOTE: "changeit" is the JDK's standard, well-known default password for the
+            # system CA truststore (cacerts). It is NOT a project secret or a placeholder to
+            # harden - it is a fixed property of the JVM. It is only used here to READ the
+            # source cacerts; the destination truststore is written with our own password
+            # (storepass). Changing this value would break reading the system CA bundle.
             result = subprocess.run([
                 "keytool", "-importkeystore",
                 "-srckeystore", system_cacerts,

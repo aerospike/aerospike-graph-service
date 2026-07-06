@@ -24,6 +24,7 @@ name: Publish docs to GitHub Pages
 on:
   push:
     branches:
+      - 3.x-dev
       - main
     paths:
       - 'docs/**'
@@ -75,14 +76,17 @@ jobs:
       - name: Generate public API Javadoc
         run: |
           set -eo pipefail
-          # Only the aerospike-graph-api module has strict javadoc; the
-          # plugin is configured there with failOnWarnings=true so missing
-          # or malformed tags will break this build.
+          # Compile the reactor first so aerospike-graph-api resolves its
+          # local SNAPSHOT dependency on aerospike-graph-gremlin from reactor
+          # outputs instead of Maven Central. Only the API module has strict
+          # javadoc; the plugin is configured there with failOnWarnings=true
+          # so missing or malformed tags will break this build.
           mvn -ntp -B -q \
             -pl aerospike-graph-api -am \
             -DskipTests \
+            -Dlicense.skipAggregateAddThirdParty=true \
             -Dspotbugs.skip=true -Dcheckstyle.skip=true \
-            javadoc:javadoc
+            compile javadoc:javadoc
 
       - name: Stage Javadoc under docs/api
         run: |
@@ -97,9 +101,11 @@ jobs:
 
       - name: Configure Pages
         id: pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
 
       - name: Build with Jekyll
+        if: github.event_name != 'pull_request'
         uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1.0.13
         with:
           source: ./docs
@@ -109,6 +115,7 @@ jobs:
       # composite action uses actions/upload-artifact@v4 internally, which
       # violates this repo's full-SHA pinning policy.
       - name: Archive Pages artifact
+        if: github.event_name != 'pull_request'
         run: |
           set -eo pipefail
           tar \
@@ -120,6 +127,7 @@ jobs:
             .
 
       - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: github-pages
@@ -132,7 +140,7 @@ jobs:
     needs: build
     # Only deploy on push to main; PRs build-only so the job provides
     # validation without mutating the live site.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/3.x-dev' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

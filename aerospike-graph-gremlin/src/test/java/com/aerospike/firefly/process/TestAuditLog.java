@@ -49,13 +49,13 @@ public class TestAuditLog {
             .withClaim("role", "ADMIN")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     final String validRead = JWT.create()
             .withClaim("role", "READ")
             .withSubject("lyndon_loser")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     private static FireflyServer server;
     private static final String auditLogWithJWT = "../conf/credentials-config/firefly-gremlin-server-audit-log-jwt.yaml";

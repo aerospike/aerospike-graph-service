@@ -43,12 +43,12 @@ public class TestDistributedGraphComputerMainSSL {
             .withClaim("role", "READ")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     final static String noRole = JWT.create()
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     @Test
     public void testDistributedGraphComputerMainGLVSSL() throws Exception {

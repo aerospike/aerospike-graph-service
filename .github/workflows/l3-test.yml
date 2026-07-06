@@ -65,6 +65,8 @@ jobs:
     timeout-minutes: 150
     runs-on: ubuntu-latest
     needs: ci-guard
+    env:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -119,7 +121,7 @@ jobs:
         run: |
           cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.10.1/aerolab-linux-amd64-7.10.1.zip
           unzip aerolab-linux-amd64-7.10.1.zip -d /usr/local/bin/
-          aerolab config backend -t gcp -o firefly-aerospike
+          aerolab config backend -t gcp -o "$GCP_PROJECT_ID"
       - name: Deploy Aerospike Cluster to GCP
         env:
           FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -177,6 +179,8 @@ jobs:
     timeout-minutes: 150
     runs-on: ubuntu-latest
     needs: ci-guard
+    env:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -237,7 +241,7 @@ jobs:
         run: |
           cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.10.1/aerolab-linux-amd64-7.10.1.zip
           unzip aerolab-linux-amd64-7.10.1.zip -d /usr/local/bin/
-          aerolab config backend -t gcp -o firefly-aerospike
+          aerolab config backend -t gcp -o "$GCP_PROJECT_ID"
       - name: Deploy Aerospike Cluster to GCP
         env:
           FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}

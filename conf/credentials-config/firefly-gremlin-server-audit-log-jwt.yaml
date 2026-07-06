@@ -45,7 +45,7 @@ writeBufferHighWaterMark: 65536
 authentication: {
   authenticator: com.aerospike.firefly.security.JWTAuthenticator,
   config: {
-    aerospike.graph-service.auth.jwt.secret: lyndon_secret,
+    aerospike.graph-service.auth.jwt.secret: your-jwt-secret-here,
     aerospike.graph-service.auth.jwt.issuer: aerospike,
     aerospike.graph-service.auth.jwt.algorithm: HMAC256
   }

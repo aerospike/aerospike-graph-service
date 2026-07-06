@@ -33,44 +33,44 @@ public class JwtAuthenticationDockerTest {
             .withClaim("role", "ADMIN")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String validWrite = JWT.create()
             .withClaim("role", "READ_WRITE")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String validRead = JWT.create()
             .withClaim("role", "READ")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String invalidUser = JWT.create()
             .withClaim("role", "ADMIN")
             .withSubject("invalid_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String invalidIssuer = JWT.create()
             .withClaim("role", "ADMIN")
             .withSubject("lyndon_username")
             .withIssuer("invalid_aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String invalidRole = JWT.create()
             .withClaim("role", "ROLE")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String nullUsername = JWT.create()
             .withClaim("role", "ADMIN")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String nullIssuer = JWT.create()
             .withClaim("role", "ADMIN")
             .withSubject("lyndon_username")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String nullRole = JWT.create()
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
     final String invalidSecret = JWT.create()
             .withClaim("role", "READ")
             .withSubject("lyndon_username")
@@ -80,7 +80,7 @@ public class JwtAuthenticationDockerTest {
             .withClaim("role", "WRITE21")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
+            .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     private static GraphTraversalSource getGraphTraversalSource(final String username, final String jwt) {
         final Cluster cluster = Cluster.build()

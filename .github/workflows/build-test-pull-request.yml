@@ -1097,6 +1097,7 @@ jobs:
           docker run -d -p 8182:8182 \
             --add-host=host.docker.internal:host-gateway \
             -e aerospike.client.host=host.docker.internal:test-tls:4303 \
+            -e JAVA_OPTIONS="-Dio.netty.handler.ssl.defaultEndpointVerificationAlgorithm=NONE" \
             -v ${{ github.workspace }}/conf/test-tls/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/aerospike-client-tls/aerospike.crt \
             -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/gremlin-server-tls/aerospike.crt \

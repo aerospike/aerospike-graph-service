@@ -96,8 +96,6 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark --no-transfer-progress
   test-heap-usage:
     name: Test Firefly Heap Usage
-    permissions:
-      contents: write
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
@@ -127,23 +125,8 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyServer --no-transfer-progress
-      - name: Publish Benchmark Results
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1.20.7
-        with:
-          name: Publish Benchmark Results
-          tool: 'customSmallerIsBetter'
-          output-file-path: aerospike-graph-gremlin/target/jmh-result.json
-          auto-push: true
-          alert-threshold: '105%'
-          comment-on-alert: true
-          fail-on-alert: false
-          max-items-in-chart: 750
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          benchmark-data-dir-path: docs/
   benchmark-firefly:
     name: Benchmark Firefly
-    permissions:
-      contents: write
     timeout-minutes: 240
     runs-on: ubuntu-latest
     steps:
@@ -186,19 +169,6 @@ jobs:
           
           echo "Running benchmark"
           mvn test -pl aerospike-graph-gremlin -Dtest=BenchmarkTestFlightsData --no-transfer-progress
-      - name: Publish Benchmark Results
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1.20.7
-        with:
-          name: Publish Benchmark Results
-          tool: 'customSmallerIsBetter'
-          output-file-path: aerospike-graph-gremlin/target/jmh-result.json
-          auto-push: true
-          alert-threshold: '105%'
-          comment-on-alert: true
-          fail-on-alert: false
-          max-items-in-chart: 750
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          benchmark-data-dir-path: docs/
   test-firefly-chainable-maven:
     name: Test Chainable Maven
     timeout-minutes: 120
@@ -1251,8 +1221,6 @@ jobs:
           mvn test --no-transfer-progress
   benchmark-identifies-flow-firefly:
     name: Benchmark Identifies Flow Firefly
-    permissions:
-      contents: write
     timeout-minutes: 240
     runs-on: ubuntu-latest
     steps:
@@ -1295,19 +1263,6 @@ jobs:
 
           echo "Running benchmark"
           mvn test -pl aerospike-graph-gremlin -Dtest=BenchmarkTestIdentifiesTraversal --no-transfer-progress
-      - name: Publish Benchmark Identifies Results
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1.20.7
-        with:
-          name: Publish Benchmark Results
-          tool: 'customSmallerIsBetter'
-          output-file-path: aerospike-graph-gremlin/target/jmh-result.json
-          auto-push: true
-          alert-threshold: '105%'
-          comment-on-alert: true
-          fail-on-alert: false
-          max-items-in-chart: 750
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          benchmark-data-dir-path: docs/
   test-chainable-docker:
     name: Test Chainable Docker
     timeout-minutes: 60

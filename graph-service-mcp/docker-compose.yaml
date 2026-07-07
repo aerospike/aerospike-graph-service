@@ -1,0 +1,54 @@
+services:
+  aerospike-db:
+    image: aerospike/aerospike-server-enterprise:8.0.0.7
+    container_name: aerospike-db
+    networks:
+      - asgraph_net
+    ports:
+      - "3000-3002:3000-3002"
+    environment:
+      - DEFAULT_TTL=0
+    healthcheck:
+      test: ["CMD", "asinfo", "-p", "3000", "-v", "build"]
+      interval: 5s
+      timeout: 20s
+      retries: 4
+  aerospike-graph-service:
+    image: aerospike/aerospike-graph-service:latest
+    container_name: aerospike-graph-service
+    depends_on:
+      aerospike-db:
+        condition: service_healthy
+    ports:
+      - "8182:8182"
+      - "9090:9090"
+    environment:
+      - aerospike.client.namespace=test
+      - aerospike.client.host=aerospike-db
+    volumes:
+      - ./:/data
+    networks:
+      - asgraph_net
+  aerospike-graph-mcp:
+    build: .
+    #image: aerospike-graph-mcp:latest
+    ports:
+      - "0.0.0.0:8000:8000"
+    environment:
+      - GREMLIN_URL=ws://aerospike-graph-service:8182/gremlin
+      - GREMLIN_ALIAS=g
+      - HOST=0.0.0.0
+      - PORT=8000
+      - LOG_LEVEL=INFO
+    depends_on:
+      - aerospike-graph-service
+    security_opt:
+      - no-new-privileges:true
+    # env_file:
+    # - .env
+    networks:
+      - asgraph_net
+networks:
+  asgraph_net:
+    name: asgraph_net
+    driver: bridge

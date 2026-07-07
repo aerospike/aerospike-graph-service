@@ -1,0 +1,65 @@
+[project]
+name = "mcp-aerospike-graph-service"
+version = "0.1.0"
+description = "A MVP AGS MCP server"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=2.14.0",
+    "gremlinpython>=3.7.3",
+    "loguru>=0.7.3",
+]
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=4.0.0",
+    "coverage>=7.0.0",
+    "PyJWT>=2.8.0",
+    "cryptography>=41.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
+markers = [
+    "auth: mark test as requiring authentication",
+    "rsa_auth: mark test as requiring RSA authentication", 
+    "hmac_auth: mark test as requiring HMAC authentication",
+    "jwks_auth: mark test as requiring JWKS authentication",
+    "no_auth: mark test as requiring no authentication",
+    "integration: mark test as integration test",
+    "unit: mark test as unit test",
+]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

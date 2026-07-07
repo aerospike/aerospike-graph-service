@@ -22,8 +22,6 @@ on:
 jobs:
   run-l3-bulk-loader:
     name: Run L3 Spark Bulk Loader
-    permissions:
-      contents: write
     timeout-minutes: 3000
     runs-on: ubuntu-latest
     env:
@@ -124,18 +122,6 @@ jobs:
           destination: gha-ci-firefly-bulkloader/archive
           gzip: false
           process_gcloudignore: false
-      - name: Publish L3 Runtime Results
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1.20.7
-        with:
-          name: Publish Benchmark Results
-          tool: 'customSmallerIsBetter'
-          output-file-path: l3_benchmark.json
-          auto-push: true
-          alert-threshold: '125%'
-          comment-on-alert: true
-          fail-on-alert: false
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          benchmark-data-dir-path: docs/
       - name: Run Benchmark on GCP
         run: |
           gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo bash run-benchmark-gcp.sh"
@@ -143,18 +129,6 @@ jobs:
         run: |
           gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo cat ./firefly/aerospike-graph-gremlin/target/benchmark.json" > ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json
           gcloud storage cp ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ github.ref_name }}/benchmark.json
-      - name: Publish Benchmark Results
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1.20.7
-        with:
-          name: Publish Benchmark Results
-          tool: 'customSmallerIsBetter'
-          output-file-path: aerospike-graph-gremlin/target/benchmark.json
-          auto-push: true
-          alert-threshold: '105%'
-          comment-on-alert: true
-          fail-on-alert: false
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          benchmark-data-dir-path: docs/
       - name: Log Aerospike Server on Failure
         if: failure()
         run: |

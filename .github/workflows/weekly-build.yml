@@ -23,6 +23,9 @@ jobs:
   trigger-weekly-build:
     name: Trigger weekly build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -32,13 +35,14 @@ jobs:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
           fetch-depth: 0
+          token: ${{ secrets.WEEKLY_SNYK_PR_TOKEN }}
       - name: Set date
         run: echo "WEEKLY=$(date '+%Y-%m-%d')" >> $GITHUB_ENV
       - name: Close stale weekly Snyk branches
         if: always()
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ secrets.WEEKLY_SNYK_PR_TOKEN }}
         run: |
           # Defensive cleanup for runs whose Snyk check failed or never closed itself.
           # Deleting a head branch automatically closes its open PR.
@@ -73,4 +77,4 @@ jobs:
           fi
           exit "$code"
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ secrets.WEEKLY_SNYK_PR_TOKEN }}

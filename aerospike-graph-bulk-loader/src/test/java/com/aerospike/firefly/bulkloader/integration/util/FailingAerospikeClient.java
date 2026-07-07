@@ -684,6 +684,12 @@ public class FailingAerospikeClient implements IAerospikeClient {
         return delegate.queryAggregateNode(policy, statement, node);
     }
 
+    @Override
+    public IndexTask createIndex(Policy policy, String namespace, String setName, String indexName)
+            throws AerospikeException {
+        return delegate.createIndex(policy, namespace, setName, indexName);
+    }
+
     public IndexTask createIndex(Policy policy, String namespace, String setName, String indexName, String binName,
             IndexType indexType) throws AerospikeException {
         return delegate.createIndex(policy, namespace, setName, indexName, binName, indexType);

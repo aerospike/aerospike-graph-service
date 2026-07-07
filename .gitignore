@@ -5,6 +5,17 @@ aerospike-graph-gremlin/file:*
 # Python
 __pycache__/
 *.pyc
+.env
+.venv
+env/
+venv/
+ENV/
+.Python
+build/
+.pytest_cache/
+*.manifest
+.pybuilder/
+*.egg-info/
 #features file for ci
 .github/aerospike/features.conf
 

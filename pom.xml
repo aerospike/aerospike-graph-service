@@ -262,7 +262,7 @@
                 <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECOMMONS-6475534 in gremlin-core@3.7.3 -->
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-configuration2</artifactId>
-                <version>2.10.1</version>
+                <version>2.15.1</version>
             </dependency>
             <dependency>
                 <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMMONSBEANUTILS-10259368 in gremlin-core@3.7.3 -->

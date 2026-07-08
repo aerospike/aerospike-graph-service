@@ -14,6 +14,7 @@
 
 from aiohttp import ClientConnectorError, ServerDisconnectedError
 from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
+import gc
 import threading
 import logging
 
@@ -117,9 +118,14 @@ class RoundRobinClientRemoteConnection:
     def close(self):
         self._stop_event.set()
         self._health_thread.join()
+        # Force collection of any lingering aiohttp ClientResponse objects before
+        # each connection's private event loop closes, avoiding "Event loop is
+        # closed" errors from __del__ finalizers running after the fact.
+        gc.collect()
         for c in self._clients:
             try:
                 c.close()
             except Exception:
                 pass
+        gc.collect()
         self._logger.debug("Load-balancer shut down")

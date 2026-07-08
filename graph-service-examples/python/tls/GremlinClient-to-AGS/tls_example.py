@@ -43,7 +43,7 @@ def main():
                 'g',
                 ssl_context=ssl_context
             )
-            g = traversal().withRemote(connection)
+            g = traversal().with_remote(connection)
 
             if g.inject(0).next() != 0:
                 raise RuntimeError("Health check failed: expected 0 from g.inject(0)")

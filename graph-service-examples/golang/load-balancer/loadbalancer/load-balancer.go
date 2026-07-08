@@ -26,7 +26,8 @@ type RoundRobinClientRemoteConnection struct {
 
 	mu        sync.Mutex
 	entries   []*rrEntry
-	available []atomic.Bool
+	// Pointers so append/slice ops never copy an atomic.Bool value (go vet copylocks).
+	available []*atomic.Bool
 
 	stopCh chan struct{}
 	wg     sync.WaitGroup
@@ -49,13 +50,13 @@ func NewRoundRobinClientRemoteConnection(endpoints []string, traversalSource str
 		if err != nil {
 			lb.logger.Printf("Failed to open %s: %v (marking down)", ws, err)
 			lb.entries = append(lb.entries, &rrEntry{conn: nil, address: ws})
-			var b atomic.Bool
+			b := &atomic.Bool{}
 			b.Store(false)
 			lb.available = append(lb.available, b)
 			continue
 		}
 		lb.entries = append(lb.entries, &rrEntry{conn: drc, address: ws})
-		var b atomic.Bool
+		b := &atomic.Bool{}
 		b.Store(true)
 		lb.available = append(lb.available, b)
 	}
@@ -85,7 +86,7 @@ func (lb *RoundRobinClientRemoteConnection) AddHost(endpoint, traversalSource st
 	})
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
-	var b atomic.Bool
+	b := &atomic.Bool{}
 	if err != nil {
 		lb.logger.Printf("AddHost failed to open %s: %v (marking down)", ws, err)
 		b.Store(false)

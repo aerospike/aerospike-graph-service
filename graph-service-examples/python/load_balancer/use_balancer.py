@@ -39,7 +39,7 @@ endpoints = [
 
 rr_conn = RoundRobinClientRemoteConnection(endpoints, traversal_source="g",
                                            log_level=logging.DEBUG, logger=lb_logger )
-g = traversal().withRemote(rr_conn)
+g = traversal().with_remote(rr_conn)
 results = []
 
 user1 = g.add_v("User").property("userId", "U1").property("name", "Alice").property("age", 30).next()

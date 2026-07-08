@@ -30,7 +30,7 @@ def populated_graph():
 
     load_balancer = RoundRobinClientRemoteConnection(ENDPOINTS, traversal_source="g", health_check_interval=2,
                                                      log_level=logging.DEBUG)
-    g = traversal().withRemote(load_balancer)
+    g = traversal().with_remote(load_balancer)
     g.V().drop().iterate()
 
     user1 = g.add_v("User").property("userId", "U1").property("name", "Alice").property("age", 30).next()

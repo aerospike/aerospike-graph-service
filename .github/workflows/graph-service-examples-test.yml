@@ -228,6 +228,7 @@ jobs:
           go-version: '1.22.x'
           check-latest: true
           cache: true
+          cache-dependency-path: graph-service-examples/golang/load-balancer/go.sum
 
       - name: docker compose up
         working-directory: ${{ matrix.target == 'python' && 'graph-service-examples/python/load_balancer' || matrix.target == 'nodejs' && 'graph-service-examples/nodejs/load-balancer' || 'graph-service-examples/golang/load-balancer' }}

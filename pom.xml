@@ -112,7 +112,7 @@
         <jetbrains-annotations.version>17.0.0</jetbrains-annotations.version>
         <nimbus-jose-jwt.version>9.37.4</nimbus-jose-jwt.version>
         <guice.version>4.2.3</guice.version>
-        <docker-java.version>3.3.6</docker-java.version>
+        <docker-java.version>3.7.1</docker-java.version>
         <opentelemetry.version>1.63.0</opentelemetry.version>
         <opentelemetry-semconv.version>1.41.1</opentelemetry-semconv.version>
         <gcs-connector.version>hadoop3-2.2.33</gcs-connector.version>

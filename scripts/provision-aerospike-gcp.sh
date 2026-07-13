@@ -18,7 +18,7 @@ instances=3 # Set number of Aerospike instances in cluster. Default to 3
 as_conf=./aerospike.conf
 features_file=./features.conf
 name=${USER} #set name of cluster to username + optional extra name identifier
-instance_type="n2d-standard-4" # Set instance type for Aerospike nodes in cluster. Default to n2d-standard-4
+instance_type="c3-standard-4-lssd" # Set instance type for Aerospike nodes in cluster. Default to c3-standard-4-lssd
 ssd_count=1 # Amount of local ssd to attach to the instances. Each is 375 GiB
 storage_type=mmd # Storage architecture of primary/secondary indexes and data. Default to mmd
 
@@ -97,9 +97,18 @@ storage_type=${storage_type}
 
 echo creating ${name} cluster with ${instances} Aerospikes
 
-# Create Aerospike Cluster but don't start it yet
-aerolab cluster create -c ${instances} --instance ${instance_type} -v 6.4.0.7 -f $features_file --customconf=$as_conf \
---zone=us-central1-a --disk=pd-ssd:20 --disk=local-ssd@${ssd_count} --name=${name} --start=n;
+# Create Aerospike Cluster but don't start it yet.
+# "-lssd" instance types (C3/C3D) come with a fixed number of local SSDs
+# pre-attached, so the local-ssd disk must not be requested separately as is
+# required for machine types (e.g. N2D) that support independently attached
+# Local SSDs.
+if [[ "$instance_type" == *-lssd ]] ; then
+  aerolab cluster create -c ${instances} --instance ${instance_type} -v 6.4.0.7 -f $features_file --customconf=$as_conf \
+  --zone=us-central1-a --disk=pd-ssd:20 --gcp-expire 0 --name=${name} --start=n;
+else
+  aerolab cluster create -c ${instances} --instance ${instance_type} -v 6.4.0.7 -f $features_file --customconf=$as_conf \
+  --zone=us-central1-a --disk=pd-ssd:20 --disk=local-ssd@${ssd_count} --gcp-expire 0 --name=${name} --start=n;
+fi
 
 
 

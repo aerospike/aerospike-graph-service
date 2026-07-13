@@ -19,7 +19,7 @@ name: Graph Service Examples Tests
 # unrelated PRs skip this workflow entirely (no runner time consumed).
 on:
   pull_request:
-    branches: [main, 3.x-dev]
+    branches: [3.x-dev]
     paths:
       - 'graph-service-examples/**'
       - '.github/workflows/graph-service-examples-test.yml'

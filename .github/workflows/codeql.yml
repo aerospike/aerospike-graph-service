@@ -24,7 +24,7 @@ name: CodeQL (Java)
 on:
   pull_request:
     branches:
-      - main
+      - 3.x-dev
       - opensource-ready
     paths:
       - '**/*.java'
@@ -32,7 +32,7 @@ on:
       - '.github/workflows/codeql.yml'
   push:
     branches:
-      - main
+      - 3.x-dev
       - opensource-ready
     paths:
       - '**/*.java'

@@ -36,7 +36,7 @@ on:
       - '.github/workflows/license-check.yml'
   push:
     branches:
-      - main
+      - 3.x-dev
       - opensource-ready
     paths:
       - '**/*.java'

@@ -95,10 +95,11 @@ jobs:
           echo "SHA_PATH=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)-pe" >> $GITHUB_ENV
       - name: Read Workflow Configuration from Properties File
         id: read_property
-        uses: christian-draeger/read-properties@908f99d3334be3802ec7cb528395a69d19914e7b # 1.1.1
-        with:
-          path: benchmark.properties
-          properties: 'data-size server-instances instance-type benchmark ssd-count storage-type'
+        run: |
+          while IFS='=' read -r key value; do
+            [ -z "$key" ] && continue
+            echo "$key=$value" >> "$GITHUB_OUTPUT"
+          done < benchmark.properties
       - name: Authorize gcloud CLI
         uses: step-security/google-github-auth@775fc4c80760272ef389c9f9f8d98de7db0c170d # v3.0.2
         with:
@@ -212,10 +213,11 @@ jobs:
           echo "SHA_PATH=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)" >> $GITHUB_ENV
       - name: Read Workflow Configuration from Properties File
         id: read_property
-        uses: christian-draeger/read-properties@908f99d3334be3802ec7cb528395a69d19914e7b # 1.1.1
-        with:
-          path: benchmark.properties
-          properties: 'data-size server-instances instance-type benchmark ssd-count storage-type'
+        run: |
+          while IFS='=' read -r key value; do
+            [ -z "$key" ] && continue
+            echo "$key=$value" >> "$GITHUB_OUTPUT"
+          done < benchmark.properties
       - name: Authorize gcloud CLI
         uses: step-security/google-github-auth@775fc4c80760272ef389c9f9f8d98de7db0c170d # v3.0.2
         with:

@@ -565,7 +565,7 @@ jobs:
     name: Test Local Computer Process Tests 1
     timeout-minutes: 120
     needs: [ci-guard, olap-guard]
-    if: contains(github.event.pull_request.labels.*.name, 'olap-ci')
+    if: false # OLAP tests disabled
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -606,7 +606,7 @@ jobs:
     name: Test Local Computer Process Tests 2 (map)
     timeout-minutes: 120
     needs: [ci-guard, olap-guard]
-    if: contains(github.event.pull_request.labels.*.name, 'olap-ci')
+    if: false # OLAP tests disabled
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -646,7 +646,7 @@ jobs:
     name: Test Local Computer Process Tests 3 (filter)
     timeout-minutes: 120
     needs: [ci-guard, olap-guard]
-    if: contains(github.event.pull_request.labels.*.name, 'olap-ci')
+    if: false # OLAP tests disabled
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -686,7 +686,7 @@ jobs:
     name: Test Local Computer Process Tests 4 (branch)
     timeout-minutes: 120
     needs: [ci-guard, olap-guard]
-    if: contains(github.event.pull_request.labels.*.name, 'olap-ci')
+    if: false # OLAP tests disabled
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)

@@ -15,9 +15,9 @@
 name: DCO
 
 # Enforce the Developer Certificate of Origin on every commit in every
-# pull request. Contributors must sign off each commit with either
-# `git commit -s` or an explicit `Signed-off-by: Name <email>` trailer
-# matching the commit author.
+# pull request targeting 3.x-dev or main. Contributors must sign off each
+# commit with either `git commit -s` or an explicit
+# `Signed-off-by: Name <email>` trailer matching the commit author.
 #
 # Dependabot PRs are exempt: bot-authored dependency updates do not
 # require a human DCO sign-off.
@@ -28,6 +28,7 @@ name: DCO
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
+    branches: [3.x-dev, main]
   # Allow re-running from the Actions tab if a contributor amends their
   # history after the PR was first opened.
   workflow_dispatch:

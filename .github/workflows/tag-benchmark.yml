@@ -44,10 +44,11 @@ jobs:
           sudo python3 scripts/parse_benchmark_tag.py ${{ github.ref_name }}
       - name: Read Workflow Configuration from Properties File
         id: read_property
-        uses: christian-draeger/read-properties@908f99d3334be3802ec7cb528395a69d19914e7b # 1.1.1
-        with:
-          path: benchmark.properties
-          properties: 'data-size server-instances instance-type benchmark ssd-count storage-type tag-hash'
+        run: |
+          while IFS='=' read -r key value; do
+            [ -z "$key" ] && continue
+            echo "$key=$value" >> "$GITHUB_OUTPUT"
+          done < benchmark.properties
       - name: Clamp Runtime Variables to Environment
         run: |
           echo "SHA_PATH=${{ steps.read_property.outputs.tag-hash }}" >> $GITHUB_ENV

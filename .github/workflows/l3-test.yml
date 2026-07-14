@@ -15,10 +15,8 @@
 name: Test L3 Bulk Loader
 
 on:
-  push:
-    branches: [main]
   pull_request:
-    branches: [main,3.x-snyk]
+    branches: [3.x-snyk]
 
 jobs:
   ci-guard:
@@ -65,6 +63,9 @@ jobs:
     timeout-minutes: 150
     runs-on: ubuntu-latest
     needs: ci-guard
+    permissions:
+      contents: read
+      id-token: write
     env:
       GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
     steps:
@@ -103,7 +104,8 @@ jobs:
       - name: Authorize gcloud CLI
         uses: step-security/google-github-auth@775fc4c80760272ef389c9f9f8d98de7db0c170d # v3.0.2
         with:
-          credentials_json: ${{ secrets.GCS_KEYFILE_B64 }}
+          workload_identity_provider: projects/1026366180403/locations/global/workloadIdentityPools/github-actions/providers/github-ags
+          service_account: ${{ secrets.GCS_CLIENT_EMAIL }}
       - name: Set Up gcloud CLI
         uses: google-github-actions/setup-gcloud@e30db14379863a8c79331b04a9969f4c1e225e0b # v1.1.1
       - name: Set up JDK 17
@@ -135,8 +137,8 @@ jobs:
           cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }} ${{ steps.read_property.outputs.benchmark }}
       - name: Deploy Firefly Client Machine to GCP
         run: |
-          aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${{ env.SHA_PATH }}-firefly
-          cd ${{ github.workspace }}/.. && tar -zcvf firefly.tgz ./firefly
+          aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance c3d-standard-8 --gcp-expire 0 -n ${{ env.SHA_PATH }}-firefly
+          cd ${{ github.workspace }}/.. && tar -zcvf firefly.tgz ./aerospike-graph-service
           cd ${{ github.workspace }}/.. && gcloud compute scp --zone=us-central1-a ./firefly.tgz aerolab4-${{ env.SHA_PATH }}-firefly-1:firefly.tgz
           cd ${{ github.workspace }}/scripts && gcloud compute scp --zone=us-central1-a ./run-phantom-edge-test-gcp.sh aerolab4-${{ env.SHA_PATH }}-firefly-1:run-phantom-edge-test-gcp.sh
       - name: Build Bulk Loader JAR
@@ -178,6 +180,9 @@ jobs:
     timeout-minutes: 150
     runs-on: ubuntu-latest
     needs: ci-guard
+    permissions:
+      contents: read
+      id-token: write
     env:
       GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
     steps:
@@ -221,7 +226,8 @@ jobs:
       - name: Authorize gcloud CLI
         uses: step-security/google-github-auth@775fc4c80760272ef389c9f9f8d98de7db0c170d # v3.0.2
         with:
-          credentials_json: ${{ secrets.GCS_KEYFILE_B64 }}
+          workload_identity_provider: projects/1026366180403/locations/global/workloadIdentityPools/github-actions/providers/github-ags
+          service_account: ${{ secrets.GCS_CLIENT_EMAIL }}
       - name: Set Up gcloud CLI
         uses: google-github-actions/setup-gcloud@e30db14379863a8c79331b04a9969f4c1e225e0b # v1.1.1
       - name: Set up JDK 17
@@ -255,10 +261,10 @@ jobs:
           cd ${{ github.workspace }} && gcloud storage cp ${{ github.workspace }}/benchmark.properties gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/ci.properties
       - name: Deploy Firefly Client Machine to GCP
         run: |
-          aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${{ env.SHA_PATH }}-firefly
+          aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance c3d-standard-8 --gcp-expire 0 -n ${{ env.SHA_PATH }}-firefly
           cd ${{ github.workspace }} && echo ${{ steps.read_property.outputs.data-size }} >> data_size.txt
           cd ${{ github.workspace }} && echo ${{ steps.read_property.outputs.storage-type }} >> storage_type.txt
-          cd ${{ github.workspace }}/.. && tar -zcvf firefly.tgz ./firefly
+          cd ${{ github.workspace }}/.. && tar -zcvf firefly.tgz ./aerospike-graph-service
           cd ${{ github.workspace }}/.. && gcloud compute scp --zone=us-central1-a ./firefly.tgz aerolab4-${{ env.SHA_PATH }}-firefly-1:firefly.tgz
           cd ${{ github.workspace }}/scripts && gcloud compute scp --zone=us-central1-a ./run-benchmark-gcp.sh aerolab4-${{ env.SHA_PATH }}-firefly-1:run-benchmark-gcp.sh
       - name: Build Bulk Loader JAR
@@ -297,7 +303,7 @@ jobs:
           gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo bash run-benchmark-gcp.sh"
       - name: Upload Benchmark Results
         run: |
-          gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo cat ./firefly/aerospike-graph-gremlin/target/benchmark.json" > ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json
+          gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo cat ./aerospike-graph-service/aerospike-graph-gremlin/target/benchmark.json" > ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json
           gcloud storage cp ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/benchmark.json
       - name: Delete Firefly Compute Instances (Cleanup)
         if: always()

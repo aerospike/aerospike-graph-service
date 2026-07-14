@@ -16,7 +16,7 @@ name: Build and Test Firefly
 
 on:
   push:
-    branches: [main,3.x-dev]
+    branches: [3.x-dev]
 
 jobs:
   build-firefly-maven:

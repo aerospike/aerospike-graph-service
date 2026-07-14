@@ -36,7 +36,7 @@ on:
       - '.github/workflows/license-check.yml'
   push:
     branches:
-      - main
+      - 3.x-dev
       - opensource-ready
     paths:
       - '**/*.java'
@@ -69,14 +69,18 @@ jobs:
       # Every authored source/config file must carry the canonical
       # Apache-2.0 header (added in bulk when the repo was open-sourced).
       # Covered types:
-      #   - Java under any module's src/
+      #   - Java under any module's src/ (including the graph-service-examples
+      #     Java example, which is not a root-POM reactor module)
       #   - Python / Shell / Dockerfile anywhere
       #   - Module pom.xml files
       #   - .github/workflows/*.yml (authored workflows)
       #   - conf/**/*.yaml + helm/**/*.yaml (authored runtime configs)
       #   - **/*.properties authored by us (the third-party license catalog
       #     .mvn/third-party-licenses.properties is explicitly excluded)
-      # Generated sources under target/ are excluded.
+      # Generated sources under target/ are excluded. graph-service-examples/
+      # was migrated into this repository and is held to the same per-file
+      # header convention as the rest of the repo (its own LICENSE file was
+      # removed in favor of the root LICENSE).
       - name: Check Apache-2.0 header presence
         run: |
           set -eo pipefail
@@ -86,6 +90,7 @@ jobs:
           # third-party / generated content.
           {
             find aerospike-graph-api aerospike-graph-gremlin aerospike-graph-olap aerospike-graph-bulk-loader \
+              graph-service-examples/java/basic \
               -path '*/target/*' -prune -o -path '*/src/*' -name '*.java' -print
             find . -path '*/target/*' -prune -o -path './.git' -prune -o \
               \( -name '*.py' -o -name '*.sh' -o -name 'Dockerfile' -o -name 'Dockerfile-*' \) -print

@@ -26,6 +26,11 @@ import org.junit.Test;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
 public class TestTLSIntegration {
+    static {
+        // Netty 4.2 enables TLS hostname verification by default; 4.1 did not.
+        System.setProperty("io.netty.handler.ssl.defaultEndpointVerificationAlgorithm", "NONE");
+    }
+
     private static final String HOST = BenchmarkTestUtils.getHost();
     private static final int PORT = 8182;
     private static final Cluster.Builder BUILDER = Cluster.build()

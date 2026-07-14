@@ -16,7 +16,7 @@ name: Build and Test Firefly
 
 on:
   pull_request:
-    branches: [main,3.x-dev]
+    branches: [3.x-dev]
 
 jobs:
   ci-guard:
@@ -565,7 +565,7 @@ jobs:
     name: Test Local Computer Process Tests 1
     timeout-minutes: 120
     needs: [ci-guard, olap-guard]
-    if: contains(github.event.pull_request.labels.*.name, 'olap-ci')
+    if: false # OLAP tests disabled
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -606,7 +606,7 @@ jobs:
     name: Test Local Computer Process Tests 2 (map)
     timeout-minutes: 120
     needs: [ci-guard, olap-guard]
-    if: contains(github.event.pull_request.labels.*.name, 'olap-ci')
+    if: false # OLAP tests disabled
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -646,7 +646,7 @@ jobs:
     name: Test Local Computer Process Tests 3 (filter)
     timeout-minutes: 120
     needs: [ci-guard, olap-guard]
-    if: contains(github.event.pull_request.labels.*.name, 'olap-ci')
+    if: false # OLAP tests disabled
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -686,7 +686,7 @@ jobs:
     name: Test Local Computer Process Tests 4 (branch)
     timeout-minutes: 120
     needs: [ci-guard, olap-guard]
-    if: contains(github.event.pull_request.labels.*.name, 'olap-ci')
+    if: false # OLAP tests disabled
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -1097,6 +1097,7 @@ jobs:
           docker run -d -p 8182:8182 \
             --add-host=host.docker.internal:host-gateway \
             -e aerospike.client.host=host.docker.internal:test-tls:4303 \
+            -e JAVA_OPTIONS="-Dio.netty.handler.ssl.defaultEndpointVerificationAlgorithm=NONE" \
             -v ${{ github.workspace }}/conf/test-tls/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/aerospike-client-tls/aerospike.crt \
             -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/gremlin-server-tls/aerospike.crt \

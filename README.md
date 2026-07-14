@@ -59,17 +59,16 @@ streams results back to the driver.
 
 ### Quickstart with Docker Compose
 
-If you do not already have an Aerospike cluster, the companion repository
-[`aerospike/aerospike-graph`](https://github.com/aerospike/aerospike-graph) ships a
-`docker-compose.yml` that starts AGS, Aerospike Database, and Zipkin in one command:
+If you do not already have an Aerospike cluster, [`graph-service-examples/`](graph-service-examples)
+ships a `docker-compose.yaml` that starts AGS, Aerospike Database, and Zipkin in one command:
 
 ```bash
-git clone https://github.com/aerospike/aerospike-graph.git
-cd aerospike-graph
+cd graph-service-examples
 docker compose up -d
 ```
 
-The repository also includes the Air Routes sample dataset and a bulk-load guide. The
+[`graph-service-examples/`](graph-service-examples) also includes runnable example
+applications, notebooks, and sample datasets, plus a bulk-load guide. The
 official step-by-step walkthrough is at
 [aerospike.com/docs/graph/quick-start](https://aerospike.com/docs/graph/quick-start).
 
@@ -274,8 +273,7 @@ Any other TinkerPop-compatible driver works the same way. A more complete walk-t
 including loading sample datasets, is in [`docs/SETUP.md`](docs/SETUP.md).
 
 For more runnable end-to-end examples, notebooks, sample datasets, bulk-load
-recipes, and application patterns see the companion repository
-[`aerospike/aerospike-graph`](https://github.com/aerospike/aerospike-graph).
+recipes, and application patterns see [`graph-service-examples/`](graph-service-examples).
 
 
 ## Configuration
@@ -320,7 +318,7 @@ Core docs, organized roughly by audience:
 - [`docs/CONFIG_OPTIONS.md`](docs/CONFIG_OPTIONS.md): complete configuration reference for this repository
 - [`docs/INDEX_USAGE.md`](docs/INDEX_USAGE.md): when and how to use indexes
 - [`docs/METRICS.md`](docs/METRICS.md): operational metrics and what to alert on
-- [`aerospike/aerospike-graph`](https://github.com/aerospike/aerospike-graph): runnable example applications, notebooks, and sample datasets
+- [`graph-service-examples/`](graph-service-examples): runnable example applications, notebooks, and sample datasets
 
 ### Design docs
 

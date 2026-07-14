@@ -19,18 +19,22 @@ benchmarks = {'synthetic'}
 
 storage_types = {'mmd', 'dmd', 'ddd'}
 
+# C3/C3D "-lssd" variants bundle a fixed number of pre-attached local SSDs into the
+# machine type itself (see size_to_ssd_count below for the count each tier gets).
 default_instance_type = {
-    '1g': 'n2d-standard-4',
-    '2g': 'n2d-standard-4',
-    '4g': 'n2d-standard-4',
-    '8g': 'n2d-highmem-4',
-    '16g': 'n2d-highmem-8',
-    '32g': 'n2d-highmem-16',
-    '64g': 'n2d-highmem-32',
-    '128g': 'n2d-highmem-48'
+    '1g': 'c3-standard-4-lssd',
+    '2g': 'c3-standard-4-lssd',
+    '4g': 'c3-standard-4-lssd',
+    '8g': 'c3d-highmem-8-lssd',
+    '16g': 'c3d-highmem-30-lssd',
+    '32g': 'c3d-highmem-60-lssd',
+    '64g': 'c3d-highmem-90-lssd',
+    '128g': 'c3d-highmem-180-lssd'
 }
 
 # Expansion factor of 10 and 50% overhead. Each disk is fixed at 400 GB.
+# Must match the fixed local SSD count baked into the corresponding "-lssd"
+# instance type in default_instance_type above.
 size_to_ssd_count = {
     '1g': '1',
     '2g': '1',

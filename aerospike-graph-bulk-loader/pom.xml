@@ -309,7 +309,16 @@
                                     </excludes>
                                 </filter>
                             </filters>
-                            <relocations></relocations>
+                            <relocations>
+                                <!-- Isolate our bundled Netty from the Spark/Hadoop runtime's Netty on
+                                     Dataproc. Without this, the cluster's Netty 4.1.x collides with the
+                                     Netty 4.2.x that the Aerospike client requires, breaking event-loop
+                                     type detection ("Unexpected EventLoopGroup"). -->
+                                <relocation>
+                                    <pattern>io.netty</pattern>
+                                    <shadedPattern>aerospike.bulkloader.shaded.netty</shadedPattern>
+                                </relocation>
+                            </relocations>
                             <transformers>
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">

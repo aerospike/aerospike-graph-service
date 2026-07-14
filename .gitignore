@@ -5,8 +5,35 @@ aerospike-graph-gremlin/file:*
 # Python
 __pycache__/
 *.pyc
+.env
+.venv
+env/
+venv/
+ENV/
+.Python
+build/
+.pytest_cache/
+*.manifest
+.pybuilder/
+*.egg-info/
 #features file for ci
 .github/aerospike/features.conf
+# Aerospike license/feature key (secret), wherever it appears
+features.conf
+
+# Node.js
+node_modules/
+
+# Terraform (graph-service-examples/terraform)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars.json
+
+# Generated data files from graph-service-examples synthetic data generators
+# (scoped to their default/documented output directories only, since other
+# graph-service-examples subtrees intentionally commit sample-data CSVs)
+graph-service-examples/misc/synthetic-data-generators/**/output/
 
 #project build artifacts
 **/target/

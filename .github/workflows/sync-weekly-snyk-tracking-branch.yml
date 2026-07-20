@@ -1,0 +1,52 @@
+# Copyright 2022-2026 Aerospike, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Sync Weekly Snyk Tracking Branch
+
+# Keeps weekly-snyk-tracking up to date with 3.x-dev so an open weekly Snyk PR
+# picks up new fixes automatically.
+on:
+  push:
+    branches: [3.x-dev]
+
+jobs:
+  sync-weekly-snyk-tracking-branch:
+    name: Fast-forward weekly-snyk-tracking to 3.x-dev
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
+
+      # Uses the PAT, not the default GITHUB_TOKEN, so this push triggers the
+      # pull_request synchronize event and re-runs snyk.yml.
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.WEEKLY_SNYK_PR_TOKEN }}
+
+      - name: Fast-forward weekly-snyk-tracking branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.WEEKLY_SNYK_PR_TOKEN }}
+        run: |
+          if git ls-remote --exit-code --heads origin weekly-snyk-tracking >/dev/null 2>&1; then
+            echo "Updating weekly-snyk-tracking to match 3.x-dev so any open Snyk PR based on it retriggers."
+            git push --force origin HEAD:weekly-snyk-tracking
+          else
+            echo "No weekly-snyk-tracking branch present; nothing to sync."
+          fi

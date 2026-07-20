@@ -38,19 +38,6 @@ jobs:
           token: ${{ secrets.WEEKLY_SNYK_PR_TOKEN }}
       - name: Set date
         run: echo "WEEKLY=$(date '+%Y-%m-%d')" >> $GITHUB_ENV
-      - name: Close stale weekly Snyk branches
-        if: always()
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.WEEKLY_SNYK_PR_TOKEN }}
-        run: |
-          # Defensive cleanup for runs whose Snyk check failed or never closed itself.
-          # Deleting a head branch automatically closes its open PR.
-          git fetch --prune origin
-          for ref in $(git branch -r --list 'origin/weekly-snyk-*' | sed 's#^[[:space:]]*origin/##'); do
-            echo "Removing stale weekly Snyk branch: $ref"
-            git push origin --delete "$ref" || true
-          done
       - name: Create Snyk pull requests
         if: always()
         shell: bash
@@ -64,15 +51,20 @@ jobs:
             exit 0
           fi
           if echo "$out" | grep -qi 'No commits between'; then
-            echo 'No divergent commits between 3.x-snyk and 3.x-dev; creating an empty commit so the Snyk check still runs.'
-            branch="weekly-snyk-${{ env.WEEKLY }}"
+            echo 'No divergent commits between 3.x-snyk and 3.x-dev; using the weekly-snyk-tracking branch so the Snyk check still runs.'
+            branch="weekly-snyk-tracking"
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git fetch origin 3.x-dev
             git checkout -B "$branch" origin/3.x-dev
             git commit --allow-empty -m "Weekly ${{ env.WEEKLY }}: Snyk vulnerability check"
             git push --force origin "$branch"
-            gh pr create -B 3.x-snyk -H "$branch" --title "Weekly ${{ env.WEEKLY }}: Snyk vulnerability check 3.x-dev" --body 'Created by Github action'
+            out2=$(gh pr create -B 3.x-snyk -H "$branch" --title "Weekly ${{ env.WEEKLY }}: Snyk vulnerability check 3.x-dev" --body 'Created by Github action' 2>&1)
+            code2=$?
+            echo "$out2"
+            if [ "$code2" -ne 0 ] && ! echo "$out2" | grep -qi 'already exists'; then
+              exit "$code2"
+            fi
             exit 0
           fi
           exit "$code"

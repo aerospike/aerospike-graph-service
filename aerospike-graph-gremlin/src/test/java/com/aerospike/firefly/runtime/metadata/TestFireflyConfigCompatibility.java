@@ -40,6 +40,8 @@ public class TestFireflyConfigCompatibility {
 
     @Before
     public void beforeEach() {
+        // These tests rely on a real System.exit being raised, which another test class may have stubbed out.
+        FireflyGraph.EXIT_MANAGER = new FireflyGraph.ExitManager();
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.getBaseGraph().dropDatabase(graph, false);

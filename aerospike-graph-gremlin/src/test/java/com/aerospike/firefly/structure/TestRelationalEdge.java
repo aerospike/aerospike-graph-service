@@ -26,12 +26,11 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Set;
-
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
 public class TestRelationalEdge {
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+    private static final long SET_LIST_TIMEOUT_MS = 30_000;
 
     private FireflyGraph graph;
     private Vertex from;
@@ -67,15 +66,41 @@ public class TestRelationalEdge {
             Assert.assertEquals(totalEdgeCount - (i + 1), IteratorUtils.count(g.E()));
         }
         Assert.assertEquals(0, IteratorUtils.count(g.E()));
+        awaitEdgeSetPopulated(false);
 
         // Check that removing the last edge from a phat edge record deletes the record and we can write to it after too
         g.addE("edge").from(this.from).to(this.to).iterate();
-        Set<String> nonEmptySets = AerospikeConnection.InfoOps.getNonEmptySetList(graph.getBaseGraph());
-        Assert.assertTrue(nonEmptySets.contains(graph.getBaseGraph().getConfig().edgeAeroSet));
+        awaitEdgeSetPopulated(true);
         g.E().hasLabel("edge").drop().iterate();
-        nonEmptySets = AerospikeConnection.InfoOps.getNonEmptySetList(graph.getBaseGraph());
-        Assert.assertFalse(nonEmptySets.contains(graph.getBaseGraph().getConfig().edgeAeroSet));
+        awaitEdgeSetPopulated(false);
         g.addE("edge").from(this.from).to(this.to).iterate();
         Assert.assertTrue(g.E().hasLabel("edge").hasNext());
+    }
+
+    /**
+     * Wait for the Edge set to appear in, or disappear from, the non-empty set list.
+     * <p>
+     * That list is derived from the server's per-set object counter, which the server updates lazily. In particular
+     * the truncate issued by {@code dropDatabase} reclaims records in the background, so a single sample taken right
+     * after a write or a drop can still reflect the previous state.
+     */
+    private void awaitEdgeSetPopulated(final boolean expectPopulated) {
+        final String edgeSet = graph.getBaseGraph().getConfig().edgeAeroSet;
+        final long deadline = System.currentTimeMillis() + SET_LIST_TIMEOUT_MS;
+        boolean populated;
+        do {
+            populated = AerospikeConnection.InfoOps.getNonEmptySetList(graph.getBaseGraph()).contains(edgeSet);
+            if (populated == expectPopulated) {
+                return;
+            }
+            try {
+                Thread.sleep(250);
+            } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        } while (System.currentTimeMillis() < deadline);
+        Assert.assertEquals("Edge set " + edgeSet + " presence in the non-empty set list",
+                expectPopulated, populated);
     }
 }

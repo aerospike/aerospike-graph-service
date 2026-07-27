@@ -79,6 +79,12 @@ public abstract class AbstractFireflySuite {
     }
 
     @After
+    public void restoreExitManager() {
+        // Tests share a JVM, so a stubbed out exit hook must not outlive the test that installed it.
+        FireflyGraph.EXIT_MANAGER = new FireflyGraph.ExitManager();
+    }
+
+    @After
     public void printTestTime() {
         if (isTestStarted) {
             LOG.warn("===> " + testName.getMethodName() + " - " + Duration.between(start, Instant.now()).toMillis() + " ms <===");

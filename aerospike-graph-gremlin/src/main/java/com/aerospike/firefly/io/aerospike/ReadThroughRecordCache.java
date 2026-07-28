@@ -276,6 +276,9 @@ public class ReadThroughRecordCache extends FireflyCache {
      */
     @Override
     public long getWeightedSize() {
+        // Caffeine only accumulates the weight while draining its write buffer, which it hands to an executor
+        // after a write. Run that pending maintenance first, otherwise the weight trails the cache contents.
+        cache.cleanUp();
         return cache.policy().eviction()
                 .map(eviction -> eviction.weightedSize().orElse(0L))
                 .orElse(0L);

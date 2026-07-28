@@ -88,7 +88,7 @@ jobs:
           mvn clean install -DskipTests
           mvn snyk:test@snyk-test
       - name: Close auto-generated weekly Snyk PR
-        if: success() && startsWith(github.head_ref, 'weekly-snyk-')
+        if: success() && github.head_ref == 'weekly-snyk-tracking'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

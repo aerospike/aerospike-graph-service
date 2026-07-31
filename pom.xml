@@ -105,7 +105,7 @@
         <commons-compress.version>1.28.0</commons-compress.version>
         <ivy.version>2.5.3</ivy.version>
         <zookeeper.version>3.9.5</zookeeper.version>
-        <jettison.version>1.5.6</jettison.version>
+        <jettison.version>1.5.7</jettison.version>
         <lz4-java.version>1.11.1</lz4-java.version>
         <protobuf.version>3.25.9</protobuf.version>
         <grpc.version>1.76.3</grpc.version>

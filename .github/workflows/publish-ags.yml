@@ -1,0 +1,131 @@
+# Copyright 2022-2026 Aerospike, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Publish Aerospike Graph Service artifacts to JFrog via the shared-workflows pipeline.
+#
+# Trigger: a release tag (vX.Y.Z[-rcN]). The tagged commit was already tested at PR time, so
+# this workflow builds, signs, deploys, and bundles the release artifacts. It does not re-run
+# the EC2 test fleet (see the commented-out `test` gate below).
+#
+# Produces, all under the `connect` JFrog project:
+#   - the multi-arch container (full + slim) -> connect-docker-dev-local
+#   - the bulk-loader uber JAR                -> connect-maven-dev-local
+#   - the graphservice Helm chart             -> connect-helm-dev-local
+# then assembles a release bundle (aerospike-graph-service) for DEV -> PROD promotion. On PROD
+# promotion the existing artifact-publisher automation mirrors the image to Docker Hub.
+#
+# shared-workflows is pinned to v3.7.0; gh-workflows-ref must match every @ref.
+name: publish-ags
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  id-token: write       # OIDC to JFrog
+  contents: read
+  packages: write       # container push
+  attestations: write   # SBOM + SLSA provenance
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0   # required, or extract-version falls back to 0.0.0-dev+<sha>
+      - id: v
+        uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@v3.7.0
+      - name: Fail fast on an undetermined version
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          case "$VERSION" in
+            "" | 0.0.0-dev*)
+              echo "::error::version did not resolve from the tag (got '$VERSION'); need fetch-depth: 0 and a vX.Y.Z tag"
+              exit 1
+              ;;
+          esac
+          echo "Resolved version: $VERSION"
+
+  # --- OPTIONAL test gate (disabled: the EC2 self-hosted fleet is currently red) ----------------
+  # Once the fleet is green (Phase 2), uncomment this job and add `test` to the `needs:` of the
+  # `container` and `artifacts` jobs below. That makes the publish wait on the suite and publish
+  # only when it is green. Until then, tests gate at PR time and this tag build publishes from an
+  # already-tested commit.
+  #
+  # test:
+  #   needs: version
+  #   uses: ./.github/workflows/build-test-main.yml
+  #   secrets: inherit
+
+  container:
+    needs: version   # once the test gate is on: needs: [version, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: full
+            app_version: ${{ needs.version.outputs.version }}
+            versions_override: ""                                   # default tags: X, major, latest
+            build_name: aerospike-graph-service
+            dockerfile: docker/Dockerfile
+          - variant: slim
+            app_version: ${{ needs.version.outputs.version }}-slim
+            versions_override: "${{ needs.version.outputs.version }}-slim,slim,latest-slim"
+            build_name: aerospike-graph-service-slim               # distinct build-info name
+            dockerfile: docker/Dockerfile-slim
+    uses: aerospike/shared-workflows/.github/workflows/reusable_docker-build-deploy.yaml@v3.7.0
+    with:
+      jf-project: connect
+      image-name: aerospike-graph-service                          # one repo for both variants
+      app-version: ${{ matrix.app_version }}
+      versions-override: ${{ matrix.versions_override }}
+      file: ${{ matrix.dockerfile }}
+      jf-build-name: ${{ matrix.build_name }}
+    secrets: inherit
+
+  artifacts:
+    needs: version   # once the test gate is on: needs: [version, test]
+    uses: aerospike/shared-workflows/.github/workflows/reusable_artifacts-cicd.yaml@v3.7.0
+    with:
+      gh-workflows-ref: v3.7.0
+      jf-project: connect
+      jf-build-name: aerospike-graph-service-artifacts
+      version: ${{ needs.version.outputs.version }}
+      oidc-provider-name: gh-aerospike
+      oidc-audience: aerospike
+      gh-artifact-directory: dist
+      setup-java: true
+      java-version: "17"
+      setup-helm: true
+      jar-group-id: com.aerospike
+      # Emits ONLY the bulk-loader uber jar + the packaged graphservice chart into dist/.
+      build-script: ./scripts/build-ags-artifacts.sh ${{ needs.version.outputs.version }}
+    secrets: inherit
+
+  release-bundle:
+    needs: [version, container, artifacts]
+    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@v3.7.0
+    with:
+      gh-workflows-ref: v3.7.0
+      jf-project: connect
+      jf-bundle-name: aerospike-graph-service
+      version: ${{ needs.version.outputs.version }}
+      # Three build-info names, two numbering schemes: the docker workflow uses run_number,
+      # the artifacts pipeline uses run_id-run_attempt.
+      jf-build-names: "aerospike-graph-service:${{ github.run_number }},aerospike-graph-service-slim:${{ github.run_number }},aerospike-graph-service-artifacts:${{ github.run_id }}-${{ github.run_attempt }}"
+    secrets: inherit

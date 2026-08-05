@@ -14,23 +14,37 @@
 
 # Publish Aerospike Graph Service artifacts to JFrog via the shared-workflows pipeline.
 #
-# Trigger: a release tag (vX.Y.Z[-rcN]). The tagged commit was already tested at PR time, so
-# this workflow builds, signs, deploys, and bundles the release artifacts. It does not re-run
-# the EC2 test fleet (see the commented-out `test` gate below).
+# Two triggers, one pipeline:
+#
+#   push (vX.Y.Z[-rcN])  A real release. The tagged commit was already tested at PR time, so
+#                        this builds, signs, deploys, and bundles. It does not re-run the EC2
+#                        test fleet (see the commented-out `test` gate below).
+#
+#   workflow_dispatch    A manual smoke run, for proving the pipeline without spending a
+#                        release tag. Takes NO version input: a free-text version would let
+#                        any run overwrite a shipped release, and it silently becomes the
+#                        image tag, the chart version, and the bundle version. Instead the
+#                        version is derived as <pom version minus -SNAPSHOT>-dev.<run_number>,
+#                        which is unique per run and unmistakably not a release. It publishes
+#                        real artifacts (that is the point: OIDC is what needs proving) but
+#                        skips the release bundle, so no throwaway bundles accumulate and no
+#                        dev-local artifact gets locked by one.
 #
 # Produces, all under the `connect` JFrog project:
 #   - the multi-arch container (full + slim) -> connect-docker-dev-local
 #   - the bulk-loader uber JAR                -> connect-maven-dev-local
 #   - the graphservice Helm chart             -> connect-helm-dev-local
-# then assembles a release bundle (aerospike-graph-service) for DEV -> PROD promotion. On PROD
-# promotion the existing artifact-publisher automation mirrors the image to Docker Hub.
+# then, on a tag only, assembles a release bundle (aerospike-graph-service) for DEV -> PROD
+# promotion. On PROD promotion the existing artifact-publisher automation mirrors the image to
+# Docker Hub.
 #
-# shared-workflows is pinned to v3.7.0; gh-workflows-ref must match every @ref.
+# shared-workflows is pinned to v4.0.0; gh-workflows-ref must match every @ref.
 name: publish-ags
 
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
 
 permissions:
   id-token: write       # OIDC to JFrog
@@ -43,23 +57,50 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.v.outputs.version }}
+      is-release: ${{ steps.v.outputs.is-release }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0   # required, or extract-version falls back to 0.0.0-dev+<sha>
-      - id: v
-        uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@v3.7.0
-      - name: Fail fast on an undetermined version
+      - id: tag
+        if: github.event_name == 'push'
+        uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@v4.0.0
+      - name: Resolve the version
+        id: v
         env:
-          VERSION: ${{ steps.v.outputs.version }}
+          EVENT: ${{ github.event_name }}
+          TAG_VERSION: ${{ steps.tag.outputs.version }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
-          case "$VERSION" in
-            "" | 0.0.0-dev*)
-              echo "::error::version did not resolve from the tag (got '$VERSION'); need fetch-depth: 0 and a vX.Y.Z tag"
-              exit 1
-              ;;
-          esac
-          echo "Resolved version: $VERSION"
+          set -euo pipefail
+          if [ "$EVENT" = "push" ]; then
+            version="$TAG_VERSION"
+            case "$version" in
+              "" | 0.0.0-dev*)
+                echo "::error::version did not resolve from the tag (got '$version'); need fetch-depth: 0 and a vX.Y.Z tag"
+                exit 1
+                ;;
+            esac
+            is_release=true
+          else
+            # Manual run. Derive the version rather than accepting one, so a dispatch can
+            # never overwrite a shipped release. Separators must stay '-' and '.': '+' is
+            # valid in semver but invalid in an OCI tag.
+            base="$(grep -m1 -oP '(?<=<version>)[^<]+' pom.xml || true)"
+            base="${base%-SNAPSHOT}"
+            case "$base" in
+              [0-9]*.[0-9]*.[0-9]*) ;;
+              *)
+                echo "::error::could not derive a base version from pom.xml (got '$base')"
+                exit 1
+                ;;
+            esac
+            version="${base}-dev.${RUN_NUMBER}"
+            is_release=false
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "is-release=$is_release" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $version (release: $is_release)"
 
   # --- OPTIONAL test gate (disabled: the EC2 self-hosted fleet is currently red) ----------------
   # Once the fleet is green (Phase 2), uncomment this job and add `test` to the `needs:` of the
@@ -88,7 +129,7 @@ jobs:
             versions_override: "${{ needs.version.outputs.version }}-slim,slim,latest-slim"
             build_name: aerospike-graph-service-slim               # distinct build-info name
             dockerfile: docker/Dockerfile-slim
-    uses: aerospike/shared-workflows/.github/workflows/reusable_docker-build-deploy.yaml@v3.7.0
+    uses: aerospike/shared-workflows/.github/workflows/reusable_docker-build-deploy.yaml@v4.0.0
     with:
       jf-project: connect
       image-name: aerospike-graph-service                          # one repo for both variants
@@ -100,9 +141,9 @@ jobs:
 
   artifacts:
     needs: version   # once the test gate is on: needs: [version, test]
-    uses: aerospike/shared-workflows/.github/workflows/reusable_artifacts-cicd.yaml@v3.7.0
+    uses: aerospike/shared-workflows/.github/workflows/reusable_artifacts-cicd.yaml@v4.0.0
     with:
-      gh-workflows-ref: v3.7.0
+      gh-workflows-ref: v4.0.0
       jf-project: connect
       jf-build-name: aerospike-graph-service-artifacts
       version: ${{ needs.version.outputs.version }}
@@ -117,11 +158,15 @@ jobs:
       build-script: ./scripts/build-ags-artifacts.sh ${{ needs.version.outputs.version }}
     secrets: inherit
 
+  # Tag runs only. A manual dispatch publishes artifacts but deliberately creates no bundle:
+  # bundles are the promotion vehicle, and a promoted one locks its underlying dev-local
+  # artifacts, which would then block re-deploying the same paths.
   release-bundle:
     needs: [version, container, artifacts]
-    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@v3.7.0
+    if: needs.version.outputs.is-release == 'true'
+    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@v4.0.0
     with:
-      gh-workflows-ref: v3.7.0
+      gh-workflows-ref: v4.0.0
       jf-project: connect
       jf-bundle-name: aerospike-graph-service
       version: ${{ needs.version.outputs.version }}

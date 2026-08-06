@@ -260,7 +260,29 @@ public class GraphQuery {
     // Computer Methods.
     ////////////////////
 
-    public <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(final Expression expression,
+    /**
+     * Bundles a paged query's result queue together with the resources (PageFetcher(s) and/or their
+     * executor) that were created to produce it. Every {@code *PagesBlocking} producer used to return
+     * a bare queue and drop its PageFetcher/ExecutorService handle, so a consumer that abandoned the
+     * queue early (limit(), an exception, an ErrorPage) had no way to stop the worker(s) that weren't
+     * going to finish draining on their own. This gives callers like {@code PartitionIterator} a real
+     * handle to shut everything down from {@code close()}.
+     */
+    public static final class PageQueryHandle {
+        public final BlockingQueue<PageFetcher.Page> queue;
+        private final Runnable shutdown;
+
+        private PageQueryHandle(final BlockingQueue<PageFetcher.Page> queue, final Runnable shutdown) {
+            this.queue = queue;
+            this.shutdown = shutdown;
+        }
+
+        public void shutdown() {
+            shutdown.run();
+        }
+    }
+
+    public <E> PageQueryHandle batchReadVertexPagesBlocking(final Expression expression,
                                                                             final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
                                                                             final List<Object> idsToRead,
                                                                             final Long evaluationTimeout) {
@@ -285,11 +307,12 @@ public class GraphQuery {
 
         final PageFetcher<E> pageFetcher = new BatchReadPageFetcher<>(
                 graph, db.getConfig().paginationPageSize, expression, transformKeyRecord, keysToRead, evaluationTimeout);
-        return pageFetcher.startQueryDirect();
+        final BlockingQueue<PageFetcher.Page> queue = pageFetcher.startQueryDirect();
+        return new PageQueryHandle(queue, pageFetcher::shutdownAwait);
     }
 
     // Unused right now. Could be used later for quicker scan counting.
-    public BlockingQueue<PageFetcher.Page> scanVertexIdPages(final List<HasContainer> hasContainers,
+    public PageQueryHandle scanVertexIdPages(final List<HasContainer> hasContainers,
                                                              final Long evaluationTimeout) {
         final P<?> predicate;
         final String binName;
@@ -316,15 +339,16 @@ public class GraphQuery {
     }
 
     // GRAPH-1380 - Figure out dynamic paging.
-    public BlockingQueue<PageFetcher.Page> partitionVertices(final List<FireflyVertex> vertices) {
+    public PageQueryHandle partitionVertices(final List<FireflyVertex> vertices) {
         final BlockingQueue<PageFetcher.Page> pages = new LinkedBlockingQueue<>();
         Lists.partition(vertices, ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, graph.configuration()))
                 .forEach(list -> pages.add(new PageFetcher.VertexPage(CloseableIterator.of(list.iterator()))));
         pages.add(new PageFetcher.PoisonPill());
-        return pages;
+        // No background worker/executor is created here, so there's nothing to shut down.
+        return new PageQueryHandle(pages, () -> { });
     }
 
-    public BlockingQueue<PageFetcher.Page> partitionVertexIdPages(final List<HasContainer> hasContainers, final Long evaluationTimeout) {
+    public PageQueryHandle partitionVertexIdPages(final List<HasContainer> hasContainers, final Long evaluationTimeout) {
         P<?> predicate = null;
         String binName = null;
         String mapKey = null;
@@ -383,7 +407,7 @@ public class GraphQuery {
                 hasContainers, FireflyVertex.class, true, evaluationTimeout);
     }
 
-    public <E> BlockingQueue<PageFetcher.Page> scanSetPagesBlocking(final String mapKey, final String setName, final String binName, final P<?> predicate,
+    public <E> PageQueryHandle scanSetPagesBlocking(final String mapKey, final String setName, final String binName, final P<?> predicate,
                                                                     final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
                                                                     final Class<? extends FireflyElement> clazz, final boolean includeBinData,
                                                                     final Long evaluationTimeout) {
@@ -413,11 +437,12 @@ public class GraphQuery {
         }
 
         final PageFetcher pageFetcher = new ScanPageFetcher(graph, policy, setName, db.getConfig().paginationPageSize, mapKey, transform);
-        return pageFetcher.startQueryDirect();
+        final BlockingQueue<PageFetcher.Page> queue = pageFetcher.startQueryDirect();
+        return new PageQueryHandle(queue, pageFetcher::shutdownAwait);
     }
 
 
-    public <E> BlockingQueue<PageFetcher.Page> indexSetPagesBlocking(final String setName,
+    public <E> PageQueryHandle indexSetPagesBlocking(final String setName,
                                                                      final String indexName,
                                                                      final Filter filter,
                                                                      final QueryPolicy policy,
@@ -443,7 +468,10 @@ public class GraphQuery {
             // Intentionally not using return value here.
             pageFetcher.startQueryDirect();
         }
-        return pageQueue;
+        // The self-shutdown guard inside PartitionedSindexPageFetcher.readPages() never actually
+        // fires (allCompleted is never populated), so shutting down the shared executor here is the
+        // only real cleanup path when the consumer abandons the queue early.
+        return new PageQueryHandle(pageQueue, readLoopExecutorService::shutdownNow);
     }
 
     static class Range {

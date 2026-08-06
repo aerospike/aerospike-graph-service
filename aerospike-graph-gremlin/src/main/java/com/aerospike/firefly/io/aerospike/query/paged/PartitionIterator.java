@@ -16,6 +16,7 @@
 
 package com.aerospike.firefly.io.aerospike.query.paged;
 
+import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 
 public final class PartitionIterator implements CloseableIterator<Optional<CloseableIterator<FireflyVertex>>> {
     private static final Logger LOG = LoggerFactory.getLogger(PartitionIterator.class);
+    private final GraphQuery.PageQueryHandle queryHandle;
     private final BlockingQueue<PageFetcher.Page> pageQueue;
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
     private final FireflyGraph graph;
@@ -108,11 +110,12 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
         this.graph = builder.graph;
         if (builder.vertices == null) {
             // If the last step did not wire through vertices, we need to run a scan / sindex using filters.
-            this.pageQueue = graph.graphQuery.partitionVertexIdPages(builder.filters, graph.settings().evaluationTimeout);
+            this.queryHandle = graph.graphQuery.partitionVertexIdPages(builder.filters, graph.settings().evaluationTimeout);
         } else {
             // The last step wired through vertices, we can partition these and execute.
-            this.pageQueue = graph.graphQuery.partitionVertices(builder.vertices);
+            this.queryHandle = graph.graphQuery.partitionVertices(builder.vertices);
         }
+        this.pageQueue = queryHandle.queue;
     }
 
     public boolean hasNext() {
@@ -133,7 +136,11 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     }
 
     public void close() {
-        // do nothing
+        // Previously a no-op: the PageFetcher(s)/executor behind pageQueue were otherwise never
+        // reachable from here, so an early-abandoned traversal (limit(), an exception, an ErrorPage)
+        // left their worker thread(s) running forever.
+        shutdown.set(true);
+        queryHandle.shutdown();
     }
 
     private Optional<PageFetcher.Page> getPage(final BlockingQueue<PageFetcher.Page> pageQueue, final AtomicBoolean shutdown) {

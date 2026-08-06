@@ -28,15 +28,70 @@ RUN apk add --no-cache --update \
     bash \
     dos2unix
 
+# Guard, part 1 of 2: the JAR arguments themselves, checked before COPY consumes them.
+#
+# This half has to run first because COPY destroys the evidence. A glob matching two files
+# is silently collapsed into one regular file, last writer wins, and nothing downstream can
+# tell that two ever matched. An empty argument is expanded away entirely. Both conditions
+# are only visible here.
+RUN set -eu; \
+    for spec in "FIREFLY_GRAPH|${FIREFLY_GRAPH:-}" "BULKLOADER|${BULKLOADER:-}"; do \
+      name="${spec%%|*}"; value="${spec#*|}"; \
+      if [ -z "$value" ]; then \
+        echo "ERROR: build arg $name is empty or unset. COPY would ingest the whole build context into a directory instead of a JAR." >&2; \
+        exit 1; \
+      fi; \
+      case "$value" in \
+        *[*?[]*) \
+          echo "ERROR: build arg $name is a glob ($value). Pass exactly one explicit path; COPY collapses a multi-match into one file with no way to detect it afterwards." >&2; \
+          exit 1; \
+          ;; \
+      esac; \
+    done
+
 COPY ${FIREFLY_GRAPH} /opt/firefly-graph.jar
 COPY ${BULKLOADER} /opt/bulk-loader.jar
 #COPY ${OLAP} /opt/olap.jar
+
+# Guard, part 2 of 2: every JAR argument must have resolved to exactly one readable JAR.
+#
+# Unconditional by design. No ARG, build-arg or environment variable can disable it.
+# When FIREFLY_GRAPH or BULKLOADER is unset or empty, Docker expands the COPY above to
+# `COPY  /opt/firefly-graph.jar`, which copies the entire build context into a DIRECTORY
+# at that path and still exits 0. The image then cannot load its entrypoint class, while
+# docker build, push and every CI signal report success. That is how the 3.3.0-dev.4 and
+# 3.3.0-dev.5 images shipped with no application code in them.
+RUN set -eu; \
+    apk add --no-cache --virtual .jar-guard unzip; \
+    for spec in \
+      "/opt/firefly-graph.jar|com/aerospike/firefly/runtime/FireflyServer.class" \
+      "/opt/bulk-loader.jar|"; do \
+      path="${spec%%|*}"; entry="${spec#*|}"; \
+      if [ -d "$path" ]; then \
+        echo "ERROR: $path is a directory, not a JAR. Its build arg was empty or unset, so COPY ingested the build context." >&2; \
+        exit 1; \
+      fi; \
+      if [ ! -f "$path" ] || [ ! -s "$path" ]; then \
+        echo "ERROR: $path is missing, not a regular file, or empty." >&2; \
+        exit 1; \
+      fi; \
+      if ! unzip -t "$path" >/dev/null 2>&1; then \
+        echo "ERROR: $path is not a readable archive." >&2; \
+        exit 1; \
+      fi; \
+      if [ -n "$entry" ] && ! unzip -l "$path" | grep -qF "$entry"; then \
+        echo "ERROR: $path does not contain $entry." >&2; \
+        exit 1; \
+      fi; \
+      echo "jar-guard OK: $path"; \
+    done; \
+    apk del .jar-guard
+
 COPY conf/logback.xml ${CONF_DIR}/logback.xml
 COPY conf/docker-default/flattened-default-gremlin-server.yaml ${CONF_DIR}/flattened-default-gremlin-server.yaml
 COPY docker-runtime-scripts/gremlin-server-docker.sh /opt/scripts/gremlin-server-docker.sh
 COPY docker-runtime-scripts/firefly-server.sh /opt/scripts/firefly-server.sh
 COPY docker-runtime-scripts/graph_config/configure_aerospike_graph.py /opt/scripts/graph_config/configure_aerospike_graph.py
-COPY .git .git
 
 RUN apk del xz tar
 

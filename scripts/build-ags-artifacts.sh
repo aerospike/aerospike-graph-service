@@ -14,13 +14,19 @@
 # limitations under the License.
 #
 # Build the AGS artifacts that the shared-workflows artifacts-cicd pipeline publishes:
+#   - the graph uber JAR        (com.aerospike:aerospike-graph-gremlin; carries the runtime
+#     entrypoint com.aerospike.firefly.runtime.FireflyServer)
 #   - the bulk-loader uber JAR  (com.aerospike:aerospike-graph-bulk-loader; the shade plugin
 #     replaces the main artifact, so there is no classifier)
 #   - the packaged graphservice Helm chart
 #
-# Emits ONLY those two into the output directory (default: dist/). The shade plugin also leaves
-# the pre-shade thin jar as "original-*.jar"; we deliberately copy only the uber jar so the thin
-# jar is never published.
+# Emits ONLY those three into the output directory (default: dist/). Both modules shade, so each
+# also leaves a pre-shade thin jar as "original-*.jar"; we deliberately copy only the uber jars so
+# no thin jar is ever published.
+#
+# The graph JAR is collected because the container images need it and must not compile their own.
+# It is already built here as a transitive dependency of the bulk-loader (-am); before GRAPH-1934
+# it was simply left behind in its target directory.
 #
 # Usage: scripts/build-ags-artifacts.sh <version> [out-dir]
 #   <version>  release version (e.g. derived from the git tag). Applied to the poms, the uber jar,
@@ -31,6 +37,7 @@ set -euo pipefail
 VERSION="${1:?usage: scripts/build-ags-artifacts.sh <version> [out-dir]}"
 OUT_DIR="${2:-dist}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+GRAPH_JAR="${ROOT_DIR}/aerospike-graph-gremlin/target/aerospike-graph-gremlin-${VERSION}.jar"
 BULK_LOADER_JAR="${ROOT_DIR}/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-${VERSION}.jar"
 
 mkdir -p "${OUT_DIR}"
@@ -42,13 +49,29 @@ mvn -B -q -f "${ROOT_DIR}/pom.xml" \
 echo "==> Building the bulk-loader uber JAR (-am builds the aerospike-graph-gremlin dependency)"
 mvn -B -q -f "${ROOT_DIR}/pom.xml" -pl aerospike-graph-bulk-loader -am -DskipTests package
 
-if [[ ! -f "${BULK_LOADER_JAR}" ]]; then
-  echo "ERROR: expected uber jar not found: ${BULK_LOADER_JAR}" >&2
-  exit 1
-fi
+for jar in "${GRAPH_JAR}" "${BULK_LOADER_JAR}"; do
+  if [[ ! -f "${jar}" ]]; then
+    echo "ERROR: expected uber jar not found: ${jar}" >&2
+    exit 1
+  fi
+done
 
-echo "==> Collecting the uber JAR into ${OUT_DIR} (the original/thin jar is left behind)"
-cp "${BULK_LOADER_JAR}" "${OUT_DIR}/"
+echo "==> Collecting the uber JARs into ${OUT_DIR} (the original/thin jars are left behind)"
+cp "${GRAPH_JAR}" "${BULK_LOADER_JAR}" "${OUT_DIR}/"
+
+# The graph JAR is what the container images load their entrypoint from. If the shade plugin ever
+# stops producing a runnable uber jar, catching it here beats catching it in a published image.
+# Matched with a case statement rather than a pipe to grep -q: under `set -o pipefail`, grep -q
+# closes the pipe on its first match, unzip takes SIGPIPE, and a successful match reads as a
+# failed pipeline.
+GRAPH_ENTRIES="$(unzip -Z1 "${OUT_DIR}/$(basename "${GRAPH_JAR}")")"
+case "${GRAPH_ENTRIES}" in
+  *"com/aerospike/firefly/runtime/FireflyServer.class"*) ;;
+  *)
+    echo "ERROR: ${GRAPH_JAR} does not contain com/aerospike/firefly/runtime/FireflyServer.class" >&2
+    exit 1
+    ;;
+esac
 
 echo "==> Packaging the graphservice Helm chart at version ${VERSION}"
 helm package "${ROOT_DIR}/helm/graphservice" \

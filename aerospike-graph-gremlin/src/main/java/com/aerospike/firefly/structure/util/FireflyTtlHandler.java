@@ -29,6 +29,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,8 +123,9 @@ public class FireflyTtlHandler implements Closeable {
     private long purgeVertices(final long startTime, final long endTime) {
         final AerospikeConnection db = this.graph.getBaseGraph();
         long removalCount = 0;
+        Iterator<KeyRecord> vertexRecordsToDelete = null;
         try {
-            final Iterator<KeyRecord> vertexRecordsToDelete = graph.graphQuery.querySIndex(db.getConfig().vertexAeroSet,
+            vertexRecordsToDelete = graph.graphQuery.querySIndex(db.getConfig().vertexAeroSet,
                     db.getConfig().ttlVertexIndexName, Filter.range(db.getConfig().ttlBin, startTime, endTime), QUERY_POLICY);
             while (vertexRecordsToDelete.hasNext()) {
                 final KeyRecord vertexRecord = vertexRecordsToDelete.next();
@@ -141,6 +143,10 @@ public class FireflyTtlHandler implements Closeable {
             LOG.error("Unexpected error occurred when running index to grab TTL expired Vertices: {}", e.getMessage());
         } catch (final Exception e) {
             LOG.error("Unexpected exception when TTL purging Vertices.", e);
+        } finally {
+            if (vertexRecordsToDelete != null) {
+                CloseableIterator.closeIterator(vertexRecordsToDelete);
+            }
         }
         LOG.debug("TTL purge removed {}} expired Vertices.", removalCount);
         return removalCount;
@@ -149,8 +155,9 @@ public class FireflyTtlHandler implements Closeable {
     private long purgeEdges(final long startTime, final long endTime) {
         final AerospikeConnection db = this.graph.getBaseGraph();
         long removalCount = 0;
+        Iterator<KeyRecord> edgesToDelete = null;
         try {
-            final Iterator<KeyRecord> edgesToDelete = graph.graphQuery.querySIndex(db.getConfig().edgeAeroSet,
+            edgesToDelete = graph.graphQuery.querySIndex(db.getConfig().edgeAeroSet,
                     db.getConfig().ttlEdgeIndexName, Filter.range(db.getConfig().ttlBin, IndexCollectionType.MAPVALUES, startTime, endTime),
                     QUERY_POLICY);
             long currentEdgeDeleteTime = System.currentTimeMillis();
@@ -180,6 +187,10 @@ public class FireflyTtlHandler implements Closeable {
             LOG.error("Unexpected error occurred when running index to grab TTL expired Edges: {}", e.getMessage());
         } catch (final Exception e) {
             LOG.error("Unexpected exception when TTL purging Edges.", e);
+        } finally {
+            if (edgesToDelete != null) {
+                CloseableIterator.closeIterator(edgesToDelete);
+            }
         }
         LOG.debug("TTL purge removed {} expired Edges.", removalCount);
         return removalCount;

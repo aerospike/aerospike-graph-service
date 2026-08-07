@@ -25,8 +25,7 @@
 # no thin jar is ever published.
 #
 # The graph JAR is collected because the container images need it and must not compile their own.
-# It is already built here as a transitive dependency of the bulk-loader (-am); before GRAPH-1934
-# it was simply left behind in its target directory.
+# It is already built here as a transitive dependency of the bulk-loader (-am).
 #
 # Usage: scripts/build-ags-artifacts.sh <version> [out-dir]
 #   <version>  release version (e.g. derived from the git tag). Applied to the poms, the uber jar,
@@ -59,8 +58,9 @@ done
 echo "==> Collecting the uber JARs into ${OUT_DIR} (the original/thin jars are left behind)"
 cp "${GRAPH_JAR}" "${BULK_LOADER_JAR}" "${OUT_DIR}/"
 
-# The graph JAR is what the container images load their entrypoint from. If the shade plugin ever
-# stops producing a runnable uber jar, catching it here beats catching it in a published image.
+# The container images load their entrypoint from the graph JAR, so verify it is present here
+# rather than discovering it in a published image.
+#
 # Matched with a case statement rather than a pipe to grep -q: under `set -o pipefail`, grep -q
 # closes the pipe on its first match, unzip takes SIGPIPE, and a successful match reads as a
 # failed pipeline.

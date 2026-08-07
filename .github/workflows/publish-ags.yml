@@ -177,16 +177,14 @@ jobs:
       gpg-public-key: ${{ secrets.GPG_PUBLIC_KEY }}
       gpg-key-pass: ${{ secrets.GPG_PASS }}
 
-  # Functional gate on the images `container` just published, and the reason GRAPH-1934 could ship
-  # unnoticed: nothing in CI ever ran a published image. A TCP liveness check alone is not enough,
-  # because something can be listening on 8182 while the application classes were never loaded, so
-  # this rounds a Gremlin write and read through the real image.
+  # Pull each published image and round-trip a Gremlin write and read against it. A TCP liveness
+  # check is not sufficient: a process can hold 8182 open without the application classes loaded.
   #
-  # Container exit code is never the oracle. docker-runtime-scripts/firefly-server.sh returns 0
-  # after the JVM dies, which is what let a broken image report success.
+  # Container exit code is not a valid oracle. docker-runtime-scripts/firefly-server.sh returns 0
+  # after the JVM dies.
   #
-  # No ci-guard here: publish-ags triggers only on tag push and workflow_dispatch, so a fork cannot
-  # reach it. Fork gating belongs on the PR-triggered negative job instead.
+  # No ci-guard: this workflow triggers only on tag push and workflow_dispatch, so a fork cannot
+  # reach it.
   smoke-test:
     name: Smoke test ${{ matrix.variant }} (${{ matrix.platform }})
     needs: [version, container]
@@ -206,9 +204,8 @@ jobs:
             platform: linux/amd64
             runner: ubuntu-24.04
             expect_arch: X64
-          # arm64 runs native on both sides, no emulation anywhere in this path. AGS is a public
-          # repo so ubuntu-24.04-arm is available at no cost, and aerospike-server-enterprise:8.1
-          # publishes a linux/arm64 manifest, so the fixture is native too.
+          # Native on both sides: ubuntu-24.04-arm runners, and the Aerospike fixture image
+          # publishes a linux/arm64 manifest.
           - variant: full
             tag: ${{ needs.version.outputs.version }}
             platform: linux/arm64
@@ -222,9 +219,8 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      # Assert the leg is on a native runner. Without this an amd64 host running
-      # `--platform linux/arm64` would silently fall back to QEMU once binfmt is registered,
-      # which would satisfy the smoke test while testing something other than what ships.
+      # An amd64 host running `--platform linux/arm64` falls back to QEMU once binfmt is
+      # registered, which would pass while testing something other than what ships.
       - name: Assert native runner
         env:
           EXPECT_ARCH: ${{ matrix.expect_arch }}
@@ -237,10 +233,8 @@ jobs:
           fi
           echo "runner arch $RUNNER_ARCH_ACTUAL, native for ${{ matrix.platform }}"
 
-      # The other half of "native on both sides". The runner assertion above covers the Graph
-      # Service container; this covers the Aerospike fixture it talks to. Checked live rather than
-      # asserted from a one-time inspection, so the day Aerospike stops shipping a manifest for
-      # this platform the smoke test says so instead of silently emulating.
+      # Checked live rather than assumed, so a dropped platform manifest fails the leg instead
+      # of silently falling back to emulation.
       - name: Assert the Aerospike fixture publishes this platform
         env:
           PLATFORM: ${{ matrix.platform }}
@@ -315,9 +309,8 @@ jobs:
   # bundles are the promotion vehicle, and a promoted one locks its underlying dev-local
   # artifacts, which would then block re-deploying the same paths.
   #
-  # `needs` includes smoke-test so a failed image cannot be bundled. Without that edge the bundle
-  # job races the smoke test and a tag run could publish a bundle around a broken image, which is
-  # unrecoverable once Docker Hub mirroring happens on PROD promotion.
+  # smoke-test is in `needs` so a failed image cannot be bundled. A bundle around a broken image
+  # is unrecoverable once PROD promotion mirrors it to Docker Hub.
   release-bundle:
     needs: [version, container, artifacts, smoke-test]
     if: needs.version.outputs.is-release == 'true'

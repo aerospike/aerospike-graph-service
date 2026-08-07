@@ -28,12 +28,9 @@ RUN apk add --no-cache --update \
     bash \
     dos2unix
 
-# Guard, part 1 of 2: the JAR arguments themselves, checked before COPY consumes them.
-#
-# This half has to run first because COPY destroys the evidence. A glob matching two files
-# is silently collapsed into one regular file, last writer wins, and nothing downstream can
-# tell that two ever matched. An empty argument is expanded away entirely. Both conditions
-# are only visible here.
+# Validate the JAR arguments before COPY consumes them. COPY silently collapses a glob
+# matching two files into one, last writer wins, and expands an empty argument away
+# entirely, so neither condition is detectable after the fact.
 RUN set -eu; \
     for spec in "FIREFLY_GRAPH|${FIREFLY_GRAPH:-}" "BULKLOADER|${BULKLOADER:-}"; do \
       name="${spec%%|*}"; value="${spec#*|}"; \
@@ -53,14 +50,11 @@ COPY ${FIREFLY_GRAPH} /opt/firefly-graph.jar
 COPY ${BULKLOADER} /opt/bulk-loader.jar
 #COPY ${OLAP} /opt/olap.jar
 
-# Guard, part 2 of 2: every JAR argument must have resolved to exactly one readable JAR.
-#
-# Unconditional by design. No ARG, build-arg or environment variable can disable it.
-# When FIREFLY_GRAPH or BULKLOADER is unset or empty, Docker expands the COPY above to
-# `COPY  /opt/firefly-graph.jar`, which copies the entire build context into a DIRECTORY
-# at that path and still exits 0. The image then cannot load its entrypoint class, while
-# docker build, push and every CI signal report success. That is how the 3.3.0-dev.4 and
-# 3.3.0-dev.5 images shipped with no application code in them.
+# Every JAR argument must have resolved to exactly one readable JAR. Unconditional: no ARG,
+# build-arg or environment variable can disable this. An unset or empty argument makes
+# Docker expand the COPY above to `COPY  /opt/firefly-graph.jar`, which copies the entire
+# build context into a DIRECTORY at that path and exits 0, producing an image that cannot
+# load its entrypoint class while every build signal reports success.
 RUN set -eu; \
     apk add --no-cache --virtual .jar-guard unzip; \
     for spec in \

@@ -15,14 +15,13 @@
 #
 """Round-trip a Gremlin write and read against a running Graph Service.
 
-This is the functional half of the published-image smoke test. It exists because
-a TCP liveness check is not enough: something can be listening on 8182 while the
-application classes were never loaded. A traversal that writes a vertex and reads
-it back can only succeed if the JVM actually loaded FireflyServer and is serving
-the protocol, which is precisely what GRAPH-1934 broke.
+A TCP liveness check on 8182 is not sufficient, because a process can hold the
+port open without the application classes loaded. A traversal that writes a vertex
+and reads it back succeeds only if the JVM loaded FireflyServer and is serving the
+protocol.
 
-Container exit code is deliberately not consulted anywhere. firefly-server.sh
-returns 0 after the JVM dies, so it is not a valid oracle.
+Container exit code is not consulted anywhere: firefly-server.sh returns 0 after
+the JVM dies, so it is not a valid oracle.
 
 Usage: smoke_gremlin_roundtrip.py [ws://host:port/gremlin]
 """

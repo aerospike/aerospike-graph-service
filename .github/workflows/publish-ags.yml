@@ -32,7 +32,7 @@
 #
 # Produces, all under the `connect` JFrog project:
 #   - the multi-arch container (full + slim) -> connect-docker-dev-local
-#   - the bulk-loader uber JAR                -> connect-maven-dev-local
+#   - the graph + bulk-loader uber JARs       -> connect-maven-dev-local
 #   - the graphservice Helm chart             -> connect-helm-dev-local
 # then, on a tag only, assembles a release bundle (aerospike-graph-service) for DEV -> PROD
 # promotion. On PROD promotion the existing artifact-publisher automation mirrors the image to
@@ -167,7 +167,7 @@ jobs:
       java-version: "17"
       setup-helm: true
       jar-group-id: com.aerospike
-      # Emits ONLY the bulk-loader uber jar + the packaged graphservice chart into dist/.
+      # Emits the graph uber jar, the bulk-loader uber jar and the packaged graphservice chart.
       build-script: ./scripts/build-ags-artifacts.sh ${{ needs.version.outputs.version }}
     # Map these explicitly. artifacts-cicd declares gpg-private-key/gpg-public-key/gpg-key-pass as
     # required, and `secrets: inherit` matches by name: our secrets are UPPER_SNAKE and a secret
@@ -177,11 +177,116 @@ jobs:
       gpg-public-key: ${{ secrets.GPG_PUBLIC_KEY }}
       gpg-key-pass: ${{ secrets.GPG_PASS }}
 
+  # Functional gate on the images `container` just published, and the reason GRAPH-1934 could ship
+  # unnoticed: nothing in CI ever ran a published image. A TCP liveness check alone is not enough,
+  # because something can be listening on 8182 while the application classes were never loaded, so
+  # this rounds a Gremlin write and read through the real image.
+  #
+  # Container exit code is never the oracle. docker-runtime-scripts/firefly-server.sh returns 0
+  # after the JVM dies, which is what let a broken image report success.
+  #
+  # No ci-guard here: publish-ags triggers only on tag push and workflow_dispatch, so a fork cannot
+  # reach it. Fork gating belongs on the PR-triggered negative job instead.
+  smoke-test:
+    name: Smoke test ${{ matrix.variant }} (${{ matrix.platform }})
+    needs: [version, container]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: full
+            tag: ${{ needs.version.outputs.version }}
+            platform: linux/amd64
+            runner: ubuntu-24.04
+            expect_arch: X64
+          - variant: slim
+            tag: ${{ needs.version.outputs.version }}-slim
+            platform: linux/amd64
+            runner: ubuntu-24.04
+            expect_arch: X64
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # Assert the leg is on a native runner. Without this an amd64 host running
+      # `--platform linux/arm64` would silently fall back to QEMU once binfmt is registered,
+      # which would satisfy the smoke test while testing something other than what ships.
+      - name: Assert native runner
+        env:
+          EXPECT_ARCH: ${{ matrix.expect_arch }}
+          RUNNER_ARCH_ACTUAL: ${{ runner.arch }}
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_ARCH_ACTUAL" != "$EXPECT_ARCH" ]; then
+            echo "::error::${{ matrix.platform }} leg is on $RUNNER_ARCH_ACTUAL, expected $EXPECT_ARCH"
+            exit 1
+          fi
+          echo "runner arch $RUNNER_ARCH_ACTUAL, native for ${{ matrix.platform }}"
+
+      - name: Install JFrog CLI
+        id: jf
+        uses: step-security/setup-jfrog-cli@3054b554c0fb4915b3d58847fb7730c593dbb934 # v5.0.0
+        env:
+          JF_URL: https://artifact.aerospike.io
+          JF_PROJECT: connect
+        with:
+          version: 2.78.8
+          oidc-provider-name: gh-aerospike
+          oidc-audience: aerospike
+
+      - name: Docker login to Artifactory
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          registry: artifact.aerospike.io
+          username: ${{ steps.jf.outputs.oidc-user }}
+          password: ${{ steps.jf.outputs.oidc-token }}
+
+      - name: Pull the published image
+        id: pull
+        env:
+          IMAGE: artifact.aerospike.io/connect-docker-dev-local/aerospike-graph-service:${{ matrix.tag }}
+        run: |
+          set -euo pipefail
+          docker pull --platform "${{ matrix.platform }}" "$IMAGE"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Start Aerospike and the published Graph Service image
+        env:
+          AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          IMAGE: ${{ steps.pull.outputs.image }}
+        run: |
+          set -euo pipefail
+          pip3 install python_on_whales
+          bash scripts/start_aerospike.sh --node_count 1
+
+          docker run -d --name ags-smoke -p 8182:8182 \
+            --platform "${{ matrix.platform }}" \
+            --add-host=host.docker.internal:host-gateway \
+            -e aerospike.client.host=host.docker.internal \
+            "$IMAGE"
+
+          bash scripts/wait_for_gremlin_server.sh
+
+      - name: Round-trip a Gremlin write and read
+        run: |
+          set -euo pipefail
+          pip3 install gremlinpython
+          python3 scripts/smoke_gremlin_roundtrip.py ws://localhost:8182/gremlin
+
+      - name: Graph Service logs on failure
+        if: failure()
+        run: docker logs ags-smoke || true
+
   # Tag runs only. A manual dispatch publishes artifacts but deliberately creates no bundle:
   # bundles are the promotion vehicle, and a promoted one locks its underlying dev-local
   # artifacts, which would then block re-deploying the same paths.
+  #
+  # `needs` includes smoke-test so a failed image cannot be bundled. Without that edge the bundle
+  # job races the smoke test and a tag run could publish a bundle around a broken image, which is
+  # unrecoverable once Docker Hub mirroring happens on PROD promotion.
   release-bundle:
-    needs: [version, container, artifacts]
+    needs: [version, container, artifacts, smoke-test]
     if: needs.version.outputs.is-release == 'true'
     uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@a0b1fe5c07d7af50f3cd2b7507aec1439dfb861f # unreleased main, post-v4.0.0
     with:

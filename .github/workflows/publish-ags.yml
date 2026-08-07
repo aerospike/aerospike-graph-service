@@ -206,6 +206,19 @@ jobs:
             platform: linux/amd64
             runner: ubuntu-24.04
             expect_arch: X64
+          # arm64 runs native on both sides, no emulation anywhere in this path. AGS is a public
+          # repo so ubuntu-24.04-arm is available at no cost, and aerospike-server-enterprise:8.1
+          # publishes a linux/arm64 manifest, so the fixture is native too.
+          - variant: full
+            tag: ${{ needs.version.outputs.version }}
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            expect_arch: ARM64
+          - variant: slim
+            tag: ${{ needs.version.outputs.version }}-slim
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            expect_arch: ARM64
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
@@ -223,6 +236,26 @@ jobs:
             exit 1
           fi
           echo "runner arch $RUNNER_ARCH_ACTUAL, native for ${{ matrix.platform }}"
+
+      # The other half of "native on both sides". The runner assertion above covers the Graph
+      # Service container; this covers the Aerospike fixture it talks to. Checked live rather than
+      # asserted from a one-time inspection, so the day Aerospike stops shipping a manifest for
+      # this platform the smoke test says so instead of silently emulating.
+      - name: Assert the Aerospike fixture publishes this platform
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          # Keep in step with .github/aerospike/start_cluster.py's --aerospike_version default.
+          fixture="aerospike/aerospike-server-enterprise:8.1"
+          if ! docker manifest inspect "$fixture" \
+               | jq -e --arg p "$PLATFORM" \
+                   '[.manifests[]? | select("\(.platform.os)/\(.platform.architecture)" == $p)] | length > 0' \
+               >/dev/null; then
+            echo "::error::$fixture publishes no $PLATFORM manifest, so this leg cannot run native"
+            exit 1
+          fi
+          echo "$fixture publishes $PLATFORM"
 
       - name: Install JFrog CLI
         id: jf

@@ -157,8 +157,6 @@ public class ScanIterator implements CloseableIterator<Traverser> {
                         break;
                     } catch (final Exception e) {
                         TaskLogger.logDebuggingMessage("Got exception " + e.getMessage(), LOGGER);
-                        // The failed attempt's page fetcher (and its single-thread executor) would
-                        // otherwise never be shut down before we replace the field on the next retry.
                         if (pageFetcher != null) {
                             pageFetcher.shutdownAwait();
                             pageFetcher = null;

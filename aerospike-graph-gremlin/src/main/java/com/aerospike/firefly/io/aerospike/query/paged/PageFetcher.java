@@ -295,10 +295,7 @@ public abstract class PageFetcher<E> {
                     }
                 });
                 shutdown();
-                // shutdown() alone never interrupts a worker that's already running (e.g. blocked in
-                // pageQueue.put() or mid-readPage()), so always follow up with shutdownNow() once we've
-                // waited as long as configured. paginationShutdownWait is how long to wait before forcing,
-                // not whether to force at all - 0 means force immediately.
+                // paginationShutdownWait is how long to wait before forcing; 0 means force immediately.
                 try {
                     if (!readLoopExecutorService.awaitTermination(graph.getBaseGraph().getConfig().paginationShutdownWait,
                             java.util.concurrent.TimeUnit.MILLISECONDS)) {

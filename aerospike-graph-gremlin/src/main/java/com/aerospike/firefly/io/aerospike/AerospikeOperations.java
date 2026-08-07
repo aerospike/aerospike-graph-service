@@ -456,9 +456,6 @@ public class AerospikeOperations {
 
         @Override
         public void close() {
-            // Delegates to the underlying PageFetcher-backed iterator, restoring the close chain that
-            // CloseableIterator.closeIterator() would otherwise silently skip (this class only
-            // implemented plain Iterator before, so it was never recognized as AutoCloseable).
             CloseableIterator.closeIterator(keyRecordIterator);
         }
     }

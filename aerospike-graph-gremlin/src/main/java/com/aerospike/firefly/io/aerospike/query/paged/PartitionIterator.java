@@ -136,9 +136,6 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     }
 
     public void close() {
-        // Previously a no-op: the PageFetcher(s)/executor behind pageQueue were otherwise never
-        // reachable from here, so an early-abandoned traversal (limit(), an exception, an ErrorPage)
-        // left their worker thread(s) running forever.
         shutdown.set(true);
         queryHandle.shutdown();
     }

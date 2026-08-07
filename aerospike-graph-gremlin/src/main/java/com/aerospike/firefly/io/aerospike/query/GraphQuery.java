@@ -261,12 +261,9 @@ public class GraphQuery {
     ////////////////////
 
     /**
-     * Bundles a paged query's result queue together with the resources (PageFetcher(s) and/or their
-     * executor) that were created to produce it. Every {@code *PagesBlocking} producer used to return
-     * a bare queue and drop its PageFetcher/ExecutorService handle, so a consumer that abandoned the
-     * queue early (limit(), an exception, an ErrorPage) had no way to stop the worker(s) that weren't
-     * going to finish draining on their own. This gives callers like {@code PartitionIterator} a real
-     * handle to shut everything down from {@code close()}.
+     * Bundles a paged query's result queue with the resources (PageFetcher(s) and/or their executor)
+     * that produced it, so callers like {@code PartitionIterator} can shut everything down from
+     * {@code close()}.
      */
     public static final class PageQueryHandle {
         public final BlockingQueue<PageFetcher.Page> queue;
@@ -468,9 +465,6 @@ public class GraphQuery {
             // Intentionally not using return value here.
             pageFetcher.startQueryDirect();
         }
-        // The self-shutdown guard inside PartitionedSindexPageFetcher.readPages() never actually
-        // fires (allCompleted is never populated), so shutting down the shared executor here is the
-        // only real cleanup path when the consumer abandons the queue early.
         return new PageQueryHandle(pageQueue, readLoopExecutorService::shutdownNow);
     }
 

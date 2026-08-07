@@ -33,18 +33,10 @@ import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil
 import static org.junit.Assert.assertEquals;
 
 /**
- * Regression test for a thread leak in {@code FireflyGraphSummaryUpdater}: every {@code FireflyGraph}
- * opened with the graph-summary feature enabled created its own single-thread {@code ExecutorService},
- * but {@code close()} only signaled the background task to exit without ever shutting the pool itself
- * down. The task's worker thread would then idle forever, parked on an empty queue, showing up in
- * production thread dumps as an ever-growing count of daemon "pool-N-thread-*" threads.
- * <p>
- * A single bulk load opens many short-lived {@code FireflyGraph} handles (the bootstrap graph, the
- * state machine's initializer graph, and one per Spark partition during validation/write stages), so
- * this leaked a handful of threads per bulk load call. This test runs several bulk loads in a loop,
- * in-process, against a local Aerospike instance (e.g. `docker run -p 3000:3000 ... aerospike/aerospike-server`),
- * and asserts after every single load that the JVM's "pool-N-thread" count has returned to baseline -
- * so a regression fails immediately, on the exact iteration it reappears, with no need to inspect console output.
+ * Regression test for the {@code FireflyGraphSummaryUpdater} thread leak (see its {@code close()}).
+ * Runs several bulk loads in a loop, in-process, against a local Aerospike instance
+ * (e.g. `docker run -p 3000:3000 ... aerospike/aerospike-server`), and asserts after every load that
+ * the JVM's "pool-N-thread" count has returned to baseline.
  */
 public class TestBulkLoaderThreadLeak {
     private static final Path LOADER_CONFIG = Path.of("src/test/resources/conf/packed/thread-leak.properties");
@@ -73,22 +65,17 @@ public class TestBulkLoaderThreadLeak {
                         .iterate();
                 waitForBulkLoad(g);
             }
-            // Give shutdown()/awaitTermination() a moment to actually finish tearing down
-            // any executor(s) created during this load before we take the next census.
             Thread.sleep(500);
 
             final Map<String, Long> census = threadCensus();
-            assertEquals("Bulk load #" + i + " should not leak any \"pool-N-thread\" threads"
-                            + " (see FireflyGraphSummaryUpdater.close()). Full census: " + census,
+            assertEquals("Bulk load #" + i + " leaked \"pool-N-thread\" threads. Census: " + census,
                     baselinePoolThreads, poolThreadTotal(census));
         }
     }
 
     /**
-     * Snapshots all live threads in this JVM, grouped by name with trailing numeric IDs stripped
-     * (e.g. "pool-42-thread-1" and "pool-57-thread-1" both collapse to "pool-N-thread"), so repeated
-     * single-thread-executor leaks show up as a growing count under one bucket instead of thousands
-     * of one-off entries.
+     * Snapshots all live threads, grouped by name with trailing numeric IDs stripped
+     * (e.g. "pool-42-thread-1" and "pool-57-thread-1" both collapse to "pool-N-thread").
      */
     private static Map<String, Long> threadCensus() {
         final Map<String, Long> counts = new TreeMap<>();

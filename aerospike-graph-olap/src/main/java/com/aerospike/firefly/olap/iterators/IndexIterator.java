@@ -140,8 +140,6 @@ public class IndexIterator implements CloseableIterator<Traverser> {
                         pageFetcher.startQueryDirect();
                         break;
                     } catch (final Exception e) {
-                        // The failed attempt's page fetcher (and its single-thread executor) would
-                        // otherwise never be shut down before we replace the field on the next retry.
                         if (pageFetcher != null) {
                             pageFetcher.shutdownAwait();
                             pageFetcher = null;

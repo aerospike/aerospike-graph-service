@@ -690,9 +690,6 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         if (!vertexCounts.isEmpty() || !edgeCounts.isEmpty() || !supernodeCounts.isEmpty())
             doWrite();
 
-        // The update task above has exited (or timed out waiting for it to), but the executor's core
-        // thread is still alive, parked on its work queue forever unless we shut the pool down too.
-        // Without this, every FireflyGraph.open()/close() cycle leaks one idle daemon "pool-N-thread".
         EXECUTOR_SERVICE.shutdownNow();
     }
 

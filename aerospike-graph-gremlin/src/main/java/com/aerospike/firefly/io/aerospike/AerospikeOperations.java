@@ -49,6 +49,7 @@ import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyEdgeRecord;
 import com.aerospike.firefly.io.FireflyRecord;
@@ -430,7 +431,7 @@ public class AerospikeOperations {
     }
 
     // Tag supernode reads in cache.
-    private static class CachedIterator implements Iterator<KeyRecord> {
+    private static class CachedIterator implements CloseableIterator<KeyRecord> {
         final Iterator<KeyRecord> keyRecordIterator;
         final FireflyCache cache;
 
@@ -451,6 +452,11 @@ public class AerospikeOperations {
                 cache.insert(keyRecord.key, keyRecord.record);
             }
             return keyRecord;
+        }
+
+        @Override
+        public void close() {
+            CloseableIterator.closeIterator(keyRecordIterator);
         }
     }
 

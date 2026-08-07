@@ -1,0 +1,127 @@
+# Copyright 2022-2026 Aerospike, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Proves the published-image smoke check still detects an image that cannot serve traffic.
+#
+# The image here is built from the real Dockerfile with stub JARs: regular files, valid archives,
+# carrying the expected entrypoint path. That satisfies the build-time guard, which only inspects
+# structure, and leaves an image whose JVM cannot start. The smoke check is the only thing that
+# catches this class, so if it stops catching it this job fails.
+name: smoke-negative-test
+
+on:
+  pull_request:
+    paths:
+      - "docker/Dockerfile"
+      - "docker/Dockerfile-slim"
+      - "scripts/smoke_gremlin_roundtrip.py"
+      - "scripts/wait_for_gremlin_server.sh"
+      - "scripts/start_aerospike.sh"
+      - ".github/aerospike/**"
+      - ".github/workflows/smoke-negative-test.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  ci-guard:
+    # Fork-safe / label-gated gate. Downstream jobs depend on this via
+    # `needs: ci-guard`, so on fork PRs that lack the `trusted-ci`
+    # label this job fails fast and the rest of the workflow is
+    # skipped, keeping the license secret out of reach.
+    name: CI guard (fork + label check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
+
+      - name: Gate
+        env:
+          EVENT: ${{ github.event_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT" != "pull_request" ]]; then
+            echo "Non-PR event ($EVENT): ci-guard allows."
+            exit 0
+          fi
+          if [[ "$HEAD_REPO" == "$BASE_REPO" ]]; then
+            echo "Same-repo PR ($HEAD_REPO): ci-guard allows."
+            exit 0
+          fi
+          if grep -q '"trusted-ci"' <<<"$LABELS"; then
+            echo "Fork PR carries 'trusted-ci' label, ci-guard allows."
+            exit 0
+          fi
+          echo "::error::Fork PRs must carry the 'trusted-ci' label before"
+          echo "::error::CI with secrets will run. A maintainer will add the"
+          echo "::error::label after reviewing the diff. See CONTRIBUTING.md."
+          exit 1
+
+  smoke-catches-dead-image:
+    name: Smoke check rejects a non-functional image
+    needs: ci-guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Build stub JARs
+        run: |
+          set -euo pipefail
+          mkdir -p stub/com/aerospike/firefly/runtime
+          : > stub/com/aerospike/firefly/runtime/FireflyServer.class
+          (cd stub && zip -qr ../stub-graph.jar .)
+          cp stub-graph.jar stub-bulk.jar
+
+      - name: Build an image that passes the guard but cannot run
+        run: |
+          set -euo pipefail
+          docker build -f docker/Dockerfile \
+            --build-arg FIREFLY_GRAPH=stub-graph.jar \
+            --build-arg BULKLOADER=stub-bulk.jar \
+            -t ags-dead:test .
+
+      - name: Start Aerospike and the image
+        env:
+          AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+        run: |
+          set -euo pipefail
+          pip3 install python_on_whales
+          bash scripts/start_aerospike.sh --node_count 1
+          docker run -d --name ags-dead -p 8182:8182 \
+            --add-host=host.docker.internal:host-gateway \
+            -e aerospike.client.host=host.docker.internal \
+            ags-dead:test
+
+      - name: The smoke check must reject it
+        run: |
+          set -uo pipefail
+          if bash scripts/wait_for_gremlin_server.sh && \
+             python3 -m pip install --quiet gremlinpython && \
+             python3 scripts/smoke_gremlin_roundtrip.py ws://localhost:8182/gremlin; then
+            echo "::error::the smoke check passed an image with no application code, so it would"
+            echo "::error::no longer catch a JAR-less publish"
+            exit 1
+          fi
+          echo "smoke check rejected the image, as required"
+
+      - name: Container logs
+        if: always()
+        run: docker logs ags-dead || true

@@ -140,6 +140,10 @@ public class IndexIterator implements CloseableIterator<Traverser> {
                         pageFetcher.startQueryDirect();
                         break;
                     } catch (final Exception e) {
+                        if (pageFetcher != null) {
+                            pageFetcher.shutdownAwait();
+                            pageFetcher = null;
+                        }
                         if (attemptCount > 10) {
                             throw new RuntimeException("Failed to run query after " + attemptCount + " attempts.", e);
                         } else if (e.getMessage().contains("Operation not allowed at this time")) {
@@ -161,6 +165,10 @@ public class IndexIterator implements CloseableIterator<Traverser> {
             }
             if (page instanceof PageFetcher.ErrorPage) {
                 final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
+                if (pageFetcher != null) {
+                    pageFetcher.shutdownAwait();
+                    pageFetcher = null;
+                }
                 throw new RuntimeException("Error fetching page: " + errorPage.errorMessage, errorPage.exception);
             } else if (page instanceof PageFetcher.PoisonPill) {
                 pageFetcher.shutdownAwait();

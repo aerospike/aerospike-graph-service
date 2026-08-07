@@ -38,13 +38,18 @@
 # promotion. On PROD promotion the existing artifact-publisher automation mirrors the image to
 # Docker Hub.
 #
-# shared-workflows is pinned to the v3.7.0 commit; gh-workflows-ref must match every @ref.
+# shared-workflows is pinned to one commit; gh-workflows-ref must match every @ref.
 # Pin by SHA, not tag: this repo enforces sha_pinning_required.
 #
-# Held at v3.7.0 deliberately. In v4.0.0, reusable_deploy-artifacts' `deploy` job requests
-# `actions: write`, but reusable_artifacts-cicd caps its children at `{contents: read,
+# Pinned to a0b1fe5, currently unreleased shared-workflows main, two commits past v4.0.0.
+# v4.0.0 itself cannot be used: its reusable_deploy-artifacts `deploy` job requests
+# `actions: write`, while reusable_artifacts-cicd caps its children at `{contents: read,
 # id-token: write}`, so the call is rejected as an invalid workflow before any job starts.
-# That is upstream and affects every artifacts-cicd consumer; re-pin once it ships fixed.
+# a0b1fe5 is the INFRA-670 fix for exactly that, and it also drops the v3.7.0 behaviour of
+# injecting the JFrog token as a build-arg into mode=max provenance.
+#
+# Move this to the release tag once shared-workflows cuts one; the comment should then read
+# a real version rather than "unreleased main".
 name: publish-ags
 
 on:
@@ -53,7 +58,7 @@ on:
   workflow_dispatch:
 
 # Unlisted scopes become none, and a nested workflow cannot request more than the caller grants.
-# This is the union the v3.7.0 call tree needs.
+# This is the union the pinned call tree needs.
 permissions:
   id-token: write       # OIDC to JFrog
   contents: read
@@ -72,7 +77,7 @@ jobs:
           fetch-depth: 0   # required, or extract-version falls back to 0.0.0-dev+<sha>
       - id: tag
         if: github.event_name == 'push'
-        uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@bd168dedaa4fc0b17a560541779d815540eded2d # v3.7.0
+        uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@a0b1fe5c07d7af50f3cd2b7507aec1439dfb861f # unreleased main, post-v4.0.0
       - name: Resolve the version
         id: v
         env:
@@ -137,7 +142,7 @@ jobs:
             versions_override: "${{ needs.version.outputs.version }}-slim,slim,latest-slim"
             build_name: aerospike-graph-service-slim               # distinct build-info name
             dockerfile: docker/Dockerfile-slim
-    uses: aerospike/shared-workflows/.github/workflows/reusable_docker-build-deploy.yaml@bd168dedaa4fc0b17a560541779d815540eded2d # v3.7.0
+    uses: aerospike/shared-workflows/.github/workflows/reusable_docker-build-deploy.yaml@a0b1fe5c07d7af50f3cd2b7507aec1439dfb861f # unreleased main, post-v4.0.0
     with:
       jf-project: connect
       image-name: aerospike-graph-service                          # one repo for both variants
@@ -149,9 +154,9 @@ jobs:
 
   artifacts:
     needs: version   # once the test gate is on: needs: [version, test]
-    uses: aerospike/shared-workflows/.github/workflows/reusable_artifacts-cicd.yaml@bd168dedaa4fc0b17a560541779d815540eded2d # v3.7.0
+    uses: aerospike/shared-workflows/.github/workflows/reusable_artifacts-cicd.yaml@a0b1fe5c07d7af50f3cd2b7507aec1439dfb861f # unreleased main, post-v4.0.0
     with:
-      gh-workflows-ref: bd168dedaa4fc0b17a560541779d815540eded2d # v3.7.0
+      gh-workflows-ref: a0b1fe5c07d7af50f3cd2b7507aec1439dfb861f # unreleased main, post-v4.0.0
       jf-project: connect
       jf-build-name: aerospike-graph-service-artifacts
       version: ${{ needs.version.outputs.version }}
@@ -178,9 +183,9 @@ jobs:
   release-bundle:
     needs: [version, container, artifacts]
     if: needs.version.outputs.is-release == 'true'
-    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@bd168dedaa4fc0b17a560541779d815540eded2d # v3.7.0
+    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@a0b1fe5c07d7af50f3cd2b7507aec1439dfb861f # unreleased main, post-v4.0.0
     with:
-      gh-workflows-ref: bd168dedaa4fc0b17a560541779d815540eded2d # v3.7.0
+      gh-workflows-ref: a0b1fe5c07d7af50f3cd2b7507aec1439dfb861f # unreleased main, post-v4.0.0
       jf-project: connect
       jf-bundle-name: aerospike-graph-service
       version: ${{ needs.version.outputs.version }}

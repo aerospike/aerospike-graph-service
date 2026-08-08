@@ -19,6 +19,10 @@ Writes two vertices, joins them with an edge, then hops across it in both
 directions. A single-vertex write and read would pass on an image whose graph
 engine is broken but whose Gremlin server and Aerospike client are fine.
 
+Queries go over the wire as script text and every one is echoed with its
+response, so the job log carries the exact Gremlin sent and exactly what came
+back rather than a summary of it.
+
 Doubles as the readiness gate. A TCP check on 8182 cannot distinguish a bound
 Docker port from a served one, and a port-open check passes about a second
 before the JVM is listening, so this retries until a traversal completes.
@@ -33,45 +37,51 @@ import sys
 import time
 import uuid
 
-from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
-from gremlin_python.process.anonymous_traversal import traversal
-from gremlin_python.process.graph_traversal import __
+from gremlin_python.driver import client
+
+
+def submit(conn, query: str):
+    print(f"gremlin> {query}")
+    result = conn.submit(query).all().result()
+    print(f"result > {result!r}")
+    return result
 
 
 def traverse(url: str, marker: str) -> None:
     """Write two vertices, join them, hop both ways. Raises on any failure."""
     src, dst = f"{marker}-src", f"{marker}-dst"
-    connection = DriverRemoteConnection(url, "g")
+    conn = client.Client(url, "g")
     try:
-        g = traversal().with_remote(connection)
+        submit(conn, f"g.addV('smoke').property('marker','{src}').id()")
+        submit(conn, f"g.addV('smoke').property('marker','{dst}').id()")
+        submit(conn,
+               f"g.V().has('smoke','marker','{src}')"
+               f".addE('links').to(__.V().has('smoke','marker','{dst}')).id()")
 
-        a = g.add_v("smoke").property("marker", src).next()
-        b = g.add_v("smoke").property("marker", dst).next()
-        g.V(a).add_e("links").to(__.V(b)).iterate()
-
-        forward = g.V().has("smoke", "marker", src).out("links").values("marker").to_list()
+        forward = submit(conn,
+                         f"g.V().has('smoke','marker','{src}').out('links').values('marker')")
         if forward != [dst]:
             raise AssertionError(f"forward hop returned {forward!r}, expected [{dst!r}]")
 
-        reverse = g.V().has("smoke", "marker", dst).in_("links").values("marker").to_list()
+        reverse = submit(conn,
+                         f"g.V().has('smoke','marker','{dst}').in('links').values('marker')")
         if reverse != [src]:
             raise AssertionError(f"reverse hop returned {reverse!r}, expected [{src!r}]")
 
         # Cleanup only. A failure here says nothing about whether the image
         # serves traffic, so it must not fail the check.
         try:
-            for m in (src, dst):
-                g.V().has("smoke", "marker", m).drop().iterate()
+            submit(conn, f"g.V().has('smoke','marker',within('{src}','{dst}')).drop()")
         except Exception as exc:  # noqa: BLE001
             print(f"WARNING: could not drop {marker} vertices: {exc}")
     finally:
-        connection.close()
+        conn.close()
 
 
 def main() -> int:
     url = sys.argv[1] if len(sys.argv) > 1 else "ws://localhost:8182/gremlin"
     timeout = int(sys.argv[2]) if len(sys.argv) > 2 else 180
-    marker = f"smoke-{uuid.uuid4()}"
+    marker = f"smoke-{uuid.uuid4().hex[:8]}"
 
     print(f"==> Traversing against {url}, up to {timeout}s")
     deadline = time.monotonic() + timeout

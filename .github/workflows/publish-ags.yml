@@ -276,10 +276,9 @@ jobs:
           docker pull --platform "${{ matrix.platform }}" "$IMAGE"
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
 
-      - name: Start Aerospike and the published Graph Service image
+      - name: Start Aerospike
         env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          IMAGE: ${{ steps.pull.outputs.image }}
         run: |
           set -euo pipefail
           pip3 install python_on_whales
@@ -288,9 +287,11 @@ jobs:
           # start_cluster.py health-checks once and returns 0 even when the cluster never
           # answered, so confirm it here before anything depends on it.
           for i in $(seq 1 60); do
+            # cluster-stable, not namespaces or status: those answer while the node still
+            # rejects client connections as "not yet fully initialized".
             if docker exec "$(docker ps -q --filter ancestor=aerospike/aerospike-server-enterprise:8.1 | head -1)" \
-                 asinfo -v namespaces >/dev/null 2>&1; then
-              echo "Aerospike answering after ${i}s"; break
+                 asinfo -v cluster-stable 2>/dev/null | grep -qv ERROR; then
+              echo "Aerospike cluster stable after ${i}s"; break
             fi
             if [ "$i" -eq 60 ]; then
               echo "::error::Aerospike never answered; smoke test cannot run"
@@ -301,19 +302,34 @@ jobs:
             sleep 1
           done
 
-          docker run -d --name ags-smoke -p 8182:8182 \
-            --platform "${{ matrix.platform }}" \
-            --add-host=host.docker.internal:host-gateway \
-            -e aerospike.client.host=host.docker.internal \
-            "$IMAGE"
+
 
       - name: Round-trip a Gremlin write and read
+        env:
+          IMAGE: ${{ steps.pull.outputs.image }}
         run: |
           set -euo pipefail
           # Do not unpin: a newer client compiles iterate() into a discard() step this server lacks.
           tinkerpop="$(grep -m1 -oP '(?<=<tinkerpop.version>)[^<]+' pom.xml)"
           pip3 install "gremlinpython==${tinkerpop}"
-          python3 scripts/smoke_gremlin_roundtrip.py ws://localhost:8182/gremlin 240
+
+          # Graph Service exits for good if Aerospike is not ready when it starts, so a client
+          # retry loop alone would poll a dead container. Restart the image instead.
+          for attempt in 1 2 3; do
+            docker rm -f ags-smoke >/dev/null 2>&1 || true
+            docker run -d --name ags-smoke -p 8182:8182 \
+              --platform "${{ matrix.platform }}" \
+              --add-host=host.docker.internal:host-gateway \
+              -e aerospike.client.host=host.docker.internal \
+              "$IMAGE"
+            if python3 scripts/smoke_gremlin_roundtrip.py ws://localhost:8182/gremlin 120; then
+              exit 0
+            fi
+            echo "::warning::Graph Service did not serve on attempt ${attempt}"
+            docker logs ags-smoke 2>&1 | tail -20
+          done
+          echo "::error::Graph Service never served after 3 starts"
+          exit 1
 
       - name: Graph Service logs on failure
         if: failure()

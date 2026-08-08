@@ -285,6 +285,22 @@ jobs:
           pip3 install python_on_whales
           bash scripts/start_aerospike.sh --node_count 1
 
+          # start_cluster.py health-checks once and returns 0 even when the cluster never
+          # answered, so confirm it here before anything depends on it.
+          for i in $(seq 1 60); do
+            if docker exec "$(docker ps -q --filter ancestor=aerospike/aerospike-server-enterprise:8.1 | head -1)" \
+                 asinfo -v namespaces >/dev/null 2>&1; then
+              echo "Aerospike answering after ${i}s"; break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "::error::Aerospike never answered; smoke test cannot run"
+              docker ps -a --filter ancestor=aerospike/aerospike-server-enterprise:8.1 --format '{{.Names}} {{.Status}}'
+              docker logs "$(docker ps -aq --filter ancestor=aerospike/aerospike-server-enterprise:8.1 | head -1)" 2>&1 | tail -30
+              exit 1
+            fi
+            sleep 1
+          done
+
           docker run -d --name ags-smoke -p 8182:8182 \
             --platform "${{ matrix.platform }}" \
             --add-host=host.docker.internal:host-gateway \

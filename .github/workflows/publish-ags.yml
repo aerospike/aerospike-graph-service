@@ -231,24 +231,6 @@ jobs:
           fi
           echo "runner arch $RUNNER_ARCH_ACTUAL, native for ${{ matrix.platform }}"
 
-      # Checked live rather than assumed, so a dropped platform manifest fails the leg instead
-      # of silently falling back to emulation.
-      - name: Assert the Aerospike fixture publishes this platform
-        env:
-          PLATFORM: ${{ matrix.platform }}
-        run: |
-          set -euo pipefail
-          # Keep in step with .github/aerospike/start_cluster.py's --aerospike_version default.
-          fixture="aerospike/aerospike-server-enterprise:8.1"
-          if ! docker manifest inspect "$fixture" \
-               | jq -e --arg p "$PLATFORM" \
-                   '[.manifests[]? | select("\(.platform.os)/\(.platform.architecture)" == $p)] | length > 0' \
-               >/dev/null; then
-            echo "::error::$fixture publishes no $PLATFORM manifest, so this leg cannot run native"
-            exit 1
-          fi
-          echo "$fixture publishes $PLATFORM"
-
       - name: Install JFrog CLI
         id: jf
         uses: step-security/setup-jfrog-cli@3054b554c0fb4915b3d58847fb7730c593dbb934 # v5.0.0
@@ -267,6 +249,23 @@ jobs:
           username: ${{ steps.jf.outputs.oidc-user }}
           password: ${{ steps.jf.outputs.oidc-token }}
 
+      # Checked live rather than assumed, so a dropped platform manifest fails the leg
+      # instead of silently falling back to emulation.
+      - name: Assert the Aerospike fixture publishes this platform
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          fixture="aerospike.jfrog.io/database-docker-virtual/aerospike-server-enterprise:8.1"
+          if ! docker manifest inspect "$fixture" \
+               | jq -e --arg p "$PLATFORM" \
+                   '[.manifests[]? | select("\(.platform.os)/\(.platform.architecture)" == $p)] | length > 0' \
+               >/dev/null; then
+            echo "::error::$fixture publishes no $PLATFORM manifest, so this leg cannot run native"
+            exit 1
+          fi
+          echo "$fixture publishes $PLATFORM"
+
       - name: Pull the published image
         id: pull
         env:
@@ -277,32 +276,14 @@ jobs:
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
 
       - name: Start Aerospike
-        env:
-          AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-        run: |
-          set -euo pipefail
-          pip3 install python_on_whales
-          bash scripts/start_aerospike.sh --node_count 1
-
-          # start_cluster.py health-checks once and returns 0 even when the cluster never
-          # answered, so confirm it here before anything depends on it.
-          for i in $(seq 1 60); do
-            # cluster-stable, not namespaces or status: those answer while the node still
-            # rejects client connections as "not yet fully initialized".
-            if docker exec "$(docker ps -q --filter ancestor=aerospike/aerospike-server-enterprise:8.1 | head -1)" \
-                 asinfo -v cluster-stable 2>/dev/null | grep -qv ERROR; then
-              echo "Aerospike cluster stable after ${i}s"; break
-            fi
-            if [ "$i" -eq 60 ]; then
-              echo "::error::Aerospike never answered; smoke test cannot run"
-              docker ps -a --filter ancestor=aerospike/aerospike-server-enterprise:8.1 --format '{{.Names}} {{.Status}}'
-              docker logs "$(docker ps -aq --filter ancestor=aerospike/aerospike-server-enterprise:8.1 | head -1)" 2>&1 | tail -30
-              exit 1
-            fi
-            sleep 1
-          done
-
-
+        id: aerospike
+        uses: aerospike/shared-workflows/.github/actions/setup-aerospike-server@57b6b0dae64ad344c2cf0d692018be1254569de3 # unreleased, shared-workflows#290
+        with:
+          server-tag: "8.1"
+          num-nodes: 1
+          features-content: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          oidc-provider: gh-aerospike
+          oidc-audience: aerospike
 
       - name: Round-trip a Gremlin write and read
         env:
@@ -319,8 +300,8 @@ jobs:
             docker rm -f ags-smoke >/dev/null 2>&1 || true
             docker run -d --name ags-smoke -p 8182:8182 \
               --platform "${{ matrix.platform }}" \
-              --add-host=host.docker.internal:host-gateway \
-              -e aerospike.client.host=host.docker.internal \
+              --network "${{ steps.aerospike.outputs.network-name }}" \
+              -e aerospike.client.host="${{ steps.aerospike.outputs.container-names }}" \
               "$IMAGE"
             if python3 scripts/smoke_gremlin_roundtrip.py ws://localhost:8182/gremlin 120; then
               exit 0

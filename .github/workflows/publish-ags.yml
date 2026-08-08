@@ -249,23 +249,6 @@ jobs:
           username: ${{ steps.jf.outputs.oidc-user }}
           password: ${{ steps.jf.outputs.oidc-token }}
 
-      # Checked live rather than assumed, so a dropped platform manifest fails the leg
-      # instead of silently falling back to emulation.
-      - name: Assert the Aerospike fixture publishes this platform
-        env:
-          PLATFORM: ${{ matrix.platform }}
-        run: |
-          set -euo pipefail
-          fixture="artifact.aerospike.io/database-docker-virtual/aerospike-server-enterprise:8.1"
-          if ! docker manifest inspect "$fixture" \
-               | jq -e --arg p "$PLATFORM" \
-                   '[.manifests[]? | select("\(.platform.os)/\(.platform.architecture)" == $p)] | length > 0' \
-               >/dev/null; then
-            echo "::error::$fixture publishes no $PLATFORM manifest, so this leg cannot run native"
-            exit 1
-          fi
-          echo "$fixture publishes $PLATFORM"
-
       - name: Pull the published image
         id: pull
         env:

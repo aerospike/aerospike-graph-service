@@ -21,8 +21,10 @@ replicaCount: 1
 image:
   repository: aerospike/aerospike-graph-service
   pullPolicy: Always
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: 3.3.0-SNAPSHOT
+  # Overrides the image tag whose default is the chart appVersion. Leave empty:
+  # helm package sets appVersion from the release version, and a literal here
+  # pins every published chart to whatever was committed.
+  tag: ""
 
 
 # The user should provide their credentials to pull the graph service docker image

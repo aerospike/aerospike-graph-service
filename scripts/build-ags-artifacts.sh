@@ -77,6 +77,21 @@ echo "==> Packaging the graphservice Helm chart at version ${VERSION}"
 helm package "${ROOT_DIR}/helm/graphservice" \
   --version "${VERSION}" --app-version "${VERSION}" --destination "${OUT_DIR}"
 
+# The image tag must track the packaged version. A literal in values.yaml renders every
+# published chart pointing at whatever was committed, which helm lint does not catch.
+CHART_TGZ="${OUT_DIR}/graphservice-${VERSION}.tgz"
+CHART_TMP="$(mktemp -d)"
+tar xzf "${CHART_TGZ}" -C "${CHART_TMP}"
+RENDERED="$(helm template smoke "${CHART_TMP}/graphservice" | grep -oE 'image: "[^"]+"' | head -1)"
+rm -rf "${CHART_TMP}"
+case "${RENDERED}" in
+  *":${VERSION}\""*) echo "==> Chart renders ${RENDERED}" ;;
+  *)
+    echo "ERROR: chart renders ${RENDERED}, expected the image tag to be ${VERSION}" >&2
+    exit 1
+    ;;
+esac
+
 echo "==> Artifacts emitted to ${OUT_DIR}:"
 ls -1 "${OUT_DIR}"
 

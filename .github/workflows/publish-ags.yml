@@ -260,16 +260,43 @@ jobs:
 
       - name: Start Aerospike
         id: aerospike
-        uses: aerospike/shared-workflows/.github/actions/setup-aerospike-server@57b6b0dae64ad344c2cf0d692018be1254569de3 # unreleased, shared-workflows#290
-        with:
-          # Same host the workflow already authenticated to; the action defaults to
-          # aerospike.jfrog.io, which this job holds no credentials for.
-          container-repo-url: artifact.aerospike.io
-          server-tag: "8.1"
-          num-nodes: 1
-          features-content: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          oidc-provider: gh-aerospike
-          oidc-audience: aerospike
+        env:
+          FEATURES: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          NETWORK: ags-smoke-net
+          SERVER: aerospike-1
+          TOOLS: aerospike/aerospike-tools:12.1.1_2
+        run: |
+          set -euo pipefail
+          printf '%s' "$FEATURES" > "${RUNNER_TEMP}/features.conf"
+          docker network create "$NETWORK"
+
+          # The server's config asks for 15000 descriptors and it exits at startup if the
+          # container cannot supply them.
+          docker run -d --name "$SERVER" --network "$NETWORK" \
+            --ulimit nofile=15000 \
+            -v "${RUNNER_TEMP}/features.conf:/etc/aerospike/features.conf:ro" \
+            aerospike/aerospike-server-enterprise:8.1
+
+          # cluster-stable is the first signal that the node accepts client work. The port
+          # binds and the namespace list populates well before that, so neither is a gate.
+          ready=""
+          for _ in $(seq 1 40); do
+            out="$(docker run --rm --network "$NETWORK" "$TOOLS" \
+                    asinfo -h "$SERVER" -p 3000 -v cluster-stable 2>/dev/null || true)"
+            case "$out" in
+              "" | *ERROR*) ;;
+              *) ready=1; break ;;
+            esac
+            sleep 3
+          done
+          if [ -z "$ready" ]; then
+            echo "::error::Aerospike never reported cluster-stable"
+            docker logs "$SERVER" 2>&1 | tail -40
+            exit 1
+          fi
+
+          echo "network=$NETWORK" >> "$GITHUB_OUTPUT"
+          echo "container=$SERVER" >> "$GITHUB_OUTPUT"
 
       - name: Round-trip a Gremlin write and read
         env:
@@ -286,8 +313,8 @@ jobs:
             docker rm -f ags-smoke >/dev/null 2>&1 || true
             docker run -d --name ags-smoke -p 8182:8182 \
               --platform "${{ matrix.platform }}" \
-              --network "${{ steps.aerospike.outputs.network-name }}" \
-              -e aerospike.client.host="${{ steps.aerospike.outputs.container-names }}" \
+              --network "${{ steps.aerospike.outputs.network }}" \
+              -e aerospike.client.host="${{ steps.aerospike.outputs.container }}" \
               "$IMAGE"
             if python3 scripts/smoke_gremlin_roundtrip.py ws://localhost:8182/gremlin 120; then
               exit 0

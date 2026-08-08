@@ -296,7 +296,9 @@ jobs:
       - name: Round-trip a Gremlin write and read
         run: |
           set -euo pipefail
-          pip3 install gremlinpython
+          # Do not unpin: a newer client compiles iterate() into a discard() step this server lacks.
+          tinkerpop="$(grep -m1 -oP '(?<=<tinkerpop.version>)[^<]+' pom.xml)"
+          pip3 install "gremlinpython==${tinkerpop}"
           python3 scripts/smoke_gremlin_roundtrip.py ws://localhost:8182/gremlin
 
       - name: Graph Service logs on failure

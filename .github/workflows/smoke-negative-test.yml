@@ -113,8 +113,9 @@ jobs:
       - name: The smoke check must reject it
         run: |
           set -uo pipefail
-          if bash scripts/wait_for_gremlin_server.sh && \
-             python3 -m pip install --quiet gremlinpython && \
+          tinkerpop="$(grep -m1 -oP '(?<=<tinkerpop.version>)[^<]+' pom.xml)"
+          if bash scripts/wait_for_gremlin_server.sh 127.0.0.1 8182 45 && \
+             python3 -m pip install --quiet "gremlinpython==${tinkerpop}" && \
              python3 scripts/smoke_gremlin_roundtrip.py ws://localhost:8182/gremlin; then
             echo "::error::the smoke check passed an image with no application code, so it would"
             echo "::error::no longer catch a JAR-less publish"

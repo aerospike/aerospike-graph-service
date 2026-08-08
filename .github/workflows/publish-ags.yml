@@ -261,13 +261,16 @@ jobs:
       - name: Start Aerospike
         id: aerospike
         env:
-          FEATURES: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           NETWORK: ags-smoke-net
           SERVER: aerospike-1
           TOOLS: aerospike/aerospike-tools:12.1.1_2
         run: |
           set -euo pipefail
-          printf '%s' "$FEATURES" > "${RUNNER_TEMP}/features.conf"
+          # The secret holds base64. Written raw, the server reports
+          # "missing value for key <the encoded blob>" and exits.
+          printf '%s' "$AEROSPIKE_FEATURES_B64" | base64 -d > "${RUNNER_TEMP}/features.conf"
+          grep -q '^feature-key-version' "${RUNNER_TEMP}/features.conf"
           docker network create "$NETWORK"
 
           # The server's config asks for 15000 descriptors and it exits at startup if the

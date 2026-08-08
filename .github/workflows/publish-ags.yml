@@ -256,7 +256,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
-          fixture="aerospike.jfrog.io/database-docker-virtual/aerospike-server-enterprise:8.1"
+          fixture="artifact.aerospike.io/database-docker-virtual/aerospike-server-enterprise:8.1"
           if ! docker manifest inspect "$fixture" \
                | jq -e --arg p "$PLATFORM" \
                    '[.manifests[]? | select("\(.platform.os)/\(.platform.architecture)" == $p)] | length > 0' \
@@ -279,6 +279,9 @@ jobs:
         id: aerospike
         uses: aerospike/shared-workflows/.github/actions/setup-aerospike-server@57b6b0dae64ad344c2cf0d692018be1254569de3 # unreleased, shared-workflows#290
         with:
+          # Same host the workflow already authenticated to; the action defaults to
+          # aerospike.jfrog.io, which this job holds no credentials for.
+          container-repo-url: artifact.aerospike.io
           server-tag: "8.1"
           num-nodes: 1
           features-content: ${{ secrets.AEROSPIKE_DEV_LICENSE }}

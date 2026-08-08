@@ -39,6 +39,10 @@ RUN set -eu; \
 
 COPY ${FIREFLY_GRAPH} /opt/firefly-graph.jar
 
+# Trailing glob, not *.asc: it always matches the JAR itself, so the build still works when no
+# detached signature was produced. A *.asc source that matches nothing fails the COPY outright.
+COPY ${FIREFLY_GRAPH}* /opt/sig/graph/
+
 # The JAR argument must have resolved to exactly one readable JAR. Unconditional: no ARG,
 # build-arg or environment variable can disable this. An unset or empty argument makes
 # Docker expand the COPY above to `COPY  /opt/firefly-graph.jar`, which copies the entire
@@ -66,6 +70,31 @@ RUN set -eu; \
     fi; \
     echo "jar-guard OK: $path"; \
     apk del .jar-guard
+
+# Verify the JAR against its detached signature when both a signature and the public key are
+# present. A missing signature or key warns and continues; an invalid signature fails the build.
+RUN --mount=type=secret,id=gpg_public_key \
+    set -eu; \
+    key=/run/secrets/gpg_public_key; \
+    if [ ! -s "$key" ]; then \
+      echo "WARNING: no gpg_public_key build secret; JAR signature not verified"; \
+    else \
+      apk add --no-cache --virtual .gpg-verify gnupg; \
+      export GNUPGHOME=/tmp/gnupg; mkdir -p "$GNUPGHOME"; chmod 700 "$GNUPGHOME"; \
+      gpg --batch --quiet --import "$key"; \
+      sig="$(find /opt/sig/graph -maxdepth 1 -name '*.asc' -print -quit)"; \
+      if [ -z "$sig" ]; then \
+        echo "WARNING: no detached signature alongside firefly-graph.jar; not verified"; \
+      elif ! gpg --batch --verify "$sig" /opt/firefly-graph.jar 2>&1; then \
+        echo "ERROR: signature $sig does not verify against /opt/firefly-graph.jar" >&2; \
+        exit 1; \
+      else \
+        echo "signature OK: /opt/firefly-graph.jar"; \
+      fi; \
+      rm -rf "$GNUPGHOME"; \
+      apk del .gpg-verify; \
+    fi; \
+    rm -rf /opt/sig
 
 COPY conf/docker-default/flattened-default-gremlin-server.yaml $CONF_DIR/flattened-default-gremlin-server.yaml
 COPY docker-runtime-scripts/gremlin-server-docker.sh /opt/scripts/gremlin-server-docker.sh

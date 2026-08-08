@@ -50,6 +50,11 @@ COPY ${FIREFLY_GRAPH} /opt/firefly-graph.jar
 COPY ${BULKLOADER} /opt/bulk-loader.jar
 #COPY ${OLAP} /opt/olap.jar
 
+# Trailing glob, not *.asc: it always matches the JAR itself, so the build still works when no
+# detached signature was produced. A *.asc source that matches nothing fails the COPY outright.
+COPY ${FIREFLY_GRAPH}* /opt/sig/graph/
+COPY ${BULKLOADER}* /opt/sig/bulk/
+
 # Every JAR argument must have resolved to exactly one readable JAR. Unconditional: no ARG,
 # build-arg or environment variable can disable this. An unset or empty argument makes
 # Docker expand the COPY above to `COPY  /opt/firefly-graph.jar`, which copies the entire
@@ -80,6 +85,35 @@ RUN set -eu; \
       echo "jar-guard OK: $path"; \
     done; \
     apk del .jar-guard
+
+# Verify each JAR against its detached signature when both a signature and the public key are
+# present. A missing signature or key warns and continues; an invalid signature fails the build.
+RUN --mount=type=secret,id=gpg_public_key \
+    set -eu; \
+    key=/run/secrets/gpg_public_key; \
+    if [ ! -s "$key" ]; then \
+      echo "WARNING: no gpg_public_key build secret; JAR signatures not verified"; \
+    else \
+      apk add --no-cache --virtual .gpg-verify gnupg; \
+      export GNUPGHOME=/tmp/gnupg; mkdir -p "$GNUPGHOME"; chmod 700 "$GNUPGHOME"; \
+      gpg --batch --quiet --import "$key"; \
+      for pair in "/opt/sig/graph|/opt/firefly-graph.jar" "/opt/sig/bulk|/opt/bulk-loader.jar"; do \
+        dir="${pair%%|*}"; jar="${pair#*|}"; \
+        sig="$(find "$dir" -maxdepth 1 -name '*.asc' -print -quit)"; \
+        if [ -z "$sig" ]; then \
+          echo "WARNING: no detached signature alongside $(basename "$jar"); not verified"; \
+          continue; \
+        fi; \
+        if ! gpg --batch --verify "$sig" "$jar" 2>&1; then \
+          echo "ERROR: signature $sig does not verify against $jar" >&2; \
+          exit 1; \
+        fi; \
+        echo "signature OK: $jar"; \
+      done; \
+      rm -rf "$GNUPGHOME"; \
+      apk del .gpg-verify; \
+    fi; \
+    rm -rf /opt/sig
 
 COPY conf/logback.xml ${CONF_DIR}/logback.xml
 COPY conf/docker-default/flattened-default-gremlin-server.yaml ${CONF_DIR}/flattened-default-gremlin-server.yaml

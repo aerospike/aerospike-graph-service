@@ -291,15 +291,13 @@ jobs:
             -e aerospike.client.host=host.docker.internal \
             "$IMAGE"
 
-          bash scripts/wait_for_gremlin_server.sh
-
       - name: Round-trip a Gremlin write and read
         run: |
           set -euo pipefail
           # Do not unpin: a newer client compiles iterate() into a discard() step this server lacks.
           tinkerpop="$(grep -m1 -oP '(?<=<tinkerpop.version>)[^<]+' pom.xml)"
           pip3 install "gremlinpython==${tinkerpop}"
-          python3 scripts/smoke_gremlin_roundtrip.py ws://localhost:8182/gremlin
+          python3 scripts/smoke_gremlin_roundtrip.py ws://localhost:8182/gremlin 240
 
       - name: Graph Service logs on failure
         if: failure()

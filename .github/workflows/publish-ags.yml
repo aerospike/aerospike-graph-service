@@ -64,7 +64,7 @@ jobs:
           fetch-depth: 0   # required, or extract-version falls back to 0.0.0-dev+<sha>
       - id: tag
         if: github.event_name == 'push'
-        uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@a122700cdfdaf748b544a87c9dd1cf982d2d4e36 # unreleased, shared-workflows#290
+        uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@57b6b0dae64ad344c2cf0d692018be1254569de3 # unreleased, shared-workflows#290
       - name: Resolve the version
         id: v
         env:
@@ -136,7 +136,7 @@ jobs:
             # lands in mode=max provenance.
             build_args: >-
               {"FIREFLY_GRAPH": "artifacts/unsigned-artifacts/aerospike-graph-gremlin-${{ needs.version.outputs.version }}.jar"}
-    uses: aerospike/shared-workflows/.github/workflows/reusable_docker-build-deploy.yaml@a122700cdfdaf748b544a87c9dd1cf982d2d4e36 # unreleased, shared-workflows#290
+    uses: aerospike/shared-workflows/.github/workflows/reusable_docker-build-deploy.yaml@57b6b0dae64ad344c2cf0d692018be1254569de3 # unreleased, shared-workflows#290
     with:
       jf-project: connect
       image-name: aerospike-graph-service                          # one repo for both variants
@@ -152,9 +152,9 @@ jobs:
 
   artifacts:
     needs: version   # once the test gate is on: needs: [version, test]
-    uses: aerospike/shared-workflows/.github/workflows/reusable_artifacts-cicd.yaml@a122700cdfdaf748b544a87c9dd1cf982d2d4e36 # unreleased, shared-workflows#290
+    uses: aerospike/shared-workflows/.github/workflows/reusable_artifacts-cicd.yaml@57b6b0dae64ad344c2cf0d692018be1254569de3 # unreleased, shared-workflows#290
     with:
-      gh-workflows-ref: a122700cdfdaf748b544a87c9dd1cf982d2d4e36 # unreleased, shared-workflows#290
+      gh-workflows-ref: 57b6b0dae64ad344c2cf0d692018be1254569de3 # unreleased, shared-workflows#290
       jf-project: connect
       jf-build-name: aerospike-graph-service-artifacts
       version: ${{ needs.version.outputs.version }}
@@ -312,9 +312,9 @@ jobs:
   release-bundle:
     needs: [version, container, artifacts, smoke-test]
     if: needs.version.outputs.is-release == 'true'
-    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@a122700cdfdaf748b544a87c9dd1cf982d2d4e36 # unreleased, shared-workflows#290
+    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@57b6b0dae64ad344c2cf0d692018be1254569de3 # unreleased, shared-workflows#290
     with:
-      gh-workflows-ref: a122700cdfdaf748b544a87c9dd1cf982d2d4e36 # unreleased, shared-workflows#290
+      gh-workflows-ref: 57b6b0dae64ad344c2cf0d692018be1254569de3 # unreleased, shared-workflows#290
       jf-project: connect
       jf-bundle-name: aerospike-graph-service
       version: ${{ needs.version.outputs.version }}

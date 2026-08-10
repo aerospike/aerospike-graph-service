@@ -135,8 +135,6 @@ ENV CONF_DIR="/opt/conf"
 ENV OUTPUT_SERVER_YAML="$CONF_DIR/aerospike-graph-service.yaml"
 ENV HEALTHCHECK_FILE="/tmp/firefly-ready"
 
-# Create the user before COPY so ownership is set inline; a separate `chown -R /opt`
-# would rewrite every file into a new layer, duplicating the JARs.
 RUN addgroup -S firefly && adduser -S -G firefly firefly
 
 COPY --from=build --chown=firefly:firefly /opt /opt
@@ -155,7 +153,6 @@ RUN chmod +x scripts/gremlin-server-docker.sh
 RUN chmod +x scripts/firefly-server.sh
 RUN chmod -R 777 $CONF_DIR
 
-# Run as the non-root user created above.
 USER firefly
 
 # Document the served ports: Gremlin server and Prometheus metrics.

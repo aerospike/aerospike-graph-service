@@ -109,6 +109,9 @@ class ClusterManager:
                                           ports={f'30{numeric_id}0/tcp': f'30{numeric_id}0/tcp',
                                                  f'43{numeric_id}3/tcp': f'43{numeric_id}3/tcp'},
                                           detach=True,
+                                          # The server config asks for 15000 descriptors and aborts
+                                          # startup if the host gives it fewer.
+                                          ulimits=[docker.types.Ulimit(name='nofile', soft=15000, hard=15000)],
                                           mounts=mounts)
         self.logger.info(f"started aerospike container {it.id}")
         self.logger.debug(f"rendered config: \n {template_output}")

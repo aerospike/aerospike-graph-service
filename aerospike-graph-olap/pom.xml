@@ -111,14 +111,6 @@
             <version>${spark.version}</version>
             <exclusions>
                 <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-text</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-configuration2</artifactId>
-                </exclusion>
-                <exclusion>
                     <groupId>org.lz4</groupId>
                     <artifactId>lz4-java</artifactId>
                 </exclusion>
@@ -145,14 +137,6 @@
             <artifactId>spark-sql_2.12</artifactId>
             <version>${spark.version}</version>
             <exclusions>
-                <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-text</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-configuration2</artifactId>
-                </exclusion>
                 <!-- CVE-2025-67721: no fix available for legacy artifact; ORC code path unused (Parquet only) -->
                 <exclusion>
                     <groupId>io.airlift</groupId>

@@ -295,14 +295,13 @@ public abstract class PageFetcher<E> {
                     }
                 });
                 shutdown();
-                if (graph.getBaseGraph().getConfig().paginationShutdownWait != 0) {
-                    try {
-                        if (!readLoopExecutorService.awaitTermination(graph.getBaseGraph().getConfig().paginationShutdownWait,
-                                java.util.concurrent.TimeUnit.MILLISECONDS)) {
-                            readLoopExecutorService.shutdownNow();
-                        }
-                    } catch (final InterruptedException e) {
+                // paginationShutdownWait is how long to wait before forcing; 0 means force immediately.
+                try {
+                    if (!readLoopExecutorService.awaitTermination(graph.getBaseGraph().getConfig().paginationShutdownWait,
+                            java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                        readLoopExecutorService.shutdownNow();
                     }
+                } catch (final InterruptedException e) {
                 }
 
                 // Clean up any remaining pages.

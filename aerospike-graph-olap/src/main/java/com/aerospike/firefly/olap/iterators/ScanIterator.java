@@ -143,7 +143,12 @@ public class ScanIterator implements CloseableIterator<Traverser> {
                                 graph.getBaseGraph().getConfig().paginationPageSize,
                                 null,
                                 partitionFilter,
-                                Executors.newSingleThreadExecutor(),
+                                Executors.newSingleThreadExecutor(r -> {
+                                    final Thread t = new Thread(r);
+                                    t.setName("Aerospike-Graph-Scan-Partition-Worker-" + t.getId());
+                                    t.setDaemon(true);
+                                    return t;
+                                }),
                                 pageQueue,
                                 graph::vertexFromRecord);
 
@@ -152,6 +157,10 @@ public class ScanIterator implements CloseableIterator<Traverser> {
                         break;
                     } catch (final Exception e) {
                         TaskLogger.logDebuggingMessage("Got exception " + e.getMessage(), LOGGER);
+                        if (pageFetcher != null) {
+                            pageFetcher.shutdownAwait();
+                            pageFetcher = null;
+                        }
                         if (attemptCount > 10) {
                             throw new RuntimeException("Failed to run query after " + attemptCount + " attempts.", e);
                         } else if (e.getMessage().contains("Operation not allowed at this time")) {
@@ -173,6 +182,10 @@ public class ScanIterator implements CloseableIterator<Traverser> {
             }
             if (page instanceof PageFetcher.ErrorPage) {
                 final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
+                if (pageFetcher != null) {
+                    pageFetcher.shutdownAwait();
+                    pageFetcher = null;
+                }
                 throw new RuntimeException("Error fetching page: " + errorPage.errorMessage, errorPage.exception);
             } else if (page instanceof PageFetcher.PoisonPill) {
                 pageFetcher.shutdownAwait();

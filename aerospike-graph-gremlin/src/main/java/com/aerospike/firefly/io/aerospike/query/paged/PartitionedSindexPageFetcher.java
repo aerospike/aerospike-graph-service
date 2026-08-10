@@ -65,7 +65,12 @@ public class PartitionedSindexPageFetcher<R> extends SindexPageFetcher<R> {
                                         final String indexName,
                                         final PartitionFilter partitionFilter,
                                         final BlockingQueue<Page> pageQueue) {
-        super(graph, policy, setName, namespace, filter, maxPageSize, transformKeyRecord, indexName, partitionFilter, Executors.newSingleThreadExecutor(), pageQueue);
+        super(graph, policy, setName, namespace, filter, maxPageSize, transformKeyRecord, indexName, partitionFilter, Executors.newSingleThreadExecutor(r -> {
+            final Thread t = new Thread(r);
+            t.setName("Aerospike-Graph-Sindex-Partition-Worker-" + t.getId());
+            t.setDaemon(true);
+            return t;
+        }), pageQueue);
         this.lock = new Object();
         this.allCompleted = List.of(new AtomicBoolean(false));
         this.workerCount = 1;

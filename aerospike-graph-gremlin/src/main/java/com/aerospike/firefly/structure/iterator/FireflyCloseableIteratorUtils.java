@@ -131,9 +131,13 @@ public class FireflyCloseableIteratorUtils {
     }
 
     public static final long count(final Iterator iterator) {
-        long ix = 0;
-        for (; iterator.hasNext(); ++ix) iterator.next();
-        return ix;
+        try {
+            long ix = 0;
+            for (; iterator.hasNext(); ++ix) iterator.next();
+            return ix;
+        } finally {
+            CloseableIterator.closeIterator(iterator);
+        }
     }
 
     public static final long count(final Iterable iterable) {

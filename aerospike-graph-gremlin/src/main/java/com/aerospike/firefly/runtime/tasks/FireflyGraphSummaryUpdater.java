@@ -689,6 +689,8 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
         if (!vertexCounts.isEmpty() || !edgeCounts.isEmpty() || !supernodeCounts.isEmpty())
             doWrite();
+
+        EXECUTOR_SERVICE.shutdownNow();
     }
 
     /**

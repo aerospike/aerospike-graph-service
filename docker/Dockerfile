@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM alpine:latest@sha256:fa1b3b8cd12d2b2ded5ef366f99b5a7556884646af680404989d626535a3ac14 AS build
+FROM alpine:3.23.5@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS build
 
 # Set input arguments.
 ARG FIREFLY_GRAPH
@@ -45,7 +45,7 @@ WORKDIR /opt
 # For Windows users fix for line endings
 RUN dos2unix /opt/scripts/gremlin-server-docker.sh /opt/scripts/firefly-server.sh
 
-FROM alpine:latest@sha256:fa1b3b8cd12d2b2ded5ef366f99b5a7556884646af680404989d626535a3ac14 AS main
+FROM alpine:3.23.5@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS main
 
 # Set environment variables.
 ENV CONF_DIR="/opt/conf"
@@ -67,6 +67,13 @@ WORKDIR /opt
 RUN chmod +x scripts/gremlin-server-docker.sh
 RUN chmod +x scripts/firefly-server.sh
 RUN chmod -R 777 $CONF_DIR
+
+# Run as a non-root user (org convention); give it ownership of the app dir.
+RUN addgroup -S firefly && adduser -S -G firefly firefly && chown -R firefly:firefly /opt
+USER firefly
+
+# Document the served ports: Gremlin server and Prometheus metrics.
+EXPOSE 8182 9090
 
 HEALTHCHECK CMD ls $HEALTHCHECK_FILE
 

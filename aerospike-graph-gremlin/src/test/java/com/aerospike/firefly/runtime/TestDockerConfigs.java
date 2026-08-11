@@ -202,21 +202,13 @@ public class TestDockerConfigs {
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundMsg = false;
-        boolean foundSnapshot = false;
         for (final String line : log) {
             if (line.contains("Built from git commit")) {
                 foundMsg = true;
-            }
-            if (line.toLowerCase().contains("snapshot")) {
-                foundSnapshot = true;
-            }
-            if (foundSnapshot && foundMsg) {
                 break;
             }
         }
-        if (foundSnapshot) {
-            Assert.assertTrue(foundMsg);
-        }
+        Assert.assertTrue(foundMsg);
     }
 
     @Before

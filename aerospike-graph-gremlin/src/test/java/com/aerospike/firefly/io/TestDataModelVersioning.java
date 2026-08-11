@@ -49,11 +49,7 @@ public class TestDataModelVersioning {
     }
 
     private static String getAdjustedVersion(final int versionIndex, final int delta) {
-        String fireflyVersion = FireflyGraph.FIREFLY_VERSION.toUpperCase();
-        if (fireflyVersion.endsWith("-SNAPSHOT")) {
-            fireflyVersion = fireflyVersion.replace("-SNAPSHOT", "");
-        }
-        String[] splitVersion = fireflyVersion.split("\\.");
+        String[] splitVersion = FireflyGraph.FIREFLY_VERSION.split("\\.");
         // This isn't a problem since major version at time of writing is >= 2.
         // For minor version, we only test by adjusting this positively.
         // For patch version, this is the only time this can become negative when on x.x.0, but it doesn't matter since it doesn't affect compatibility.

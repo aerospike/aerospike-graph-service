@@ -328,6 +328,7 @@
                 <configuration>
                     <dotGitDirectory>${project.parent.basedir}/.git</dotGitDirectory>
                     <generateGitPropertiesFile>true</generateGitPropertiesFile>
+                    <generateGitPropertiesFilename>${project.build.outputDirectory}/build-info.properties</generateGitPropertiesFilename>
                     <injectAllReactorProjects>true</injectAllReactorProjects>
                 </configuration>
             </plugin>

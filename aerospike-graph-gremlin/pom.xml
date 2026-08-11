@@ -276,7 +276,7 @@
             <resource>
                 <directory>${project.basedir}</directory>
                 <includes>
-                    <include>git.properties</include>
+                    <include>build-info.properties</include>
                 </includes>
                 <filtering>false</filtering>
             </resource>

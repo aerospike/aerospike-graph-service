@@ -314,8 +314,8 @@ read by `DataModelVersioning.checkVersionCompatibility`:
 - **Data-model name.** Currently always `"packed"`. The constant lives
   at `FireflyGraph.DATA_MODEL`.
 - **Data-model version.** The current engine version
-  (`FireflyGraph.FIREFLY_VERSION`) serialized as a
-  `ComparableVersion`.
+  (`FireflyGraph.FIREFLY_VERSION`, with any `-SNAPSHOT` suffix already
+  stripped) serialized as a `ComparableVersion`.
 
 On every boot the engine compares the on-disk version against its own:
 

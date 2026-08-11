@@ -92,7 +92,7 @@
         <log4j.version>2.25.5</log4j.version>
         <guava.version>31.1-jre</guava.version>
         <resilience4j.version>1.7.1</resilience4j.version>
-        <spark.version>3.5.8</spark.version>
+        <spark.version>3.5.9</spark.version>
         <vertx.version>4.5.32</vertx.version>
         <jackson.version>2.21.5</jackson.version>
         <prometheus.version>0.16.0</prometheus.version>

@@ -4,7 +4,7 @@ Guidance for AI coding agents (Cursor, etc.) working in this repository.
 
 ## Commits and DCO sign-off
 
-Every commit must include a [Developer Certificate of Origin](https://developercertificate.org/) (DCO) sign-off. CI enforces this on all pull requests (see `.github/workflows/dco.yml`).
+Every commit must include a [Developer Certificate of Origin](https://developercertificate.org/) (DCO) sign-off. CI enforces this on all pull requests (see `.github/workflows/ci-dco.yml`).
 
 **Always create commits with `-s` / `--signoff`:**
 

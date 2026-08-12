@@ -111,8 +111,8 @@ auto-merge queue; add the label again to re-queue after review.
 
 ## CI for pull requests from forks
 
-Some of our workflows (`build-test-pull-request.yml`, `l3-test.yml`,
-`snyk.yml`) provision EC2 / GCP resources and therefore require
+Some of our workflows (`test-pull-request.yml`, `test-l3-bulk-loader.yml`,
+`snyk-scan.yml`) provision EC2 / GCP resources and therefore require
 repository secrets (AWS, GCP, Snyk, license keys). To keep those
 secrets out of reach of untrusted code, every such workflow starts
 with a `ci-guard` job that blocks the rest of the workflow unless:

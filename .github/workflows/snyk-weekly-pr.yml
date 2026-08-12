@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Weekly Build
+name: Create Snyk Fix Pull Requests (Weekly)
 
 on:
   schedule:
@@ -21,13 +21,13 @@ on:
 
 jobs:
   trigger-weekly-build:
-    name: Trigger weekly build
+    name: Create Snyk Fix Pull Requests
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -36,9 +36,9 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.WEEKLY_SNYK_PR_TOKEN }}
-      - name: Set date
+      - name: Set Run Date Stamp
         run: echo "WEEKLY=$(date '+%Y-%m-%d')" >> $GITHUB_ENV
-      - name: Create Snyk pull requests
+      - name: Create Snyk Pull Requests
         if: always()
         shell: bash
         run: |

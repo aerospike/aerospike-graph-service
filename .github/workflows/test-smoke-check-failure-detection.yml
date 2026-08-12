@@ -18,7 +18,7 @@
 # carrying the expected entrypoint path. That satisfies the build-time guard, which only inspects
 # structure, and leaves an image whose JVM cannot start. The smoke check is the only thing that
 # catches this class, so if it stops catching it this job fails.
-name: smoke-negative-test
+name: Verify AGS Publish Smoke Check
 
 on:
   pull_request:
@@ -29,7 +29,7 @@ on:
       - "scripts/wait_for_gremlin_server.sh"
       - "scripts/start_aerospike.sh"
       - ".github/aerospike/**"
-      - ".github/workflows/smoke-negative-test.yml"
+      - ".github/workflows/test-smoke-check-failure-detection.yml"
 
 permissions:
   contents: read
@@ -40,16 +40,16 @@ jobs:
     # `needs: ci-guard`, so on fork PRs that lack the `trusted-ci`
     # label this job fails fast and the rest of the workflow is
     # skipped, keeping the license secret out of reach.
-    name: CI guard (fork + label check)
+    name: CI Guard (Fork + Label Check)
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
           egress-policy: audit
 
-      - name: Gate
+      - name: Enforce Fork and Label Policy
         env:
           EVENT: ${{ github.event_name }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
@@ -75,14 +75,14 @@ jobs:
           exit 1
 
   smoke-catches-dead-image:
-    name: Smoke check rejects a non-functional image
+    name: Smoke Check Rejects a Non-Functional Image
     needs: ci-guard
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Build stub JARs
+      - name: Build Stub JARs
         run: |
           set -euo pipefail
           mkdir -p stub/com/aerospike/firefly/runtime
@@ -90,7 +90,7 @@ jobs:
           (cd stub && zip -qr ../stub-graph.jar .)
           cp stub-graph.jar stub-bulk.jar
 
-      - name: Build an image that passes the guard but cannot run
+      - name: Build an Image That Passes the Guard but Cannot Run
         run: |
           set -euo pipefail
           docker build -f docker/Dockerfile \
@@ -98,7 +98,7 @@ jobs:
             --build-arg BULKLOADER=stub-bulk.jar \
             -t ags-dead:test .
 
-      - name: Start Aerospike and the image
+      - name: Start Aerospike and the Image
         env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
@@ -110,7 +110,7 @@ jobs:
             -e aerospike.client.host=host.docker.internal \
             ags-dead:test
 
-      - name: The smoke check must reject it
+      - name: Assert Smoke Check Rejects Non-Functional Image
         run: |
           set -uo pipefail
           tinkerpop="$(grep -m1 -oP '(?<=<tinkerpop.version>)[^<]+' pom.xml)"
@@ -123,6 +123,6 @@ jobs:
           fi
           echo "smoke check rejected the image, as required"
 
-      - name: Container logs
+      - name: Collect AGS Container Logs on Completion
         if: always()
         run: docker logs ags-dead || true

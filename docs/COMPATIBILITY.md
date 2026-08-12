@@ -13,7 +13,7 @@ the root `pom.xml` and with release-note additions.
 | **Aerospike Database (server)**     | 7.0+                                  | Minimum supported version. MRT and related APIs build on capabilities available from Aerospike Database 6.0 onward. |
 | **Aerospike Java client**           | 9.3.x                                 | Wire protocol: Aerospike 7+ server.                 |
 | **Spark (OLAP + bulk loader)**      | 3.5.x                                 | Both Spark side processes are tested on 3.5.        |
-| **Docker image base**               | `eclipse-temurin:17-jre-jammy`        | Produced by the `publish-ghcr-container.yml` flow.  |
+| **Docker image base**               | `eclipse-temurin:17-jre-jammy`        | Produced by the `publish-ags-artifacts.yml` flow.   |
 | **Maven (build)**                   | 3.9+                                  | Enforced by `.mvn/maven-version` / CI.              |
 
 The authoritative versions are the properties at the top of the root

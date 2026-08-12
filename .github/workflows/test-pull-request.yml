@@ -12,11 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Build and Test Firefly (Pull Request)
+name: Build and Test Aerospike Graph Service (Pull Request)
 
 on:
   pull_request:
-    branches: [3.x-dev]
+    # 3.x-dev covers real contributor PRs. 3.x-snyk covers the weekly Snyk-fix PR
+    # (opened by snyk-weekly-pr.yml) so the full test suite also acts as a regression
+    # gate before those vulnerability fixes get merged back.
+    branches: [3.x-dev, 3.x-snyk]
 
 jobs:
   ci-guard:
@@ -24,16 +27,16 @@ jobs:
     # `needs: ci-guard`, so on fork PRs that lack the `trusted-ci`
     # label this job fails fast and the rest of the workflow is
     # skipped, keeping AWS/GCS/license secrets out of reach.
-    name: CI guard (fork + label check)
+    name: CI Guard (Fork + Label Check)
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
           egress-policy: audit
 
-      - name: Gate
+      - name: Enforce Fork and Label Policy
         env:
           EVENT: ${{ github.event_name }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
@@ -61,17 +64,17 @@ jobs:
   olap-guard:
     # OLAP jobs are heavy (Spark, long runtime). They run only when a maintainer
     # adds the `olap-ci` label to the pull request.
-    name: OLAP CI (requires olap-ci label)
+    name: OLAP Test Gate (olap-ci Label)
     needs: ci-guard
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
           egress-policy: audit
 
-      - name: Gate
+      - name: Enforce OLAP CI Label Requirement
         env:
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
@@ -89,7 +92,7 @@ jobs:
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -97,12 +100,12 @@ jobs:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
           fetch-depth: 0
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -111,16 +114,16 @@ jobs:
           mvn clean package -DskipTests --no-transfer-progress
   negative-test-bulk-loader-call-docker:
     needs: ci-guard
-    name: Bulk Loader Call without Spark Fails
+    name: Verify Bulk Loader Call Fails without Spark
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
-      - name: Set up Docker Buildx
+      - name: Set Up Docker Buildx
         uses: step-security/setup-buildx-action@f931205d68723ad9589fd2a7e2ece238bf9de341 # v4.0.0
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
@@ -128,12 +131,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -166,7 +169,7 @@ jobs:
     needs: ci-guard
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -177,16 +180,16 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
-      - name: Build maven
+      - name: Build Maven Project
         env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
@@ -227,7 +230,7 @@ jobs:
     needs: ci-guard
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -238,12 +241,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -264,12 +267,12 @@ jobs:
           bash scripts/map_aerospike_test_host.sh
           mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test -Dtest=CacheIntegrationTest --no-transfer-progress
   test-firefly-structure:
-    name: Test Packed Structure Tests
+    name: Test Packed Structure
     timeout-minutes: 120
     needs: ci-guard
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -280,12 +283,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -303,11 +306,11 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphStructureStandardTest --no-transfer-progress
   test-nsup-disabled:
     needs: ci-guard
-    name: Test nsup Disabled
+    name: Test Firefly nsup Disabled
     timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -318,12 +321,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -335,11 +338,11 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepNSupDisabledTest --no-transfer-progress
   test-mrt:
     needs: ci-guard
-    name: Test MRT
+    name: Test Firefly MRT
     timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -350,16 +353,16 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
-      - name: Run Firefly mrt tests
+      - name: Run Firefly mrt Tests
         env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
@@ -371,11 +374,11 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxMRTFeatureTest --no-transfer-progress
   test-tinkerpop-tx:
     needs: ci-guard
-    name: Test Tinkerpop Transactions
+    name: Test TinkerPop Transactions
     timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -383,21 +386,21 @@ jobs:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
           fetch-depth: 0
-      - name: Set up Docker Buildx
+      - name: Set Up Docker Buildx
         uses: step-security/setup-buildx-action@f931205d68723ad9589fd2a7e2ece238bf9de341 # v4.0.0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
-      - name: Build docker
+      - name: Build Docker Image
         run: |
           pip3 install python_on_whales
           echo "Building docker image"
@@ -453,7 +456,7 @@ jobs:
     needs: ci-guard
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -464,12 +467,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -491,7 +494,7 @@ jobs:
     needs: ci-guard
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -502,12 +505,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -529,7 +532,7 @@ jobs:
     needs: ci-guard
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -540,12 +543,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -568,7 +571,7 @@ jobs:
     if: false # OLAP tests disabled
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -579,12 +582,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -603,13 +606,13 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
           mvn test -pl aerospike-graph-olap -Dolap.test.jvm.args="-XX:MaxRAMPercentage=80.0" --no-transfer-progress
   test-local-computer-process-2:
-    name: Test Local Computer Process Tests 2 (map)
+    name: Test Local Computer Process Tests 2 (Map)
     timeout-minutes: 120
     needs: [ci-guard, olap-guard]
     if: false # OLAP tests disabled
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -620,12 +623,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -643,13 +646,13 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
           mvn test -pl aerospike-graph-olap -Dtest=FireflyComputerFeatureMapTest --no-transfer-progress
   test-local-computer-process-3:
-    name: Test Local Computer Process Tests 3 (filter)
+    name: Test Local Computer Process Tests 3 (Filter)
     timeout-minutes: 120
     needs: [ci-guard, olap-guard]
     if: false # OLAP tests disabled
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -660,12 +663,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -683,13 +686,13 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
           mvn test -pl aerospike-graph-olap -Dtest=FireflyComputerFeatureFilterTest --no-transfer-progress
   test-local-computer-process-4:
-    name: Test Local Computer Process Tests 4 (branch)
+    name: Test Local Computer Process Tests 4 (Branch)
     timeout-minutes: 120
     needs: [ci-guard, olap-guard]
     if: false # OLAP tests disabled
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -700,12 +703,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -723,12 +726,12 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
           mvn test -pl aerospike-graph-olap -Dtest=FireflyComputerFeatureBranchTest --no-transfer-progress
   test-firefly-movielens:
-    name: Test Movielens
+    name: Test Firefly Movielens Dataset
     timeout-minutes: 120
     needs: ci-guard
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -739,12 +742,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -761,7 +764,7 @@ jobs:
     needs: ci-guard
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -772,12 +775,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -794,7 +797,7 @@ jobs:
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -805,12 +808,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -826,7 +829,7 @@ jobs:
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -837,12 +840,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -858,7 +861,7 @@ jobs:
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -869,12 +872,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -900,7 +903,7 @@ jobs:
     timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -908,28 +911,28 @@ jobs:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
           fetch-depth: 0
-      - name: Set up Docker Buildx
+      - name: Set Up Docker Buildx
         uses: step-security/setup-buildx-action@f931205d68723ad9589fd2a7e2ece238bf9de341 # v4.0.0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
-      - name: Build docker
+      - name: Build Docker Image
         run: |
           pip3 install python_on_whales
           echo "Building docker image"
           python3 scripts/build-docker.py --tags firefly --platforms linux/amd64
           python3 scripts/build-docker.py --tags firefly-slim --platforms linux/amd64 --use_local --slim
       # Due to the nature of the multi usage stats test, it MUST come first. Otherwise it will have problems.
-      - name: Run multi Firefly usage test
+      - name: Run Multi Firefly Usage Test
         env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
@@ -958,7 +961,7 @@ jobs:
           docker logs firefly
           echo "Running secret masking test script"
           bash scripts/test-secret-masking.sh
-      - name: Launch Firefly Docker Image with Custom yaml
+      - name: Launch Firefly Docker Image with Custom YAML
         run: |
           echo "Running docker image with custom yaml file"
           docker run -d -p 8182:8182 -v ${{ github.workspace }}/conf/test-custom-configs:/opt/aerospike-graph/custom firefly
@@ -969,7 +972,7 @@ jobs:
           
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)
-      - name: Launch Firefly Docker Image with Custom properties
+      - name: Launch Firefly Docker Image with Custom Properties
         run: |
           echo "Running docker image with custom properties file"
           docker run -d -p 8182:8182 -v ${{ github.workspace }}/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
@@ -1059,7 +1062,7 @@ jobs:
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -1067,21 +1070,21 @@ jobs:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
           fetch-depth: 0
-      - name: Set up Docker Buildx
+      - name: Set Up Docker Buildx
         uses: step-security/setup-buildx-action@f931205d68723ad9589fd2a7e2ece238bf9de341 # v4.0.0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
-      - name: Build docker
+      - name: Build Docker Image
         run: |
           pip3 install python_on_whales
           echo "Building docker image"
@@ -1111,11 +1114,11 @@ jobs:
           docker stop $(docker ps -q --filter ancestor=firefly)
   test-aerospike-ttl:
     needs: ci-guard
-    name: Test Aerospike TTL Fails
+    name: Test Aerospike TTL Rejection
     timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -1123,21 +1126,21 @@ jobs:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
           fetch-depth: 0
-      - name: Set up Docker Buildx
+      - name: Set Up Docker Buildx
         uses: step-security/setup-buildx-action@f931205d68723ad9589fd2a7e2ece238bf9de341 # v4.0.0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
-      - name: Run multi Firefly usage test
+      - name: Run Aerospike TTL Test
         env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
@@ -1149,7 +1152,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.head_ref == '3.x-snyk'
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -1157,12 +1160,12 @@ jobs:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
           fetch-depth: 0
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -1178,7 +1181,7 @@ jobs:
     timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
           egress-policy: audit
@@ -1189,10 +1192,10 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           pip install pytest pyyaml
-      - name: Run pytest tests
+      - name: Run pytest Tests
         working-directory: docker-runtime-scripts
         run: |
           python -m pytest tests/ -v

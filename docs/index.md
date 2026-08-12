@@ -14,7 +14,7 @@ This directory is the engineering and design reference for contributors to this 
 ## Getting started
 
 - [Public API Javadoc](api/): generated from the `aerospike-graph-api`
-  module. Refreshed when [`.github/workflows/docs.yml`](../.github/workflows/docs.yml) runs (see that workflow for branch and path triggers).
+  module. Refreshed when [`.github/workflows/publish-docs.yml`](../.github/workflows/publish-docs.yml) runs (see that workflow for branch and path triggers).
 - [Setup](SETUP.md): minimal properties file and connection options.
 - [Architecture](ARCHITECTURE.md): one-page map of the modules and
   request lifecycle.

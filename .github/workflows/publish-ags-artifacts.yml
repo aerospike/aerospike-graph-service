@@ -37,7 +37,7 @@
 # then, on a tag only, assembles a release bundle (aerospike-graph-service) for DEV -> PROD
 # promotion. On PROD promotion the existing artifact-publisher automation mirrors the image to
 # Docker Hub.
-name: publish-ags
+name: Publish AGS Artifacts
 
 on:
   push:
@@ -54,6 +54,7 @@ permissions:
 
 jobs:
   version:
+    name: Resolve Version
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.v.outputs.version }}
@@ -65,7 +66,7 @@ jobs:
       - id: tag
         if: github.event_name == 'push'
         uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0
-      - name: Resolve the version
+      - name: Resolve Release or Development Version
         id: v
         env:
           EVENT: ${{ github.event_name }}
@@ -110,10 +111,11 @@ jobs:
   #
   # test:
   #   needs: version
-  #   uses: ./.github/workflows/build-test-main.yml
+  #   uses: ./.github/workflows/test-post-merge.yml
   #   secrets: inherit
 
   container:
+    name: Build and Push AGS Container Images
     needs: [version, artifacts]   # once the test gate is on: add `test`
     strategy:
       fail-fast: false
@@ -151,6 +153,7 @@ jobs:
       build-secrets-json: '{"gpg_public_key": ${{ toJSON(secrets.GPG_PUBLIC_KEY) }}}'
 
   artifacts:
+    name: Build and Publish AGS Artifacts
     needs: version   # once the test gate is on: needs: [version, test]
     uses: aerospike/shared-workflows/.github/workflows/reusable_artifacts-cicd.yaml@d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0
     with:
@@ -184,7 +187,7 @@ jobs:
   # No ci-guard: this workflow triggers only on tag push and workflow_dispatch, so a fork cannot
   # reach it.
   smoke-test:
-    name: Smoke test ${{ matrix.variant }} (${{ matrix.platform }})
+    name: AGS Image Smoke Test (${{ matrix.variant }}, ${{ matrix.platform }})
     needs: [version, container]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
@@ -219,7 +222,7 @@ jobs:
 
       # An amd64 host running `--platform linux/arm64` falls back to QEMU once binfmt is
       # registered, which would pass while testing something other than what ships.
-      - name: Assert native runner
+      - name: Assert Native Runner Architecture
         env:
           EXPECT_ARCH: ${{ matrix.expect_arch }}
           RUNNER_ARCH_ACTUAL: ${{ runner.arch }}
@@ -242,14 +245,14 @@ jobs:
           oidc-provider-name: gh-aerospike
           oidc-audience: aerospike
 
-      - name: Docker login to Artifactory
+      - name: Docker Login to Artifactory
         uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: artifact.aerospike.io
           username: ${{ steps.jf.outputs.oidc-user }}
           password: ${{ steps.jf.outputs.oidc-token }}
 
-      - name: Pull the published image
+      - name: Pull the Published Image
         id: pull
         env:
           IMAGE: artifact.aerospike.io/connect-docker-dev-local/aerospike-graph-service:${{ matrix.tag }}
@@ -301,7 +304,7 @@ jobs:
           echo "network=$NETWORK" >> "$GITHUB_OUTPUT"
           echo "container=$SERVER" >> "$GITHUB_OUTPUT"
 
-      - name: Round-trip a Gremlin write and read
+      - name: Verify Gremlin Write and Read Round-Trip
         env:
           IMAGE: ${{ steps.pull.outputs.image }}
         run: |
@@ -328,7 +331,7 @@ jobs:
           echo "::error::Graph Service never served after 3 starts"
           exit 1
 
-      - name: Graph Service logs on failure
+      - name: Collect AGS Container Logs on Failure
         if: failure()
         run: docker logs ags-smoke || true
 
@@ -339,6 +342,7 @@ jobs:
   # smoke-test is in `needs` so a failed image cannot be bundled. A bundle around a broken image
   # is unrecoverable once PROD promotion mirrors it to Docker Hub.
   release-bundle:
+    name: Create JFrog Release Bundle
     needs: [version, container, artifacts, smoke-test]
     if: needs.version.outputs.is-release == 'true'
     uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0

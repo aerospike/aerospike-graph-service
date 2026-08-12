@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: DCO
+name: DCO Sign-Off Check
 
 # Enforce the Developer Certificate of Origin on every commit in every
 # pull request targeting 3.x-dev. Contributors must sign off each
@@ -39,12 +39,12 @@ permissions:
 
 jobs:
   dco:
-    name: DCO sign-off check
+    name: DCO Sign-Off Check
     if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit

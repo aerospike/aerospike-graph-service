@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Graph Service MCP Tests
+name: Test Graph Service MCP Integration
 
 # Runs the graph-service-mcp Python test suite. Only triggers when files
 # relevant to the MCP server change, so unrelated PRs skip this workflow
@@ -22,7 +22,7 @@ on:
     branches: [3.x-dev]
     paths:
       - 'graph-service-mcp/**'
-      - '.github/workflows/graph-service-mcp-test.yml'
+      - '.github/workflows/test-graph-service-mcp.yml'
   workflow_dispatch:
 
 concurrency:
@@ -38,16 +38,16 @@ jobs:
     # `needs: ci-guard`, so on fork PRs that lack the `trusted-ci` label
     # this job fails fast and the test job is skipped, keeping the
     # AEROSPIKE_DEV_LICENSE secret out of reach.
-    name: CI guard (fork + label check)
+    name: CI Guard (Fork + Label Check)
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
           egress-policy: audit
 
-      - name: Gate
+      - name: Enforce Fork and Label Policy
         env:
           EVENT: ${{ github.event_name }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
@@ -78,12 +78,12 @@ jobs:
     timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
-      - name: Set up Docker Buildx
+      - name: Set Up Docker Buildx
         uses: step-security/setup-buildx-action@f931205d68723ad9589fd2a7e2ece238bf9de341 # v4.0.0
 
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
@@ -92,23 +92,23 @@ jobs:
 
       # 3.10 is the package's minimum supported version; used for both the
       # AGS image build tooling (python_on_whales) and the MCP test suite.
-      - name: Set up Python
+      - name: Set Up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10'
 
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
 
-      - name: Build AGS image and start Aerospike + Graph Service
+      - name: Build AGS Image and Start Aerospike + Graph Service
         env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
@@ -129,13 +129,13 @@ jobs:
           # Wait until the Gremlin server is accepting connections on 8182.
           bash scripts/wait_for_gremlin_server.sh
 
-      - name: Install MCP server and test dependencies
+      - name: Install MCP Server and Test Dependencies
         working-directory: graph-service-mcp
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[test]"
 
-      - name: Run MCP tests
+      - name: Run MCP Tests
         working-directory: graph-service-mcp
         env:
           GREMLIN_URL: ws://localhost:8182/gremlin

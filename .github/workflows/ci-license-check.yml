@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: License Check (Maven)
+name: License Check
 
 # Runs the `license-check` Maven profile, which enforces the allowed-license
 # allowlist in the root POM against the full compile+runtime dependency
@@ -33,7 +33,7 @@ on:
       - '**/pom.xml'
       - '**/Dockerfile*'
       - '.mvn/**'
-      - '.github/workflows/license-check.yml'
+      - '.github/workflows/ci-license-check.yml'
   push:
     branches:
       - 3.x-dev
@@ -48,7 +48,7 @@ on:
       - '**/pom.xml'
       - '**/Dockerfile*'
       - '.mvn/**'
-      - '.github/workflows/license-check.yml'
+      - '.github/workflows/ci-license-check.yml'
   workflow_dispatch:
 
 permissions:
@@ -56,10 +56,10 @@ permissions:
 
 jobs:
   apache-header-check:
-    name: Apache-2.0 header on every authored source/config file
+    name: Apache-2.0 Header Check
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
@@ -81,7 +81,7 @@ jobs:
       # was migrated into this repository and is held to the same per-file
       # header convention as the rest of the repo (its own LICENSE file was
       # removed in favor of the root LICENSE).
-      - name: Check Apache-2.0 header presence
+      - name: Check Apache-2.0 Header Presence
         run: |
           set -eo pipefail
           MARKER='Licensed under the Apache License'
@@ -120,29 +120,29 @@ jobs:
           echo "All authored sources/configs carry the Apache-2.0 header."
 
   license-check:
-    name: mvn -Plicense-check verify
+    name: License Check
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
 
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
 
-      - name: Run license-check profile
+      - name: Run License-Check Profile
         run: mvn -ntp -Plicense-check -DskipTests verify
 
       - name: Upload THIRD_PARTY.txt
@@ -155,24 +155,24 @@ jobs:
           retention-days: 30
 
   spotless-check:
-    name: mvn spotless:check
+    name: Spotless Check
     runs-on: ubuntu-latest
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the Runner (Audit All Outbound Calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
-      - name: Set up JDK 17
+      - name: Set Up JDK 17
         uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
 
-      - name: Set up Maven
+      - name: Set Up Maven
         uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
         with:
           maven-version: 3.9.5
@@ -182,5 +182,5 @@ jobs:
       # imports). Read-only: does not mutate the working tree. If this
       # fails on a PR, contributors run `mvn spotless:apply` locally
       # and amend the commit.
-      - name: Run spotless:check
+      - name: Run Spotless Check
         run: mvn -ntp -B spotless:check

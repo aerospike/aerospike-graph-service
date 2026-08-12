@@ -44,8 +44,6 @@ public class TestConfigurationIntegration {
             final AerospikeConnection a = fireflyGraph.getBaseGraph();
             assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET.getValue().numeric, a.getConfig().vertexAeroSet);
             assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.EDGE_AERO_SET.getValue().numeric, a.getConfig().edgeAeroSet);
-            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.IN_VP_SET.getValue().numeric, a.getConfig().inVpSet);
-            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.OUT_VP_SET.getValue().numeric, a.getConfig().outVpSet);
         }
     }
 
@@ -72,8 +70,6 @@ public class TestConfigurationIntegration {
             final AerospikeConnection a = fireflyGraph.getBaseGraph();
             assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET.getValue().english, a.getConfig().vertexAeroSet);
             assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.EDGE_AERO_SET.getValue().english, a.getConfig().edgeAeroSet);
-            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.IN_VP_SET.getValue().english, a.getConfig().inVpSet);
-            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.OUT_VP_SET.getValue().english, a.getConfig().outVpSet);
         }
     }
 

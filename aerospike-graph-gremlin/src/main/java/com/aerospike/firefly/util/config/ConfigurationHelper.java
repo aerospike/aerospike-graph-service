@@ -343,8 +343,6 @@ public final class ConfigurationHelper {
             GRAPH_VARIABLES_SET(Pair.of((byte) 0, "GRAPH_VARS")),
             EDGE_AERO_SET(Pair.of((byte) 1, "EDGES")),
             VERTEX_AERO_SET(Pair.of((byte) 2, "VERTICES")),
-            IN_VP_SET(Pair.of((byte) 3, "IN_VP")),
-            OUT_VP_SET(Pair.of((byte) 4, "OUT_VP")),
             SCHEMA_SET(Pair.of((byte) 8, "SCHEMA")),
             ID_MANAGER_SET(Pair.of((byte) 9, "ID_MANAGER")),
             SUMMARY_SET(Pair.of((byte) 10, "SUMMARY")),

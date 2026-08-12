@@ -6,7 +6,7 @@ debugging on-disk records, writing bulk-loader input, reasoning about
 storage cost, or planning a migration.
 
 Everything below describes the `packed` data model, which is the only
-data model supported in v0.x+. The configuration key
+data model supported by the current 3.x release line. The configuration key
 `aerospike.graph.data.model` exists and defaults to `"packed"`; no other
 value is currently accepted by the runtime. Historical references to a
 `linked` layout have been removed: they are not relevant to anything
@@ -45,28 +45,27 @@ directly out of Aerospike's storage engine:
 
 Everything for a single graph lives in one Aerospike namespace, split
 across a well-defined set of **sets** and **bins**. The table below
-lists the main sets; the names are the short "english" forms emitted
-by `ConfigurationHelper.Keys.Sets`.
+uses logical set names. In the default production configuration,
+physical set names are `{graphId}_{numericSetId}`; the English names
+are used only when `aerospike.graph.debug.mode.enabled=true`.
 
-| Set | Purpose |
-|---|---|
-| `VERTICES` | One record per vertex. Keyed by the user-supplied vertex id (or its hash). |
-| `EDGES` | One record per _packed edge_, i.e. per group of up to `phat.edge.size` edges. Keyed by `storageId = floorDiv(packingId, phat.edge.size)`. |
-| `IN_VP` / `OUT_VP` | Vertex-property spill sets. Used when a vertex property's value carries additional meta-properties that don't fit inline. |
-| `SCHEMA` | Interning tables: vertex-label → Long, edge-label → Long, vertex-property-key → Long, edge-property-key → Long, vp-property-key → Long. |
-| `ID_MANAGER` | Monotonic id counters and recycle buffers for vertex, edge, and vertex-property ids. |
-| `METADATA` | Per-graph metadata: data-model name (`"packed"`), data-model version, first-boot marker. Used for cross-version compatibility checks. |
-| `SUMMARY` | Background-updated counters used by the optimizer: label cardinality, property presence, supernode counts. |
-| `INDEX_METADATA` | Descriptor records for user-defined property indexes. |
-| `USAGE_STATS_SET` | Opt-in runtime statistics. |
-| `OLAP_TEMP`, `OLAP_ALGORITHM_TEMP`, `OLAP_JOBS` | Scratch space and job records used by the Spark `GraphComputer`. |
-| `BL_*` | Bulk-loader staging: duplicate-vid records, recovery state, bad-entry / bad-edge records. Only populated when the bulk loader runs. |
+| Set                                             | Purpose                                                                                                                                   |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `VERTICES`                                      | One record per vertex. Keyed by the user-supplied vertex id (or its hash).                                                                |
+| `EDGES`                                         | One record per _packed edge_, i.e. per group of up to `phat.edge.size` edges. Keyed by `storageId = floorDiv(packingId, phat.edge.size)`. |
+| `SCHEMA`                                        | Interning tables: vertex-label → Long, edge-label → Long, vertex-property-key → Long, edge-property-key → Long, vp-property-key → Long.   |
+| `ID_MANAGER`                                    | Monotonic id counters and recycle buffers for vertex, edge, and vertex-property ids.                                                      |
+| `METADATA`                                      | Per-graph metadata: data-model name (`"packed"`) and data-model version. Used for compatibility checks.                                   |
+| `SUMMARY`                                       | Background-updated counters used by the optimizer: label cardinality, property presence, supernode counts.                                |
+| `INDEX_METADATA`                                | Descriptor records for user-defined property indexes.                                                                                     |
+| `USAGE_STATS_SET`                               | Opt-in runtime statistics.                                                                                                                |
+| `OLAP_TEMP`, `OLAP_ALGORITHM_TEMP`, `OLAP_JOBS` | Scratch space and job records used by the Spark `GraphComputer`.                                                                          |
+| `BL_*`                                          | Bulk-loader staging: duplicate-vid records, recovery state, bad-entry / bad-edge records. Only populated when the bulk loader runs.       |
 
-Bins inside `VERTICES` and `EDGES` records are short English strings
-(`"LABEL"`, `"VP_DATA"`, `"IN_EDGES"`, `"EDGE_DATA"`, …) emitted by
-`ConfigurationHelper.Keys.Bins`. The numeric byte codes on each enum
-member are **not** used as bin names: they're reserved for future
-binary-compact mode and are safe to ignore when reading records today.
+The table below uses logical bin names. In the default production
+configuration, physical bin names are numeric codes; the English bin
+names (`LABEL`, `VP_DATA`, `IN_EDGES`, `EDGE_DATA`, and so on) are used
+only when `aerospike.graph.debug.mode.enabled=true`.
 
 ### Schema interning
 
@@ -79,13 +78,13 @@ using that id everywhere on disk.
 
 The mapping lives in the `SCHEMA` set, one record per kind:
 
-| Kind | Record key (token) | First id | Subsequent ids |
-|---|---|---|---|
-| Vertex label | `_vxlsch` | `0` | `1, 2, 3, …` |
-| Vertex property key | `_vxpsch` | `-32` | `-31, -30, …` |
-| Vertex-property property key | `_vppsch` | `-32` | `-31, -30, …` |
-| Edge label | `_elsch` | `-32` | `-31, -30, …` |
-| Edge property key | `_epsch` | `-30` | `-29, -28, …` (`-31` and `-32` pre-reserved; not allocated from the counter) |
+| Kind                         | Record key (token) | First id | Subsequent ids                                                               |
+| ---------------------------- | ------------------ | -------- | ---------------------------------------------------------------------------- |
+| Vertex label                 | `_vxlsch`          | `0`      | `1, 2, 3, …`                                                                 |
+| Vertex property key          | `_vxpsch`          | `-32`    | `-31, -30, …`                                                                |
+| Vertex-property property key | `_vppsch`          | `-32`    | `-31, -30, …`                                                                |
+| Edge label                   | `_elsch`           | `-32`    | `-31, -30, …`                                                                |
+| Edge property key            | `_epsch`           | `-30`    | `-29, -28, …` (`-31` and `-32` pre-reserved; not allocated from the counter) |
 
 Each kind has its own counter bin (`COUNTER`) that tracks the next
 available id. The counter walks **toward positive** for every kind:
@@ -117,8 +116,8 @@ entry on the next read. The in-memory `BiMap<String, Long>` in
 `SchemaManager` is a cache; it is rebuilt opportunistically from the
 `SCHEMA` record when a read misses.
 
-The central `COUNTER` is monotonic across all schema growth; ids are
-never reused. Schema assignments are permanent: a label `"person"`
+Each schema kind has its own `SCHEMA` record and monotonic `COUNTER`;
+ids are never reused within that kind. Schema assignments are permanent: a label `"person"`
 that was assigned id `5` keeps id `5` forever, even if every
 `person` vertex is deleted. This is required for correctness: on-disk
 edge and vertex records reference those ids directly.
@@ -131,18 +130,18 @@ generated `Long` id, if the user didn't supply one).
 
 Relevant bins on a vertex record:
 
-| Bin | Type | Purpose |
-|---|---|---|
-| `LABEL` | `Long` | Interned vertex label id (from `SCHEMA`). |
-| `USER_KEY` | scalar | The user-supplied id, preserved verbatim so we can return it unchanged from `Element.id()`. |
-| `ID_TYPE` | `Long` | Which Java type the user's id is: 1=Long, 2=Integer, 5=String. |
-| `VP_DATA` | `Map<Long, Map<Object, List<Long>>>` | Vertex properties. Outer key = interned property key; inner map = value → list of vertex-property-ids (one id per cardinality-set instance). |
-| `VP_HINTS` | `Map<Long, Map<Long, Object>>` | Type hints for non-obvious values: key = interned property key, inner-key = vertex-property-id, value = serialized type hint. Used so e.g. a `Date` round-trips as a `Date`, not a `Long`. |
-| `VP_PROPERTIES` | nested `Map` | Vertex-property meta-properties (TinkerPop allows properties on properties). Empty map when unused. |
-| `IN_EDGES` | `Map<String, List<Long>>` | On-record adjacency cache: edge-label → list of (cached) edge ids, for inbound edges. |
-| `OUT_EDGES` | `Map<String, List<Long>>` | Same as `IN_EDGES`, outbound. |
-| `ECACHE_OFF` | `boolean` | If true, this vertex is a supernode: `IN_EDGES` / `OUT_EDGES` are abandoned and the adjacency lives on the edge records instead. |
-| `TTL` | `Long` | Optional per-record expiration, populated only when TTL is in use. |
+| Bin             | Type                                 | Purpose                                                                                                                                                                                    |
+| --------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `LABEL`         | `Long`                               | Interned vertex label id (from `SCHEMA`).                                                                                                                                                  |
+| `USER_KEY`      | scalar                               | The user-supplied id, preserved verbatim so we can return it unchanged from `Element.id()`.                                                                                                |
+| `ID_TYPE`       | `Long`                               | Which Java type the user's id is: 1=Long, 2=Integer, 5=String.                                                                                                                             |
+| `VP_DATA`       | `Map<Long, Map<Object, List<Long>>>` | Vertex properties. Outer key = interned property key; inner map = value → list of vertex-property-ids (one id per cardinality-set instance).                                               |
+| `VP_HINTS`      | `Map<Long, Map<Long, Object>>`       | Type hints for non-obvious values: key = interned property key, inner-key = vertex-property-id, value = serialized type hint. Used so e.g. a `Date` round-trips as a `Date`, not a `Long`. |
+| `VP_PROPERTIES` | nested `Map`                         | Vertex-property meta-properties (TinkerPop allows properties on properties). Empty map when unused.                                                                                        |
+| `IN_EDGES`      | `Map<String, List<Long>>`            | On-record adjacency cache: edge-label → list of (cached) edge ids, for inbound edges.                                                                                                      |
+| `OUT_EDGES`     | `Map<String, List<Long>>`            | Same as `IN_EDGES`, outbound.                                                                                                                                                              |
+| `ECACHE_OFF`    | `boolean`                            | If true, this vertex is a supernode: `IN_EDGES` / `OUT_EDGES` are abandoned and the adjacency lives on the edge records instead.                                                           |
+| `TTL`           | `Long`                               | Optional per-record expiration, populated only when TTL is in use.                                                                                                                         |
 
 The `IN_EDGES` / `OUT_EDGES` bins are the thing that lets a single-hop
 traversal finish in one vertex read plus one packed-edge read. When the
@@ -192,12 +191,12 @@ record (because Aerospike serializes writes to the same record).
 
 Relevant bins on a packed-edge record:
 
-| Bin | Type | Purpose |
-|---|---|---|
-| `EDGE_DATA` | `Map<ByteBuffer, List<Object>>` or `Map<ByteBuffer, Map<Long, Object>>` | Per-edge data, keyed by the full edge id bytes. Value shape depends on whether the edge is attached to a supernode: see below. |
-| `SUPERNODE_IN` | nested `Map` | Reverse-adjacency map populated only for edges whose `inVertex` is a supernode. Schema: `edgeId → {vertexIdHash → {labelKey → labelValue, adjIdKey → adjVertexId, propertyKey1 → value1, …}}`. |
-| `SUPERNODE_OUT` | same | Same, for edges whose `outVertex` is a supernode. |
-| `TTL` | `Map<ByteBuffer, Long>` | Per-edge expiration if TTL is enabled. |
+| Bin             | Type                                                                    | Purpose                                                                                                                                                 |
+| --------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EDGE_DATA`     | `Map<ByteBuffer, List<Object>>` or `Map<ByteBuffer, Map<Long, Object>>` | Per-edge data, keyed by the full edge id bytes. Value shape depends on whether the edge is attached to a supernode: see below.                          |
+| `SUPERNODE_IN`  | nested `Map`                                                            | Reverse-adjacency map populated only for edges whose `inVertex` is a supernode. Schema: `supernodeVertexHash → {propertyKey → {edgeUniqueId → value}}`. |
+| `SUPERNODE_OUT` | same                                                                    | Same, for edges whose `outVertex` is a supernode.                                                                                                       |
+| `TTL`           | `Map<ByteBuffer, Long>`                                                 | Per-edge expiration if TTL is enabled.                                                                                                                  |
 
 `EDGE_DATA` has two shapes:
 
@@ -229,8 +228,8 @@ A vertex is a supernode when on-record adjacency (`IN_EDGES` /
 threshold is controlled by `aerospike.graph.vertex.edge.cache.size`
 (internal name `ON_RECORD_ID_LIMIT`); by default it is computed
 dynamically as ~45% of the namespace's configured max record size,
-capped at 90%. When multi-record transactions are enabled (`mrt` /
-`transactions`), the cap is further tightened to **1023** because an
+capped at 90%. When multi-record transactions are enabled, the cap is
+further tightened to **1023** because an
 MRT can touch at most 4096 records and a vertex drop has to touch
 `2·edges + 1` records.
 
@@ -269,15 +268,10 @@ The `SUMMARY` set keeps a cardinality counter that tracks how many
 supernodes exist per label; this is what the optimizer uses to decide
 between a supernode scan and a vertex-record read.
 
-### Vertex-property spill
+### Vertex properties
 
-Most vertex properties sit inline on the vertex record, inside `VP_DATA`
-/ `VP_HINTS` / `VP_PROPERTIES`. For vertex properties that have their
-own set of meta-properties large enough to risk overflowing the vertex
-record (TinkerPop cardinality `SET` / `LIST` with many meta-properties
-per element), the data spills into the `IN_VP` / `OUT_VP` sets, keyed
-by the vertex-property id. The in-memory `FireflyVertex.vpProperties`
-hides the split from the rest of the engine.
+Vertex properties and their meta-properties are stored inline on the
+vertex record in `VP_DATA`, `VP_HINTS`, and `VP_PROPERTIES`.
 
 Vertex-property ids themselves come from the `ID_MANAGER` set, using
 a `DecrementingNumericIdManager`: i.e. vertex-property ids are
@@ -288,31 +282,32 @@ counter) and from edge packing ids (which increment).
 
 Each logical id kind has its own counter in the `ID_MANAGER` set:
 
-| Id kind | Counter | Direction | Buffered |
-|---|---|---|---|
-| Vertex id (internal) | `_vxidctr` | Decrementing | Yes (`vertex.id.buffer.size`, default 100) |
-| Edge packing id | `_epidctr` | Incrementing, grouped by `phat.edge.size` | Yes |
-| Edge unique id | `_euidctr` | Incrementing | Yes |
-| Vertex-property id | `_vxpidctr` | Decrementing | Yes (`property.id.buffer.size`) |
+| Id kind              | Counter     | Direction                                 | Buffered                                    |
+| -------------------- | ----------- | ----------------------------------------- | ------------------------------------------- |
+| Vertex id (internal) | `_vxidctr`  | Decrementing                              | Yes (`vertex.id.buffer.size`, default 1000) |
+| Edge packing id      | `_epidctr`  | Incrementing, grouped by `phat.edge.size` | Yes                                         |
+| Edge unique id       | `_euidctr`  | Incrementing                              | Yes                                         |
+| Vertex-property id   | `_vxpidctr` | Decrementing                              | Yes (`property.id.buffer.size`)             |
 
 `RecyclingBufferedNumericIdManager` (or `MrtRecyclingBufferedNumericIdManager`
-when MRT is on) lets the engine pull a block of ids out of the
+when MRT or TinkerPop transactions are enabled) lets the engine pull a block of ids out of the
 counter, hand them out to local writers, and top the buffer up when it
 runs low. Recycling is lossy-on-crash by design: a killed server
 forfeits its outstanding buffer rather than risk double-issuing an id.
 
-When MRT is enabled, edge-packing ids have a second layer: recycled
+When MRT or TinkerPop transactions are enabled, edge-packing ids have a second layer: recycled
 packing ids are tracked in a dedicated recycle buffer
-(`edge.id.recycle.buffer.size`) because aborted transactions may have
+(`aerospike.graph.edge.recycle.id.buffer.size;`) because aborted transactions may have
 committed new edges into a half-full pack.
 
 ### Per-graph metadata and version compatibility
 
-The `METADATA` set holds a single record per graph with two fields
-read by `DataModelVersioning.checkVersionCompatibility`:
+The `METADATA` set holds a record per graph with the data-model name
+and version:
 
-- **Data-model name.** Currently always `"packed"`. The constant lives
-  at `FireflyGraph.DATA_MODEL`.
+- **Data-model name.** Currently always `"packed"`. It is written to
+  metadata; runtime configuration separately validates the requested
+  model name.
 - **Data-model version.** The current engine version
   (`FireflyGraph.FIREFLY_VERSION`, with any `-SNAPSHOT` suffix already
   stripped) serialized as a `ComparableVersion`.
@@ -336,17 +331,18 @@ fail fast and loudly rather than corrupting data.
 ### Secondary indexes
 
 The engine maintains the following Aerospike secondary indexes,
-scoped to the namespace. `E_IN_IDX` / `E_OUT_IDX` are always created
+scoped to the namespace. Physical index names are prefixed with the
+graph ID (`{graphId}_{internalName}`). `E_IN_IDX` / `E_OUT_IDX` are always created
 (the engine refuses to start without them); the rest are conditional
 on the listed flags.
 
-| Index | Set | Bin | Type | Collection | Conditional on | Purpose |
-|---|---|---|---|---|---|---|
-| `E_IN_IDX` | `EDGES` | `SUPERNODE_IN` | STRING | MAPKEYS | always | Supernode inbound traversal |
-| `E_OUT_IDX` | `EDGES` | `SUPERNODE_OUT` | STRING | MAPKEYS | always | Supernode outbound traversal |
-| `V_LABEL_IDX` | `VERTICES` | `LABEL` | NUMERIC | DEFAULT | `aerospike.graph.index.vertex.label.enabled=true` | `g.V().hasLabel(x)` without scan |
-| `TTL_V_IDX` | `VERTICES` | `TTL` | NUMERIC | DEFAULT | `aerospike.graph.ttl.enabled=true` | TTL sweeps for vertex records |
-| `TTL_E_IDX` | `EDGES` | `TTL` | NUMERIC | MAPVALUES | `aerospike.graph.ttl.enabled=true` | TTL sweeps for per-edge expirations |
+| Index         | Set        | Bin             | Type    | Collection | Conditional on                                    | Purpose                             |
+| ------------- | ---------- | --------------- | ------- | ---------- | ------------------------------------------------- | ----------------------------------- |
+| `E_IN_IDX`    | `EDGES`    | `SUPERNODE_IN`  | STRING  | MAPKEYS    | always                                            | Supernode inbound traversal         |
+| `E_OUT_IDX`   | `EDGES`    | `SUPERNODE_OUT` | STRING  | MAPKEYS    | always                                            | Supernode outbound traversal        |
+| `V_LABEL_IDX` | `VERTICES` | `LABEL`         | NUMERIC | DEFAULT    | `aerospike.graph.index.vertex.label.enabled=true` | `g.V().hasLabel(x)` without scan    |
+| `TTL_V_IDX`   | `VERTICES` | `TTL`           | NUMERIC | DEFAULT    | `aerospike.graph.ttl.enabled=true`                | TTL sweeps for vertex records       |
+| `TTL_E_IDX`   | `EDGES`    | `TTL`           | NUMERIC | MAPVALUES  | `aerospike.graph.ttl.enabled=true`                | TTL sweeps for per-edge expirations |
 
 Edge-label indexes are explicitly unsupported (the enable flag
 currently throws at startup, tracked as a future enhancement). Today,
@@ -355,7 +351,7 @@ touch a supernode) or falls back to a scan of the `EDGES` set with a
 pushdown filter on the label position inside `EDGE_DATA`.
 
 User-defined property indexes are created via the admin API
-(`aerospike.graph.admin.create-index`) and stored against the
+(`aerospike.graph.admin.index.create`) and stored against the
 `INDEX_METADATA` set; they're separate from the built-in ones above
 and can be added / dropped without restarting the engine. See
 [`INDEX_DESIGN.md`](INDEX_DESIGN.md) for the full index subsystem.

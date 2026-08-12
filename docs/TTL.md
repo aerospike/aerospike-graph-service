@@ -4,8 +4,16 @@
 
 Before you enable graph-element TTL, the Aerospike namespace that AGS
 uses must have the [`default-ttl`](https://aerospike.com/docs/database/reference/config#namespace__default-ttl)
-configuration option set to `0`. That is a deployment prerequisite,
-separate from the graph TTL feature described on this page. See
+configuration option set to `0`. AGS refuses to start against a
+namespace with a non-zero `default-ttl`.
+
+In addition, for expired elements to actually be reaped, the namespace
+must have either `nsup-period` set to a non-zero value (namespace
+supervisor enabled) or `allow-ttl-without-nsup` enabled. If neither is
+set, AGS logs a warning and TTL values are accepted but never expire.
+
+These are deployment prerequisites, separate from the graph TTL feature
+described on this page. See
 [TTL on the Aerospike namespace](https://aerospike.com/docs/graph/deploy/docker#ttl-on-the-aerospike-namespace)
 and the [official graph documentation](https://aerospike.com/docs/graph).
 
@@ -41,10 +49,12 @@ aerospike.graph.ttl.purge.interval=2
   * Default: 2
   * Description: Interval between scheduling future TTL purges in seconds.
   * Notes: A higher value decreases processing overhead on the Aerospike
-  * Graph Service machine. A lower value decreases the amount of possible
-  * delay for an element expired through TTL to be removed. However, a lower value
-  * does not help reduce removal delays if they are caused by an excessive amount
-  * of elements expiring within an interval.
+    Graph Service machine. A lower value decreases the amount of possible
+    delay for an element expired through TTL to be removed. However, a lower value
+    does not help reduce removal delays if they are caused by an excessive amount
+    of elements expiring within an interval.
+  * The background purge worker is not started on graph instances opened
+    in bulk-loader mode or warmup mode, even when TTL is enabled.
 
 ## Usage
 

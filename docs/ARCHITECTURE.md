@@ -7,10 +7,9 @@ subsystems see the per-topic docs linked throughout
 [`docs/index.md`](index.md).
 
 > Reminder: the internal codename is `firefly`. It is still the name
-> of every Java package, the Maven `artifactId`, and most config prefixes.
+> of every Java package and the Maven `artifactId`.
 > User-facing container images are published as
-> `aerospike/aerospike-graph-service` on Docker Hub. Dev and RC images also
-> use `ghcr.io/aerospike/firefly`. Aerospike Graph Service is the public
+> `aerospike/aerospike-graph-service` on Docker Hub. Aerospike Graph Service is the public
 > product name. Treat the codename and product name as interchangeable when
 > reading the codebase.
 
@@ -71,39 +70,39 @@ Side processes (run out-of-process, talk to the same namespace):
 
 ## Maven modules
 
-| Module                         | Role                                                                 | Entry point                                                    |
-|--------------------------------|----------------------------------------------------------------------|----------------------------------------------------------------|
-| `aerospike-graph-gremlin`      | The graph service itself: TinkerPop Graph implementation, Gremlin    | `com.aerospike.firefly.runtime.FireflyServer`                  |
-|                                | Server wiring, admin HTTP, traversal strategies, call steps,         |                                                                |
-|                                | record codecs, index logic.                                          |                                                                |
-| `aerospike-graph-olap`         | Distributed `GraphComputer` implementation that runs Gremlin OLAP    | `com.aerospike.firefly.olap.DistributedGraphComputerMain`      |
-|                                | jobs on top of Spark, reading and writing the same Aerospike         |                                                                |
-|                                | namespace that the online service uses.                              |                                                                |
-| `aerospike-graph-bulk-loader`  | Standalone Spark job for loading CSV/Parquet vertex and edge data    | `com.aerospike.firefly.bulkloader.SparkBulkLoaderMain`         |
-|                                | directly into the Aerospike record layout, bypassing the Gremlin     |                                                                |
-|                                | write path for throughput.                                           |                                                                |
-| `aerospike-graph-test-common`  | Shared test scaffolding, fixtures, and provider plumbing.            | n/a (test-scope only)                                          |
+| Module                        | Role                                                              | Entry point                                               |
+| ----------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------- |
+| `aerospike-graph-gremlin`     | The graph service itself: TinkerPop Graph implementation, Gremlin | `com.aerospike.firefly.runtime.FireflyServer`             |
+|                               | Server wiring, admin HTTP, traversal strategies, call steps,      |                                                           |
+|                               | record codecs, index logic.                                       |                                                           |
+| `aerospike-graph-olap`        | Distributed `GraphComputer` implementation that runs Gremlin OLAP | `com.aerospike.firefly.olap.DistributedGraphComputerMain` |
+|                               | jobs on top of Spark, reading and writing the same Aerospike      |                                                           |
+|                               | namespace that the online service uses.                           |                                                           |
+| `aerospike-graph-bulk-loader` | Standalone Spark job for loading CSV vertex and edge data         | `com.aerospike.firefly.bulkloader.SparkBulkLoaderMain`    |
+|                               | directly into the Aerospike record layout, bypassing the Gremlin  |                                                           |
+|                               | write path for throughput.                                        |                                                           |
+| `aerospike-graph-api`         | Shared API surface for the engine and extensions.                 | n/a                                                       |
 
-All three main modules share the same groupId (`com.aerospike`) and
+All four modules share the same groupId (`com.aerospike`) and
 are versioned together.
 
 ## `aerospike-graph-gremlin` internals
 
 This is where most of the interesting logic lives. Package layout:
 
-| Package                                     | Responsibility                                                        |
-|---------------------------------------------|------------------------------------------------------------------------|
-| `com.aerospike.firefly.structure`           | TinkerPop `Graph` / `Vertex` / `Edge` implementations, id management. |
-| `com.aerospike.firefly.process`             | Traversal strategies, custom `Step`s, call-step registry.             |
-| `com.aerospike.firefly.process.call.*`      | Admin / management / metadata call steps (`g.call(...)` entry points).|
-| `com.aerospike.firefly.io.aerospike`        | `AerospikeConnection`: the one place that talks to the Aerospike     |
-|                                             | Java client. Bin layout, codecs, batch and scan policy live here.     |
-| `com.aerospike.firefly.io.aerospike.indexes`| Secondary-index maintenance and index-driven query planning.          |
-| `com.aerospike.firefly.runtime`             | Process bootstrap, config loading, background tasks, HTTP admin.      |
-| `com.aerospike.firefly.security`            | JWT issuance / validation, audit logging hooks.                       |
-| `com.aerospike.firefly.util.config`         | `ConfigurationHelper`: canonical list of every tunable config key.   |
-| `com.aerospike.firefly.features`            | Feature-flag plumbing and version-gating helpers.                     |
-| `com.aerospike.firefly.jsr223`              | Gremlin-language plugin so the service is usable from `gremlin.sh`.   |
+| Package                                      | Responsibility                                                         |
+| -------------------------------------------- | ---------------------------------------------------------------------- |
+| `com.aerospike.firefly.structure`            | TinkerPop `Graph` / `Vertex` / `Edge` implementations, id management.  |
+| `com.aerospike.firefly.process`              | Traversal strategies, custom `Step`s, call-step registry.              |
+| `com.aerospike.firefly.process.call.*`       | Admin / management / metadata call steps (`g.call(...)` entry points). |
+| `com.aerospike.firefly.io.aerospike`         | `AerospikeConnection`: the one place that talks to the Aerospike       |
+|                                              | Java client. Bin layout, codecs, batch and scan policy live here.      |
+| `com.aerospike.firefly.io.aerospike.indexes` | Secondary-index maintenance and index-driven query planning.           |
+| `com.aerospike.firefly.runtime`              | Process bootstrap, config loading, background tasks, HTTP admin.       |
+| `com.aerospike.firefly.security`             | JWT issuance / validation, audit logging hooks.                        |
+| `com.aerospike.firefly.util.config`          | `ConfigurationHelper`: canonical list of every tunable config key.     |
+| `com.aerospike.firefly.features`             | Feature-flag plumbing and version-gating helpers.                      |
+| `com.aerospike.firefly.jsr223`               | Gremlin-language plugin so the service is usable from `gremlin.sh`.    |
 
 ### Request lifecycle (read path)
 
@@ -135,13 +134,11 @@ service (such as `PageRank`, `ConnectedComponents`, and large
 aggregations), there is a separate Spark-based `GraphComputer`. It reads the same
 record layout directly (via `codec.RowCodec`), runs the vertex
 program across a Spark cluster, and writes results back. The online
-service is not involved in an OLAP job. See
-[`BULK_LOADER_DESIGN.md`](BULK_LOADER_DESIGN.md) for the file-level
-equivalent on the write side.
+service is not involved in an OLAP job.
 
 ## Bulk loader (`aerospike-graph-bulk-loader`)
 
-A Spark job that ingests CSV / Parquet data and writes vertex and
+A Spark job that ingests CSV data and writes vertex and
 edge records directly into Aerospike in the layout the online service
 expects. Bypasses the Gremlin write path for throughput; used for the
 "initial load" of a graph that is too large to push through the online

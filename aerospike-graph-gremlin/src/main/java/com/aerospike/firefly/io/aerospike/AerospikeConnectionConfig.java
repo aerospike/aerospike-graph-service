@@ -95,8 +95,6 @@ public class AerospikeConnectionConfig {
     public final String edgeAeroSet;
 
     public final String vertexAeroSet;
-    public final String inVpSet;
-    public final String outVpSet;
     public final String summarySet;
     public final String vertexPropertyDataBin;
     public final String vertexPropertyTHBin;
@@ -317,8 +315,6 @@ public class AerospikeConnectionConfig {
         summarySet = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.SUMMARY_SET.name(), conf);
         graphId = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.GRAPH_ID, conf);
         vertexAeroSet = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET.name(), conf);
-        inVpSet = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.IN_VP_SET.name(), conf);
-        outVpSet = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.OUT_VP_SET.name(), conf);
         idManagerSet = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.ID_MANAGER_SET.name(), conf);
         schemaSet = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.SCHEMA_SET.name(), conf);
         edgeAeroSet = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.EDGE_AERO_SET.name(), conf);

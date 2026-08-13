@@ -72,7 +72,7 @@ The following placeholders must be replaced with your actual values before deplo
 ## Deployment order
 
 1. `vpc/` — creates GKE subnet in default VPC.
-2. `gke-cluster/` — creates GKE Autopilot cluster and deploys AGS.
+2. `gke-cluster/` — creates a GKE Standard cluster and deploys AGS.
 3. `monitoring/` — *(Optional)* Prometheus and Grafana with dashboards.
 
 ## Prerequisites

@@ -12,8 +12,8 @@ At least one key/value pair is required.
 
 ```gremlin
 g.call("aerospike.graph.admin.metadata.set-config")
- .with("aerospike.client.policy.write.sockettimeout", "10000")
- .with("aerospike.client.policy.write.totaltimeout", "3000")
+ .with("aerospike.client.policy.write.socketTimeout", "10000")
+ .with("aerospike.client.policy.write.totalTimeout", "3000")
  .next()
 ```
 
@@ -22,6 +22,10 @@ Example response:
 ```text
 Successfully updated configuration {aerospike.client.policy.write.totaltimeout=3000, aerospike.client.policy.write.sockettimeout=10000}.
 ```
+
+Configuration keys are matched case-insensitively (they are normalized
+to lowercase internally), but the canonical camelCase forms shown above
+are recommended.
 
 ## HTTP Usage
 
@@ -32,7 +36,7 @@ Endpoint:
 Example:
 
 ```text
-GET /myGraph/admin/metadata/set-config?aerospike.client.policy.write.sockettimeout=10000&aerospike.client.policy.write.totaltimeout=3000
+GET /myGraph/admin/metadata/set-config?aerospike.client.policy.write.socketTimeout=10000&aerospike.client.policy.write.totalTimeout=3000
 ```
 
 ## Supported Runtime Key Patterns
@@ -52,7 +56,7 @@ Only mutable keys can be changed at runtime:
 
 - Empty parameter map is rejected.
 - Updating immutable keys fails with: `Immutable option <key> can't be changed.`
-- If authentication is enabled, caller must have a valid graph role (service requires at least `READ`).
+- If authentication is enabled, the caller must have the `ADMIN` role.
 
 ## Persistence and Multi-Instance Behavior
 

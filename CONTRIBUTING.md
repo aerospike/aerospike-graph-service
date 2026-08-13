@@ -16,7 +16,7 @@ community norms, see [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Why `firefly` persists in identifiers
 
-The project was developed internally under the codename *Firefly*, and that name is preserved throughout the code and repository: Java packages (`com.aerospike.firefly.*`), the root Maven `<artifactId>`, internal GHCR dev images (`ghcr.io/aerospike/firefly`), and config-prefix / environment-variable names (`firefly.*` / `FIREFLY_*`). The product name you deploy and document is Aerospike Graph Service, and that is the name on the user-facing Docker Hub image (`aerospike/aerospike-graph-service`). Mapping the codename onto every internal identifier was deliberately skipped to keep the OSS diff small and avoid churn for anyone on internal branches. Treat `firefly` as an internal codename, not the product name.
+The project was developed internally under the codename *Firefly*, and that name is preserved in Java packages (`com.aerospike.firefly.*`) and the root Maven `<artifactId>`. The product name you deploy and document is Aerospike Graph Service, including the user-facing Docker Hub image (`aerospike/aerospike-graph-service`). Runtime configuration uses `aerospike.*` keys. Treat `firefly` as an internal codename, not the product name.
 
 ## Licensing and sign-off
 
@@ -80,8 +80,8 @@ A GitHub Action enforces this on every PR.
 - Unit tests belong in `src/test/java` of the relevant module. Use
   JUnit 4 (to match the existing harness).
 - Integration tests that require a real Aerospike cluster belong in the
-  appropriate IT profile. They run in CI against a Docker-hosted cluster
-  started by the workflow.
+  relevant module's test source tree. CI provisions Docker-hosted clusters
+  and selects integration coverage with test properties and targeted test classes.
 - Benchmark (JMH) tests belong under `src/test/java/.../benchmark/`.
   JMH is in `test` scope and must not leak into production code.
 

@@ -18,11 +18,10 @@ used by most TinkerPop and Gremlin tutorials.
 Three encodings of the same graph are provided so tests can exercise
 each of Gremlin's standard I/O formats without re-serializing:
 
-| File                          | Format  | Purpose                                                                                                   |
-| ----------------------------- | ------- | --------------------------------------------------------------------------------------------------------- |
-| `air-routes-small.graphml`    | GraphML | XML; default for `io(graphml())` and the bulk-loader integration tests.                                   |
-| `air-routes-small.json`       | GraphSON | Gremlin JSON; round-tripped by `io(graphson())`.                                                         |
-| `air-routes-small.kryo`       | Gryo    | Binary; fastest load path, used by the OLAP/Spark tests that care about I/O overhead.                    |
+| File                       | Format  | Purpose                                                                               |
+| -------------------------- | ------- | ------------------------------------------------------------------------------------- |
+| `air-routes-small.graphml` | GraphML | XML; default for `io(graphml())` and the bulk-loader integration tests.               |
+| `air-routes-small.kryo`    | Gryo    | Binary; fastest load path, used by the OLAP/Spark tests that care about I/O overhead. |
 
 **Attribution.** Original data © Kelvin R. Lawrence, released as part
 of the [*Practical Gremlin*](https://kelvinlawrence.net/book/Gremlin-Graph-Guide.html)

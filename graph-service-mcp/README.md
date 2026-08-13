@@ -56,7 +56,7 @@ This project provides a bridge between LLM-powered tools and Aerospike Graph Ser
 ### Prerequisites
 
 - Docker & Docker Compose
-- Python 3.13+ (for local development)
+- Python 3.10+ (for local development)
 - An MCP-compatible client (Cursor, Claude Desktop, etc.)
 
 ### 1. Start the Stack

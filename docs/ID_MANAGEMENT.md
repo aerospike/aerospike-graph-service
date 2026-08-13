@@ -79,9 +79,10 @@ A vertex's `~id` and its Aerospike record key are the same value. Any
 the record key verbatim.
 
 Auto-generated vertex IDs come from a `DecrementingNumericIdManager`
-backed by a single counter record in the graph's metadata set. The
-counter starts at `-1` and is buffered client-side
-(`RecyclingBufferedNumericIdManager`), so new-vertex inserts don't
+backed by a single counter record in the graph's `ID_MANAGER` set. The
+counter starts at `-1`, descends, and is buffered client-side (a block
+of IDs is pulled per top-up, sized by
+`aerospike.graph.vertex.id.buffer.size`), so new-vertex inserts don't
 round-trip for an ID on every call.
 
 ### Edge IDs
@@ -112,13 +113,21 @@ single Aerospike record. See
 [`DATA_MODEL_DESIGN.md`](DATA_MODEL_DESIGN.md#edge-ids-and-packed-edge-records)
 for the full layout.
 
+Edge IDs come from a `RecyclingBufferedNumericIdManager` (packing and
+unique counters, buffered and recycled). When multi-record transactions
+(`aerospike.graph.mrt.enabled`) or TinkerPop transactions
+(`aerospike.graph.tx.enabled`) are enabled, a
+`MrtRecyclingBufferedNumericIdManager` is used instead so that packing
+IDs from aborted transactions are recycled rather than lost. The edge
+packing counter increments (it does not descend like the vertex
+counter).
+
 ### Vertex-property IDs
 
-Vertex-property records (used when a vertex's properties spill into a
-dedicated record, or for multi-cardinality properties) have their own
-ID counter, distinct from the vertex-ID and edge-ID spaces. It is
-managed the same way as vertex IDs (decrementing, buffered) but from an
-independent metadata record.
+Vertex properties and their meta-properties are stored inline on the
+vertex record. They have their own ID counter in `ID_MANAGER`, distinct
+from the vertex-ID and edge-ID spaces. The counter is decrementing and
+buffered, like the vertex-ID counter.
 
 ### Source
 
@@ -127,8 +136,11 @@ independent metadata record.
   auto-generated ones.
 * `com.aerospike.firefly.structure.id.FireflyPhatEdgeId`: edge-ID
   encoding and the `packingId → storageId` derivation.
-* `com.aerospike.firefly.io.aerospike.id.DecrementingNumericIdManager`,
-  `...RecyclingBufferedNumericIdManager`: the counter plumbing.
+* `com.aerospike.firefly.io.aerospike.id.DecrementingNumericIdManager`:
+  vertex and vertex-property counters.
+* `...RecyclingBufferedNumericIdManager` /
+  `...MrtRecyclingBufferedNumericIdManager`: edge packing/unique counter
+  plumbing (the MRT variant is used when transactions are enabled).
 
 ## See also
 

@@ -15,13 +15,13 @@ Each running instance of the service writes, at startup and periodically
 thereafter, a record to a metadata set inside your Aerospike cluster
 containing:
 
-| Field            | Value                                                          |
-|------------------|----------------------------------------------------------------|
-| `uuid`           | Random UUID generated at process start (per-instance)          |
-| `epoch-ms-start` | Wall-clock time the instance started                           |
-| `epoch-ms-final` | Wall-clock time of the most recent ticker update               |
-| `vcpus`          | Number of vCPUs the JVM reports as available                   |
-| `memory-gb`      | JVM heap size in gigabytes                                     |
+| Field            | Value                                                 |
+| ---------------- | ----------------------------------------------------- |
+| `uuid`           | Random UUID generated at process start (per-instance) |
+| `epoch-ms-start` | Wall-clock time the instance started                  |
+| `epoch-ms-final` | Wall-clock time of the most recent ticker update      |
+| `vcpus`          | Number of vCPUs the JVM reports as available          |
+| `memory-gb`      | JVM heap size in gigabytes                            |
 
 Nothing else. No query content, no schema, no IP addresses, no
 user-identifying information, no hostnames.
@@ -39,18 +39,18 @@ The stats are surfaced through a Gremlin call step. Across all
 instances that have ever written to this namespace:
 
 ```
-g.call("aerospike.graph.metadata.usage").next()
+g.call("aerospike.graph.admin.metadata.usage").next()
 ```
 
 Returns a `Map<String, Object>` with:
 
 - `raw`: the raw per-instance stats records.
-- `total-vcpu`: aggregated vCPU-years across all instances.
+- `total-vcpu-hours`: aggregated vCPU-hours across all instances.
 
 Filtering by start date:
 
 ```
-g.call("aerospike.graph.metadata.usage").with("since", "2023-03-30").next()
+g.call("aerospike.graph.admin.metadata.usage").with("since", "2023-03-30").next()
 ```
 
 Returns the same shape, but aggregated only over instances whose
@@ -69,7 +69,7 @@ Example output:
                    'memory-gb': 9,
                    'uuid': 'c924f45e-886d-4c04-8039-292d56ea037c',
                    'vcpus': 16}],
-    'total-vcpu': 0.0004819888381532217 }
+    'total-vcpu-hours': 0.0004819888381532217 }
 ```
 
 ## Can I disable the writer?

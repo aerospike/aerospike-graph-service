@@ -100,6 +100,8 @@ Returns the current cache mode and usage statistics.
 g.call("aerospike.graph.admin.cache.status").next()
 ```
 
+Requires the `READ` role.
+
 Returns a Map with the following fields:
 - `mode`: Current cache mode (TRANSACTIONAL or GLOBAL)
 - `cache_weight`: Current cache weight in weight units
@@ -109,6 +111,14 @@ Returns a Map with the following fields:
 - `estimated_memory_formatted`: Human-readable memory usage (e.g., "1.5 MB")
 - `hit_count`: Number of cache hits
 - `miss_count`: Number of cache misses
+
+In `GLOBAL` mode the status also includes the supernode edge-ID cache
+counters:
+- `supernode_edge_cache_entries`: Number of entries in the supernode edge-ID cache
+- `supernode_edge_cache_edge_ids`: Total edge IDs held across those entries
+- `supernode_edge_cache_memory_bytes`: Estimated memory usage in bytes
+- `supernode_edge_cache_hits`: Supernode edge-ID cache hits
+- `supernode_edge_cache_misses`: Supernode edge-ID cache misses
 
 Example output:
 ```
@@ -126,7 +136,7 @@ Example output:
 
 ### Set Cache Mode
 
-Changes the cache mode at runtime.
+Changes the cache mode at runtime. Requires the `ADMIN` role.
 
 ```gremlin
 // Switch to GLOBAL mode with default weight (20000000)
@@ -172,7 +182,7 @@ Example output:
 
 ### Reset Cache
 
-Clears and reinitializes the current caches.
+Clears and reinitializes the current caches. Requires the `ADMIN` role.
 
 ```gremlin
 g.call("aerospike.graph.admin.cache.reset").next()

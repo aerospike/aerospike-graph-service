@@ -187,7 +187,7 @@ jobs:
   # No ci-guard: this workflow triggers only on tag push and workflow_dispatch, so a fork cannot
   # reach it.
   smoke-test:
-    name: AGS Image Smoke Test (${{ matrix.variant }}, ${{ matrix.platform }})
+    name: AGS Image Smoke Test and Snyk Container Scan (${{ matrix.variant }}, ${{ matrix.platform }})
     needs: [version, container]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
@@ -260,6 +260,34 @@ jobs:
           set -euo pipefail
           docker pull --platform "${{ matrix.platform }}" "$IMAGE"
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Set Up Snyk CLI for Container Scan
+        env:
+          RUNNER_ARCH: ${{ runner.arch }}
+        run: |
+          set -euo pipefail
+          case "$RUNNER_ARCH" in
+            X64) binary=snyk-linux ;;
+            ARM64) binary=snyk-linux-arm64 ;;
+            *)
+              echo "::error::Unsupported architecture: $RUNNER_ARCH"
+              exit 1
+              ;;
+          esac
+          curl --fail --location --retry 3 --compressed \
+            "https://downloads.snyk.io/cli/stable/${binary}" \
+            --output "${RUNNER_TEMP}/snyk"
+          chmod +x "${RUNNER_TEMP}/snyk"
+          echo "${RUNNER_TEMP}" >> "$GITHUB_PATH"
+          "${RUNNER_TEMP}/snyk" version
+
+      - name: Snyk Container Scan (${{ matrix.variant }} Image)
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          IMAGE: ${{ steps.pull.outputs.image }}
+        run: |
+          snyk container test "$IMAGE" \
+            --severity-threshold=high
 
       - name: Start Aerospike
         id: aerospike

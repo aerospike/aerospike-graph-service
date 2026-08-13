@@ -138,7 +138,7 @@ jobs:
             # lands in mode=max provenance.
             build_args: >-
               {"FIREFLY_GRAPH": "artifacts/unsigned-artifacts/aerospike-graph-gremlin-${{ needs.version.outputs.version }}.jar"}
-    uses: aerospike/shared-workflows/.github/workflows/reusable_docker-build-deploy.yaml@d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0
+    uses: aerospike/shared-workflows/.github/workflows/reusable_docker-build-deploy.yaml@0d843cff870d70ac527048ab0d006c7c301fbb2f # unreleased main, awaiting v4.1.0
     with:
       jf-project: connect
       image-name: aerospike-graph-service                          # one repo for both variants

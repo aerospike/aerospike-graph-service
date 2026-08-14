@@ -303,6 +303,17 @@ public class DockerUtil {
         return outputStream.toString().trim().contains("FOUND_FILE");
     }
 
+    public boolean waitForTmpFile(final String containerId, final int timeoutSeconds) throws InterruptedException {
+        final long deadlineNanos = System.nanoTime() + Duration.ofSeconds(timeoutSeconds).toNanos();
+        while (System.nanoTime() < deadlineNanos) {
+            if (checkTmpFileExists(containerId)) {
+                return true;
+            }
+            Thread.sleep(250);
+        }
+        return checkTmpFileExists(containerId);
+    }
+
     public synchronized boolean versionExists(final String dockerImage, final String tag) {
         try {
             dockerClient.pullImageCmd(dockerImage).withTag(tag).start().awaitCompletion();

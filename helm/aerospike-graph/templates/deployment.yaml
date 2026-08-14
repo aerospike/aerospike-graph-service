@@ -15,16 +15,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "graphservice.fullname" . }}
+  name: {{ include "aerospike-graph.fullname" . }}
+  namespace: {{ include "aerospike-graph.namespace" . }}
   labels:
-    {{- include "graphservice.labels" . | nindent 4 }}
+    {{- include "aerospike-graph.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "graphservice.selectorLabels" . | nindent 6 }}
+      {{- include "aerospike-graph.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -32,13 +33,13 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "graphservice.selectorLabels" . | nindent 8 }}
+        {{- include "aerospike-graph.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "graphservice.serviceAccountName" . }}
+      serviceAccountName: {{ include "aerospike-graph.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -51,10 +52,43 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.service.port }}
+              containerPort: {{ .Values.container.port }}
               protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            httpGet:
+              path: /healthcheck
+              port: {{ .Values.livenessProbe.port }}
+          readinessProbe:
+            exec:
+              command:
+                - ls
+                - /tmp/firefly-ready
+            initialDelaySeconds: 5
+            periodSeconds: 5
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.volumeMounts }}
+          volumeMounts:
+          {{- range .Values.volumeMounts }}
+            - name: {{ .name }}
+              mountPath: {{ .mountPath }}
+              readOnly: {{ .readOnly | default true }}
+          {{- end }}
+          {{- end }}
+      {{- if .Values.initContainers }}
+      initContainers:
+      {{- with .Values.initContainers }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      {{- if .Values.volumes }}
+      volumes:
+      {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

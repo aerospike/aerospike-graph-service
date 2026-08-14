@@ -15,15 +15,20 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "graphservice.fullname" . }}
+  name: {{ include "aerospike-graph.fullname" . }}
+  namespace: {{ include "aerospike-graph.namespace" . }}
   labels:
-    {{- include "graphservice.labels" . | nindent 4 }}
+    {{- include "aerospike-graph.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: http
-      protocol: TCP
-      name: http
+    - name: service
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.container.port }}
+      appProtocol: http
+    - name: healthcheck
+      port: {{ .Values.service.livenessProbePort }}
+      targetPort: {{ .Values.livenessProbe.port }}
+      appProtocol: http
   selector:
-    {{- include "graphservice.selectorLabels" . | nindent 4 }}
+    {{- include "aerospike-graph.selectorLabels" . | nindent 4 }}

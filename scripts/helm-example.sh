@@ -29,7 +29,7 @@ else
   REPLICA_COUNT="$3"
   AEROSPIKE_HOST="$4"
   AEROSPIKE_NS="$5"
-  helm "$ACTION" "$POD_NAME" helm/graphservice \
+  helm "$ACTION" "$POD_NAME" helm/aerospike-graph \
     --set "env[0].name=aerospike.client.host" \
     --set "env[0].value=$AEROSPIKE_HOST" \
     --set "env[1].name=aerospike.client.namespace" \

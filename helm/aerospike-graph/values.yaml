@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Default values for graphservice.
+# Default values for aerospike-graph.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -21,14 +21,14 @@ replicaCount: 1
 image:
   repository: aerospike/aerospike-graph-service
   pullPolicy: Always
-  # Overrides the image tag whose default is the chart appVersion. Leave empty:
-  # helm package sets appVersion from the release version, and a literal here
-  # pins every published chart to whatever was committed.
+  # Leave empty so the package's appVersion selects the matching AGS image.
   tag: ""
 
+# namespaceOverride overrides the namespace, defaults to .Release.Namespace
+namespaceOverride: ""
 
 # The user should provide their credentials to pull the graph service docker image
-#imagePullSecrets:
+# imagePullSecrets:
 #  - name: regcred
 
 
@@ -57,30 +57,31 @@ securityContext: {}
   # runAsNonRoot: true
   # runAsUser: 1000
 
+container:
+  port: 8182
+
 service:
   type: LoadBalancer
   port: 8182
-
+  livenessProbePort: 9090
 ingress:
-  enabled: true
+  enabled: false
   className: ""
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/websocket-services: "websocket-service"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-connect-timeout: "3600"
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: graph-service.aerospike.demo
-      paths:
-        - path: /gremlin
-          pathType: ImplementationSpecific
+  annotations: {}
+    # nginx.ingress.kubernetes.io/rewrite-target: /
+    # nginx.ingress.kubernetes.io/websocket-services: "websocket-service"
+    # nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    # nginx.ingress.kubernetes.io/proxy-connect-timeout: "3600"
+  hosts: []
+    # - host: aerospike-graph.aerospike.demo
+    #   paths:
+    #     - path: /gremlin
+    #       pathType: ImplementationSpecific
   tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
+
+livenessProbe:
+  port: 9090
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
@@ -94,6 +95,18 @@ resources: {}
   #   cpu: 100m
   #   memory: 128Mi
 
+initContainers: []
+
+volumes: []
+# - name: example_volume
+#   secret:
+#     secretName: example_secret
+
+volumeMounts: []
+# - name: example_volume_mount
+#   mountPath: "/path/to/example"
+#   readOnly: true
+
 autoscaling:
   enabled: false
   minReplicas: 2
@@ -106,9 +119,9 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
-#env:
+# env:
 #  - name: aerospike.client.host
-#    value: 
+#    value:
 #  - name: aerospike.client.port
 #    value: "3000"
 #  - name: aerospike.client.namespace

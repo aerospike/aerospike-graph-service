@@ -12,15 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{ if .Values.serviceAccount.create -}}
 apiVersion: v1
-kind: ServiceAccount
+kind: Service
 metadata:
-  name: {{ include "graphservice.serviceAccountName" . }}
+  name: {{ include "aerospike-graph.fullname" . }}
+  namespace: {{ include "aerospike-graph.namespace" . }}
   labels:
-    {{- include "graphservice.labels" . | nindent 4 }}
-  {{- with .Values.serviceAccount.annotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-{{- end }}
+    {{- include "aerospike-graph.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: service
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.container.port }}
+      appProtocol: http
+    - name: healthcheck
+      port: {{ .Values.service.livenessProbePort }}
+      targetPort: {{ .Values.livenessProbe.port }}
+      appProtocol: http
+  selector:
+    {{- include "aerospike-graph.selectorLabels" . | nindent 4 }}

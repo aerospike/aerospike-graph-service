@@ -286,6 +286,7 @@
                                         <exclude>META-INF/maven/com.fasterxml.jackson.core/jackson-databind/**</exclude>
                                         <exclude>META-INF/maven/org.jline/**</exclude>
                                         <exclude>META-INF/maven/org.apache.commons/commons-compress/**</exclude>
+                                        <exclude>META-INF/maven/org.apache.kerby/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

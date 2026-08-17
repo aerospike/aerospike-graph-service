@@ -45,7 +45,7 @@ public class FireflyQueryTracingStrategyTest {
         final Field mrtEnabled = SETUP_GRAPH.getClass().getDeclaredField("queryTracingEnabled");
         mrtEnabled.setAccessible(true);
         mrtEnabled.set(SETUP_GRAPH, true);
-        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
         final GraphTraversalSource g = SETUP_GRAPH.traversal();
         Vertex v1 = g.addV("v1").next();
         Vertex v2 = g.addV("v2").next();
@@ -58,7 +58,7 @@ public class FireflyQueryTracingStrategyTest {
 
     @AfterClass
     static public void afterAll() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
         SETUP_GRAPH.close();
     }
 

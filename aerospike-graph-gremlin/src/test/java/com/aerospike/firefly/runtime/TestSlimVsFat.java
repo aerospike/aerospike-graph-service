@@ -117,22 +117,26 @@ public class TestSlimVsFat {
         Assert.assertTrue(foundSuccess);
     }
 
-    public void testDockerImageSettingsTmp(final String dockerImage, final String[] environmentVariables) throws InterruptedException {
+    public void testDockerImageSettingsTmp(final String dockerImage,
+                                            final String[] environmentVariables,
+                                            final boolean expectWarmup) throws InterruptedException {
         final String containerId = DOCKER_UTIL.startDockerImageCustom(dockerImage, true, 1, environmentVariables);
-        Assert.assertFalse(DOCKER_UTIL.checkTmpFileExists(containerId));
-        Thread.sleep(25 * 1000);
-        Assert.assertTrue(DOCKER_UTIL.checkTmpFileExists(containerId));
+        Assert.assertTrue("Container did not become ready in time.",
+                DOCKER_UTIL.waitForTmpFile(containerId, 30));
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundSuccess = false;
+        boolean foundWarmup = false;
         for (final String line : log) {
             LOG.warn(line);
             if (line.contains("Channel started at port 8182.")) {
                 foundSuccess = true;
             } else if (line.contains("Warmup is complete")) {
                 foundSuccess = true;
+                foundWarmup = true;
             }
         }
         Assert.assertTrue(foundSuccess);
+        Assert.assertEquals("Unexpected warmup behavior.", expectWarmup, foundWarmup);
     }
 
     @Test
@@ -158,25 +162,25 @@ public class TestSlimVsFat {
     @Test
     public void testDefaultsTmpExistsNoPreheat() throws InterruptedException {
         LOG.warn("=== Running testDefaultsTmpExistsNoPreheat ===");
-        testDockerImageSettingsTmp("firefly", DEFAULT_ENV_VARIABLES);
+        testDockerImageSettingsTmp("firefly", DEFAULT_ENV_VARIABLES, false);
     }
 
     @Test
     public void testDefaultsTmpExistsWithPreheat() throws InterruptedException {
         LOG.warn("=== Running testDefaultsTmpExistsWithPreheat ===");
-        testDockerImageSettingsTmp("firefly", DEFAULT_ENV_VARIABLES_PREHEAT);
+        testDockerImageSettingsTmp("firefly", DEFAULT_ENV_VARIABLES_PREHEAT, true);
     }
 
     @Test
     public void testSlimDefaultTmpExistsNoPreheat() throws InterruptedException {
         LOG.warn("=== Running testSlimDefaultTmpExistsNoPreheat ===");
-        testDockerImageSettingsTmp("firefly-slim", DEFAULT_ENV_VARIABLES);
+        testDockerImageSettingsTmp("firefly-slim", DEFAULT_ENV_VARIABLES, false);
     }
 
     @Test
     public void testSlimDefaultTmpExistsWithPreheat() throws InterruptedException {
         LOG.warn("=== Running testSlimDefaultTmpExistsWithPreheat ===");
-        testDockerImageSettingsTmp("firefly-slim", DEFAULT_ENV_VARIABLES_PREHEAT);
+        testDockerImageSettingsTmp("firefly-slim", DEFAULT_ENV_VARIABLES_PREHEAT, true);
     }
 
     @After

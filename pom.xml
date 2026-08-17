@@ -328,6 +328,7 @@
                 <configuration>
                     <dotGitDirectory>${project.parent.basedir}/.git</dotGitDirectory>
                     <generateGitPropertiesFile>true</generateGitPropertiesFile>
+                    <generateGitPropertiesFilename>${project.build.outputDirectory}/build-info.properties</generateGitPropertiesFilename>
                     <injectAllReactorProjects>true</injectAllReactorProjects>
                 </configuration>
             </plugin>
@@ -563,7 +564,7 @@
                     mvn spotless:check       # CI-safe, read-only
                     mvn spotless:apply       # fix violations in place
 
-                CI enforcement lives in .github/workflows/license-check.yml
+                CI enforcement lives in .github/workflows/ci-license-check.yml
                 (the `spotless-check` job).
             -->
             <plugin>
@@ -784,94 +785,6 @@
                                 </configuration>
                             </execution>
                         </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <!--
-            release: activated by the `release.yml` workflow on tag push.
-            Builds source and javadoc jars, GPG-signs every artifact, and
-            uploads to Maven Central via the new Central Portal. Not
-            activated by default so day-to-day `mvn install` does not need
-            a GPG key.
-
-            Prerequisites (all blocker tasks in docs/open-source/OPEN_SOURCE_PLAN.md):
-              - OSSRH / Central Portal account under `com.aerospike`.
-              - GPG signing key exported into CI secrets as
-                `CENTRAL_GPG_PRIVATE_KEY` + `CENTRAL_GPG_PASSPHRASE`.
-              - Central Portal token secrets
-                `CENTRAL_USERNAME` + `CENTRAL_PASSWORD`.
-        -->
-        <profile>
-            <id>release</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-source-plugin</artifactId>
-                        <version>3.3.1</version>
-                        <executions>
-                            <execution>
-                                <id>attach-sources</id>
-                                <goals>
-                                    <goal>jar-no-fork</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>${maven-javadoc-plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <id>attach-javadocs</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                                <configuration>
-                                    <!-- Tolerate the mixed Javadoc quality we have today; we
-                                         care about publishability, not strictness, for v0. -->
-                                    <doclint>none</doclint>
-                                    <failOnError>false</failOnError>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.2.7</version>
-                        <executions>
-                            <execution>
-                                <id>sign-artifacts</id>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>sign</goal>
-                                </goals>
-                                <configuration>
-                                    <!-- Pick up the in-memory private key configured by
-                                         release.yml; no on-disk keyring is written. -->
-                                    <gpgArguments>
-                                        <arg>--pinentry-mode</arg>
-                                        <arg>loopback</arg>
-                                    </gpgArguments>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.sonatype.central</groupId>
-                        <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>0.6.0</version>
-                        <extensions>true</extensions>
-                        <configuration>
-                            <publishingServerId>central</publishingServerId>
-                            <!-- Require an explicit release from the Central Portal UI
-                                 for v0; flip this once the release process is proven. -->
-                            <autoPublish>false</autoPublish>
-                            <waitUntil>published</waitUntil>
-                        </configuration>
                     </plugin>
                 </plugins>
             </build>

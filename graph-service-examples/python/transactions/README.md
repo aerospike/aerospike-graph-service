@@ -11,9 +11,10 @@ A web application that visualizes transactions between two users in a web browse
 
 ## Usage
 
-1. From the example directory root, start Docker Compose:
+1. From `graph-service-examples/`, start the shared Docker Compose stack:
 
    ```shell
+   cd ../..
    docker compose up -d
    ```
 

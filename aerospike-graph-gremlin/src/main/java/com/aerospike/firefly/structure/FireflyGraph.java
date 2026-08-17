@@ -244,7 +244,37 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     // docs changes, config updates, etc, and isn't worth it right now.
     public static final String PRODUCT_NAME = "Aerospike Graph";
     private static final Logger LOG = LoggerFactory.getLogger(PRODUCT_NAME);
-    public static String FIREFLY_VERSION = "3.3.0-SNAPSHOT";
+    private static final Properties BUILD_PROPERTIES = loadBuildProperties();
+    public static final String FIREFLY_VERSION = stripSnapshotSuffix(requireBuildProperty("git.build.version"));
+
+    private static Properties loadBuildProperties() {
+        final Properties properties = new Properties();
+        try (final InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream("build-info.properties")) {
+            if (in != null) {
+                properties.load(in);
+            }
+        } catch (final IOException e) {
+            LOG.warn("Could not load build-info.properties: {}", e.getMessage());
+        }
+        return properties;
+    }
+
+    private static String requireBuildProperty(final String key) {
+        final String value = BUILD_PROPERTIES.getProperty(key);
+        if (value == null) {
+            throw new IllegalStateException("Missing required build property '" + key + "'. " +
+                    "build-info.properties was not found on the classpath or was generated without it.");
+        }
+        return value;
+    }
+
+    private static String stripSnapshotSuffix(final String version) {
+        if (version == null) {
+            return null;
+        }
+        final int index = version.toUpperCase().indexOf("-SNAPSHOT");
+        return index == -1 ? version : version.substring(0, index);
+    }
 
     // Doesn't use hidden key token ~ due to internal Tinkerpop MergeStep validation
     public static final String BULK_LOAD_VERTEX_ADD_KEY = "___bulkLoadMergeVIdentifier";
@@ -466,7 +496,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         String logLevel;
 
         final boolean isTesting = Boolean.parseBoolean(System.getenv("FIREFLY_TESTING"));
-        if (FIREFLY_VERSION != null && FIREFLY_VERSION.endsWith("SNAPSHOT") && !isTesting) {
+        if (!isTesting) {
             try {
                 final String commitHash = getGitCommitHash();
                 LOG.info("Built from git commit hash: {}", commitHash);
@@ -531,7 +561,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 }
                 LOG.info("Aerospike Graph Service configuration: {}.", configurationMap);
             }
-            LOG.info("Starting Aerospike Graph Service v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
+            LOG.info("Starting Aerospike Graph Service v{}.", FIREFLY_VERSION);
 
             INFO_PRINTED.set(true);
             if (ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, fireflyConf)) {
@@ -1603,17 +1633,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public static String getGitCommitHash() {
-        final Properties gitProperties = new Properties();
-        try (InputStream in = Thread.currentThread()
-                .getContextClassLoader()
-                .getResourceAsStream("git.properties")) {
-            if (in == null) {
-                throw new IllegalStateException("git.properties not found on classpath");
-            }
-            gitProperties.load(in);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to load git.properties", e);
+        final String commitHash = BUILD_PROPERTIES.getProperty("git.commit.id");
+        if (commitHash == null) {
+            throw new IllegalStateException("build-info.properties not found on classpath");
         }
-        return gitProperties.getProperty("git.commit.id");
+        return commitHash;
     }
 }

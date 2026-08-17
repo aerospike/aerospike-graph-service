@@ -115,17 +115,14 @@ when their data source is too large to serialize into a supported format.
 
 ## Bulk Loader Inputs
 
-The following should be considered a minimum set of inputs for the bulk loader:
-- `--input` or `-i`
-  - The input, let's not call it a file as it could be an endpoint in the future.
-  - Should accept a comma separated list, because there may be multiple input files / endpoints.
-- `--conf` or `-c`
-  - The configuration file for Firefly, we need this to start Firefly with the right data model.
-- `--overwrite`
-  - If set, we will wipe the database before starting. Default should be false.
-- `--cautious`
-  - If set, we check for the existence of a vertex or edge with the same id before inserting.
-  - If it exists, we log it and skip it. Default should be false.
+The shipped bulk loader is configured with a properties file supplied
+through `-c`. Its supported command-line flags, CSV layout, validation
+controls, and Spark-submit examples are maintained in the
+[`aerospike-graph-bulk-loader` README](../aerospike-graph-bulk-loader/README.md).
+
+This document intentionally does not describe proposed `--input`,
+`--overwrite`, or `--cautious` options: they are not part of the
+current command-line interface.
 
 ## Design Limitations
 

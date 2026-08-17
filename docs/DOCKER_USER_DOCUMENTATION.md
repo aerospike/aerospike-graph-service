@@ -9,10 +9,7 @@ User guides and deployment procedures: [aerospike.com/docs/graph](https://aerosp
 
 > Released user-facing images are published on Docker Hub as
 > `aerospike/aerospike-graph-service:VERSION` (with a moving `:latest`
-> tag). Release-candidate builds are pushed to GitHub Container
-> Registry as `ghcr.io/aerospike/firefly:VERSION` under the internal
-> codename. The product name is Aerospike Graph Service. See the root
-> README for why the codename is preserved on the dev image path.
+> tag). The product name is Aerospike Graph Service.
 
 [tinkerpop]: http://tinkerpop.apache.org
 [aerospike]: https://aerospike.com
@@ -21,8 +18,10 @@ User guides and deployment procedures: [aerospike.com/docs/graph](https://aerosp
 
 Before you run AGS in Docker, you need:
 
-- An Aerospike feature-key file with the `graph-service` key enabled. See [feature-key file](https://aerospike.com/docs/database/manage/planning/feature-key) and [Deploy Aerospike Graph Service with Docker](https://aerospike.com/docs/graph/deploy/docker).
-- Aerospike Database version 7.0 or later. See [`COMPATIBILITY.md`](COMPATIBILITY.md).
+- An Aerospike Database deployment compatible with this release. AGS works with
+  Community Edition; Enterprise and Standard Edition deployments require the
+  feature key appropriate to that database edition.
+- An Aerospike Database version compatible with this release. See [`COMPATIBILITY.md`](COMPATIBILITY.md).
 - A namespace that already exists on the cluster with the [`default-ttl`](https://aerospike.com/docs/database/reference/config#namespace__default-ttl) configuration option set to `0`. See [TTL on the Aerospike namespace](https://aerospike.com/docs/graph/deploy/docker#ttl-on-the-aerospike-namespace).
 
 ## Connection values

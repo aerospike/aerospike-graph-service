@@ -6,7 +6,7 @@ Terraform modules to deploy Aerospike Graph Service (AGS) on Google Kubernetes E
 
 ## Architecture overview
 
-- **GKE Autopilot** — managed Kubernetes with ARM64 support.
+- **GKE Standard** — managed Kubernetes with an ARM64 node pool.
 - **Default VPC** — deploys alongside Aerospike Database for direct connectivity.
 - **Autoscaling** — Horizontal Pod Autoscaler (HPA) for automatic scaling.
 - **Monitoring** — optional Prometheus and Grafana with Aerospike dashboards.
@@ -19,7 +19,7 @@ Deploys GKE in the same VPC as Aerospike Database — no VPC peering required.
 
 ### ARM64 support
 
-Uses the GKE Autopilot Scale-Out compute class for ARM64 workloads (cost-effective).
+Uses a GKE Standard cluster and node pools configured for ARM64 workloads.
 
 ### Autoscaling
 
@@ -40,7 +40,7 @@ Pre-built Grafana dashboards for monitoring metrics.
 gcp/
 ├── modules/                              # Reusable Terraform modules
 │   ├── vpc/                              # VPC/subnet configuration
-│   ├── gke-cluster/                      # GKE Autopilot + AGS deployment
+│   ├── gke-cluster/                      # GKE Standard + AGS deployment
 │   └── monitoring/                       # Prometheus + Grafana (optional)
 │       └── dashboards/                   # Aerospike Grafana dashboards
 ├── environments/                         # Environment configurations
@@ -55,11 +55,11 @@ gcp/
 
 ## Modules
 
-| Module | Description |
-|--------|-------------|
-| `vpc` | Creates a GKE subnet in an existing VPC (default) with secondary ranges. |
-| `gke-cluster` | Deploys a GKE Autopilot cluster with AGS. |
-| `monitoring` | Deploys Prometheus and Grafana with pre-built Aerospike dashboards. |
+| Module        | Description                                                              |
+| ------------- | ------------------------------------------------------------------------ |
+| `vpc`         | Creates a GKE subnet in an existing VPC (default) with secondary ranges. |
+| `gke-cluster` | Deploys a GKE Standard cluster with AGS.                                 |
+| `monitoring`  | Deploys Prometheus and Grafana with pre-built Aerospike dashboards.      |
 
 ## Prerequisites
 
@@ -95,25 +95,25 @@ gcp/
 
 > **Important:** Modules must be deployed in order. `gke-cluster` depends on `vpc` outputs, and `monitoring` depends on `gke-cluster`.
 
-| Step | Module | Depends on | Description |
-|------|--------|------------|-------------|
-| 1 | `vpc/` | — | Creates GKE subnet in default VPC. |
-| 2 | `gke-cluster/` | `vpc` | Deploys GKE Autopilot and AGS. |
-| 3 | `monitoring/` | `gke-cluster` | *(Optional)* Prometheus and Grafana. |
+| Step | Module         | Depends on    | Description                          |
+| ---- | -------------- | ------------- | ------------------------------------ |
+| 1    | `vpc/`         | —             | Creates GKE subnet in default VPC.   |
+| 2    | `gke-cluster/` | `vpc`         | Deploys GKE Standard and AGS.        |
+| 3    | `monitoring/`  | `gke-cluster` | *(Optional)* Prometheus and Grafana. |
 
 ## Placeholders to replace
 
 Before deploying, replace the following placeholders in the environment files:
 
-| Placeholder | Description | Example | Files |
-|-------------|-------------|---------|-------|
-| `YOUR_TERRAFORM_STATE_BUCKET` | GCS bucket for Terraform state. | `my-company-tf-state` | `*/backend.tf`, `gke-cluster/main.tf` |
-| `YOUR_PROJECT_ID` | GCP project ID. | `my-gcp-project-123` | `*/terraform.tfvars` |
-| `TODO_ENVIRONMENT` | Environment name. | `prod` | `*/terraform.tfvars`, `*/backend.tf`, `gke-cluster/main.tf` |
-| `ags-TODO_ENVIRONMENT` | Resource name prefix. | `ags-prod` | `*/terraform.tfvars` |
-| `TODO_AEROSPIKE_HOST` | Aerospike cluster IP. | `10.128.0.5` | `gke-cluster/terraform.tfvars` |
-| `TODO_USERNAME` | Aerospike username. | `admin` | `gke-cluster/terraform.tfvars` |
-| `TODO_PASSWORD` | Aerospike password. | `secret` | `gke-cluster/terraform.tfvars` |
+| Placeholder                   | Description                     | Example               | Files                                                       |
+| ----------------------------- | ------------------------------- | --------------------- | ----------------------------------------------------------- |
+| `YOUR_TERRAFORM_STATE_BUCKET` | GCS bucket for Terraform state. | `my-company-tf-state` | `*/backend.tf`, `gke-cluster/main.tf`                       |
+| `YOUR_PROJECT_ID`             | GCP project ID.                 | `my-gcp-project-123`  | `*/terraform.tfvars`                                        |
+| `TODO_ENVIRONMENT`            | Environment name.               | `prod`                | `*/terraform.tfvars`, `*/backend.tf`, `gke-cluster/main.tf` |
+| `ags-TODO_ENVIRONMENT`        | Resource name prefix.           | `ags-prod`            | `*/terraform.tfvars`                                        |
+| `TODO_AEROSPIKE_HOST`         | Aerospike cluster IP.           | `10.128.0.5`          | `gke-cluster/terraform.tfvars`                              |
+| `TODO_USERNAME`               | Aerospike username.             | `admin`               | `gke-cluster/terraform.tfvars`                              |
+| `TODO_PASSWORD`               | Aerospike password.             | `secret`              | `gke-cluster/terraform.tfvars`                              |
 
 > **Security:** Avoid committing sensitive values such as `TODO_PASSWORD` to version control. Use environment variables (`TF_VAR_aerospike_password`) or a secrets manager.
 
@@ -172,20 +172,20 @@ Before deploying, replace the following placeholders in the environment files:
 
 Each module has its own state file in GCS:
 
-| Environment | Module | GCS path |
-|-------------|--------|----------|
-| test | vpc | `test/vpc/terraform.tfstate` |
-| test | gke-cluster | `test/gke-cluster/terraform.tfstate` |
-| test | monitoring | `test/monitoring/terraform.tfstate` |
+| Environment | Module      | GCS path                             |
+| ----------- | ----------- | ------------------------------------ |
+| test        | vpc         | `test/vpc/terraform.tfstate`         |
+| test        | gke-cluster | `test/gke-cluster/terraform.tfstate` |
+| test        | monitoring  | `test/monitoring/terraform.tfstate`  |
 
 ## Endpoints
 
 After deployment:
 
-| Service | URL |
-|---------|-----|
-| Gremlin | `ws://<AGS_IP>:8182/gremlin` |
-| Health | `http://<AGS_IP>:9090/healthcheck` |
+| Service | URL                                                  |
+| ------- | ---------------------------------------------------- |
+| Gremlin | `ws://<AGS_IP>:8182/gremlin`                         |
+| Health  | `http://<AGS_IP>:9090/healthcheck`                   |
 | Grafana | `http://<GRAFANA_IP>:80` (if monitoring is deployed) |
 
 ## Cleanup and destroy

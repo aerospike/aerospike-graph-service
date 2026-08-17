@@ -68,7 +68,7 @@ docker compose up -d
 ```
 
 [`graph-service-examples/`](graph-service-examples) also includes runnable example
-applications, notebooks, and sample datasets, plus a bulk-load guide. The
+applications and sample datasets, plus a bulk-load guide. The
 official step-by-step walkthrough is at
 [aerospike.com/docs/graph/quick-start](https://aerospike.com/docs/graph/quick-start).
 
@@ -80,10 +80,11 @@ for the full deployment guide.
 
 Before you run AGS in Docker, you need:
 
-- An Aerospike feature-key file with the `graph-service` key enabled. See
-  [feature-key file](https://aerospike.com/docs/database/manage/planning/feature-key)
-  or [Deploy Aerospike Graph Service with Docker](https://aerospike.com/docs/graph/deploy/docker).
-- Aerospike Database version 7.0 or later. See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
+- An Aerospike Database deployment compatible with this release. AGS works with
+  Community Edition; if you choose Enterprise or Standard Edition, provide the
+  feature key required by that database edition.
+- An Aerospike Database version compatible with this release. See
+  [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
 - A namespace that already exists on the cluster with
   [`default-ttl`](https://aerospike.com/docs/database/reference/config#namespace__default-ttl)
   set to `0`. See [TTL on the Aerospike namespace](#ttl-on-the-aerospike-namespace) below.
@@ -120,9 +121,9 @@ docker run -d --name graph --network ags-net --restart unless-stopped \
 
 `aerospike:3000` is the Aerospike container name on `ags-net` plus the default service
 port. `test` is the default namespace in the Aerospike Docker image. Change these only
-if you configured Aerospike differently. The Aerospike image must be Enterprise Edition.
-The community image (`aerospike/aerospike-server`) does not include the `graph-service`
-feature key support required by AGS.
+if you configured Aerospike differently. This example uses the Enterprise image;
+you can use Community Edition instead when your deployment does not need an
+Enterprise-only database capability.
 
 ### Run AGS with Docker
 
@@ -326,10 +327,9 @@ Core docs, organized roughly by audience:
 - [`docs/INDEX_DESIGN.md`](docs/INDEX_DESIGN.md): how graph leverages Aerospike secondary indexes
 - [`docs/ID_MANAGEMENT.md`](docs/ID_MANAGEMENT.md): vertex/edge ID generation and allocation
 - [`docs/BULK_LOADER_DESIGN.md`](docs/BULK_LOADER_DESIGN.md): architecture of the Spark bulk loader
-- [`docs/LOCAL_GRAPH_COMPUTER.md`](docs/LOCAL_GRAPH_COMPUTER.md): single-JVM OLAP for smaller graphs
+- [`docs/GRAPH_OLAP.md`](docs/GRAPH_OLAP.md): Spark-backed GraphComputer (OLAP) guidance
 - [`docs/CACHE_MANAGEMENT.md`](docs/CACHE_MANAGEMENT.md): multi-level cache hierarchy
-- [`docs/TRAVERSAL_CACHE.md`](docs/TRAVERSAL_CACHE.md): query-plan caching
-- [`docs/GENERATION_CHECK_BASED_WRITES_DESIGN.md`](docs/GENERATION_CHECK_BASED_WRITES_DESIGN.md): optimistic concurrency control
+- [`docs/WRITE_CONSISTENCY.md`](docs/WRITE_CONSISTENCY.md): edge and vertex write consistency
 
 ### Operations
 
@@ -343,27 +343,27 @@ For install, deploy, query, and manage guides, see [aerospike.com/docs/graph](ht
 
 ## Building from source
 
-> Codename `firefly`. The internal codename remains in Java packages (`com.aerospike.firefly.*`), the root Maven `artifactId`, dev images on GHCR (`ghcr.io/aerospike/firefly`), and `firefly.*` / `FIREFLY_*` configuration. The shipped product is Aerospike Graph Service. For more background, see [Why `firefly` persists in identifiers](CONTRIBUTING.md#why-firefly-persists-in-identifiers) in CONTRIBUTING.md.
+> Codename `firefly`. The internal codename remains in Java packages (`com.aerospike.firefly.*`) and the root Maven `artifactId`. The shipped product is Aerospike Graph Service; runtime configuration uses `aerospike.*` keys. For more background, see [Why `firefly` persists in identifiers](CONTRIBUTING.md#why-firefly-persists-in-identifiers) in CONTRIBUTING.md.
 
 The repository is laid out as a multi-module Maven build:
 
-| Module | What's in it |
-|---|---|
-| [`aerospike-graph-gremlin/`](aerospike-graph-gremlin)           | Core OLTP engine. `FireflyGraph`, the `packed` storage layout, indexes, traversal strategies, and the embedded gremlin-server. |
-| [`aerospike-graph-bulk-loader/`](aerospike-graph-bulk-loader)   | Spark-based bulk loader for CSV / GraphML / GraphSON inputs. |
-| [`aerospike-graph-olap/`](aerospike-graph-olap)                 | Spark-backed `GraphComputer` (OLAP) implementation for cluster-wide analytics. |
-| [`aerospike-graph-api/`](aerospike-graph-api)                   | Stable API surface shared between the engine and extensions. |
+| Module                                                        | What's in it                                                                                                                   |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| [`aerospike-graph-gremlin/`](aerospike-graph-gremlin)         | Core OLTP engine. `FireflyGraph`, the `packed` storage layout, indexes, traversal strategies, and the embedded gremlin-server. |
+| [`aerospike-graph-bulk-loader/`](aerospike-graph-bulk-loader) | Spark-based bulk loader for CSV inputs.                                                                                        |
+| [`aerospike-graph-olap/`](aerospike-graph-olap)               | Spark-backed `GraphComputer` (OLAP) implementation for cluster-wide analytics.                                                 |
+| [`aerospike-graph-api/`](aerospike-graph-api)                 | Stable API surface shared between the engine and extensions.                                                                   |
 
 Deeper design docs live under [`docs/`](docs). See the [Documentation](#documentation) section.
 
 ### Prerequisites
 
-- JDK 11 or newer. CI covers JDK 11 and 17. Supported combinations are listed in [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
+- JDK 17 for the primary CI and development path. Maven compiles Java 11 bytecode; see [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) for the current evidence-based matrix.
 - Maven 3.9+ (matches CI). See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
 - Docker with [Buildx](https://docs.docker.com/build/buildx/) for building container images.
 - Python 3 and [`python_on_whales`](https://github.com/gabrieldemarmiesse/python-on-whales) for [`scripts/build-docker.py`](scripts/build-docker.py) (`pip install python_on_whales`).
-- An Aerospike Database 7.0+ cluster for integration-style testing. Supported versions are listed in [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
-- CI-style cluster: [`scripts/start_aerospike.sh`](scripts/start_aerospike.sh) starts a multi-node Enterprise cluster and expects a feature-key file (see `.github/aerospike/`). That path is oriented toward matching CI, not general laptop setup. On macOS, [`scripts/macos-start-aerospike.sh`](scripts/macos-start-aerospike.sh) runs the same flow inside a container with the Docker socket mounted. It assumes a local image tag such as `firefly:dev` already exists.
+- An Aerospike Database cluster compatible with this release. See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
+- CI-style cluster: [`scripts/start_aerospike.sh`](scripts/start_aerospike.sh) starts a multi-node Enterprise cluster and requires either `.github/aerospike/features.conf` or `AEROSPIKE_FEATURES_B64`. That path is oriented toward matching CI, not general laptop setup. On macOS, [`scripts/macos-start-aerospike.sh`](scripts/macos-start-aerospike.sh) runs the same flow inside a container with the Docker socket mounted. It assumes a local image tag such as `firefly:dev` already exists.
 
 Maven compiles with Java 11. The Dockerfiles in [`docker/`](docker/) package a JDK 17 runtime.
 
@@ -416,8 +416,7 @@ docker run -d -p 8182:8182 \
 
 Released user-facing images are published on Docker Hub as
 `aerospike/aerospike-graph-service:VERSION` (with a moving `:latest`
-tag). The standard image includes the standalone bulk loader. The slim image is graph-only. Release-candidate builds are pushed to GitHub Container Registry
-as `ghcr.io/aerospike/firefly:VERSION` under the codename.
+tag). The standard image includes the standalone bulk loader. The slim image is graph-only.
 
 ### License-clean dependency graph
 
@@ -425,7 +424,7 @@ as `ghcr.io/aerospike/firefly:VERSION` under the codename.
 mvn -ntp -Plicense-check verify
 ```
 
-This profile is opt-in (CI runs it on every PR) and fails the build
+This profile is opt-in; the dedicated license workflow runs it when relevant files change and fails the build
 if any compile/runtime dependency's license is not on the Apache-2.0
 -compatible allowlist in the root `pom.xml`. The enforcement report is
 written to `target/THIRD_PARTY.enforce.txt`. A separate inventory at
@@ -442,7 +441,7 @@ mvn -ntp test
 Tests that need a real Aerospike cluster, Docker, or other heavy fixtures are excluded or gated in the root POM Surefire configuration and in CI. The full matrix runs in [`.github/workflows/`](.github/workflows/) with the cluster helpers under [`.github/aerospike/`](.github/aerospike/).
 
 Benchmark tests use [JMH](https://openjdk.org/projects/code-tools/jmh/).
-They live under `src/test/java/.../benchmark/` in each module and are
+They live under `aerospike-graph-gremlin/src/test/java/.../benchmark/` and are
 skipped by default. Run them with:
 
 ```bash

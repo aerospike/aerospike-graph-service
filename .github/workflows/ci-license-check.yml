@@ -1,0 +1,186 @@
+# Copyright 2022-2026 Aerospike, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: License Check
+
+# Runs the `license-check` Maven profile, which enforces the allowed-license
+# allowlist in the root POM against the full compile+runtime dependency
+# graph (see license-maven-plugin + .mvn/third-party-licenses.properties).
+#
+# A PR that adds a GPL/AGPL/SSPL/etc. dependency (or any license string not
+# on the allowlist) will fail this check.
+
+on:
+  pull_request:
+    paths:
+      - '**/*.java'
+      - '**/*.py'
+      - '**/*.sh'
+      - '**/*.yml'
+      - '**/*.yaml'
+      - '**/*.properties'
+      - '**/pom.xml'
+      - '**/Dockerfile*'
+      - '.mvn/**'
+      - '.github/workflows/ci-license-check.yml'
+  push:
+    branches:
+      - 3.x-dev
+      - opensource-ready
+    paths:
+      - '**/*.java'
+      - '**/*.py'
+      - '**/*.sh'
+      - '**/*.yml'
+      - '**/*.yaml'
+      - '**/*.properties'
+      - '**/pom.xml'
+      - '**/Dockerfile*'
+      - '.mvn/**'
+      - '.github/workflows/ci-license-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apache-header-check:
+    name: Apache-2.0 Header Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the Runner (Audit All Outbound Calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+
+      # Every authored source/config file must carry the canonical
+      # Apache-2.0 header (added in bulk when the repo was open-sourced).
+      # Covered types:
+      #   - Java under any module's src/ (including the graph-service-examples
+      #     Java example, which is not a root-POM reactor module)
+      #   - Python / Shell / Dockerfile anywhere
+      #   - Module pom.xml files
+      #   - .github/workflows/*.yml (authored workflows)
+      #   - conf/**/*.yaml + helm/**/*.yaml (authored runtime configs)
+      #   - **/*.properties authored by us (the third-party license catalog
+      #     .mvn/third-party-licenses.properties is explicitly excluded)
+      # Generated sources under target/ are excluded. graph-service-examples/
+      # was migrated into this repository and is held to the same per-file
+      # header convention as the rest of the repo (its own LICENSE file was
+      # removed in favor of the root LICENSE).
+      - name: Check Apache-2.0 Header Presence
+        run: |
+          set -eo pipefail
+          MARKER='Licensed under the Apache License'
+
+          # Build the file list. Each find is scoped to avoid picking up
+          # third-party / generated content.
+          {
+            find aerospike-graph-api aerospike-graph-gremlin aerospike-graph-olap aerospike-graph-bulk-loader \
+              graph-service-examples/java/basic \
+              -path '*/target/*' -prune -o -path '*/src/*' -name '*.java' -print
+            find . -path '*/target/*' -prune -o -path './.git' -prune -o \
+              \( -name '*.py' -o -name '*.sh' -o -name 'Dockerfile' -o -name 'Dockerfile-*' \) -print
+            find . -path '*/target/*' -prune -o -path './.git' -prune -o -name 'pom.xml' -print
+            find .github/workflows .github/ISSUE_TEMPLATE -type f \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null
+            find conf helm -type f \( -name '*.yaml' -o -name '*.yml' \) 2>/dev/null
+            find . -path '*/target/*' -prune -o -path './.git' -prune -o \
+              -path './.mvn/third-party-licenses.properties' -prune -o \
+              -name '*.properties' -print
+          } | sort -u > /tmp/header-candidates.txt
+
+          missing=$(xargs -r -a /tmp/header-candidates.txt grep -L "$MARKER" \
+            < /dev/null || true)
+
+          if [ -n "$missing" ]; then
+            echo "::error::The following authored files are missing the Apache-2.0 header:"
+            echo "$missing" | sed 's/^/  /'
+            echo ""
+            echo "Run scripts/add-nonjava-headers.py (recreate from git history if deleted)"
+            echo "or paste the Apache-2.0 header block at the top of each file using the"
+            echo "comment syntax appropriate for its language:"
+            echo "  Java: /* ... */"
+            echo "  Python/Shell/YAML/properties/Dockerfile: # ..."
+            echo "  XML (pom.xml): <!-- ... -->"
+            exit 1
+          fi
+          echo "All authored sources/configs carry the Apache-2.0 header."
+
+  license-check:
+    name: License Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the Runner (Audit All Outbound Calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+
+      - name: Set Up JDK 17
+        uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Set Up Maven
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
+        with:
+          maven-version: 3.9.5
+
+      - name: Run License-Check Profile
+        run: mvn -ntp -Plicense-check -DskipTests verify
+
+      - name: Upload THIRD_PARTY.txt
+        if: always()
+        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+        with:
+          name: third-party-report
+          path: THIRD_PARTY.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+  spotless-check:
+    name: Spotless Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the Runner (Audit All Outbound Calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+
+      - name: Set Up JDK 17
+        uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Set Up Maven
+        uses: step-security/setup-maven@952ce6ada26435ad361053035d888477856de677 # v5.0.1
+        with:
+          maven-version: 3.9.5
+
+      # Enforces the lightweight ruleset configured in the root pom
+      # (trim trailing whitespace, end-of-file newline, remove unused
+      # imports). Read-only: does not mutate the working tree. If this
+      # fails on a PR, contributors run `mvn spotless:apply` locally
+      # and amend the commit.
+      - name: Run Spotless Check
+        run: mvn -ntp -B spotless:check

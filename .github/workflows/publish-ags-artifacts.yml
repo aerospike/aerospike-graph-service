@@ -1,0 +1,390 @@
+# Copyright 2022-2026 Aerospike, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Publish Aerospike Graph Service artifacts to JFrog via the shared-workflows pipeline.
+#
+# Two triggers, one pipeline:
+#
+#   push (vX.Y.Z[-rcN])  A real release. The tagged commit was already tested at PR time, so
+#                        this builds, signs, deploys, and bundles. It does not re-run the EC2
+#                        test fleet (see the commented-out `test` gate below).
+#
+#   workflow_dispatch    A manual smoke run that publishes uniquely versioned development
+#                        artifacts and skips release-bundle creation.
+#
+# Produces, all under the `connect` JFrog project:
+#   - the multi-arch container (full + slim) -> connect-docker-dev-local
+#   - the graph + bulk-loader uber JARs       -> connect-maven-dev-local
+#   - the aerospike-graph Helm chart          -> connect-helm-dev-local
+# then, on a tag only, assembles a release bundle (aerospike-graph-service) for DEV -> PROD
+# promotion. On PROD promotion the existing artifact-publisher automation mirrors the image to
+# Docker Hub.
+name: Publish AGS Artifacts
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+# Unlisted scopes become none, and a nested workflow cannot request more than the caller grants.
+# This is the union the pinned call tree needs.
+permissions:
+  id-token: write       # OIDC to JFrog
+  contents: read
+  packages: write       # container push
+  attestations: write   # SBOM + SLSA provenance
+
+jobs:
+  version:
+    name: Resolve Version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      chart-version: ${{ steps.v.outputs.chart-version }}
+      is-release: ${{ steps.v.outputs.is-release }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0   # required, or extract-version falls back to 0.0.0-dev+<sha>
+      - id: tag
+        if: github.event_name == 'push'
+        uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0
+      - name: Resolve Release or Development Version
+        id: v
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG_VERSION: ${{ steps.tag.outputs.version }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          chart_base="$(grep -m1 -oP '^\s*version:\s*"?\K[^"\s]+' helm/aerospike-graph/Chart.yaml || true)"
+          case "$chart_base" in
+            [0-9]*.[0-9]*.[0-9]*) ;;
+            *)
+              echo "::error::could not derive a chart version from helm/aerospike-graph/Chart.yaml (got '$chart_base')"
+              exit 1
+              ;;
+          esac
+          if [ "$EVENT" = "push" ]; then
+            version="$TAG_VERSION"
+            case "$version" in
+              "" | 0.0.0-dev*)
+                echo "::error::version did not resolve from the tag (got '$version'); need fetch-depth: 0 and a vX.Y.Z tag"
+                exit 1
+                ;;
+            esac
+            chart_version="$chart_base"
+            is_release=true
+          else
+            # Manual run. Derive the version rather than accepting one, so a dispatch can
+            # never overwrite a shipped release. Separators must stay '-' and '.': '+' is
+            # valid in semver but invalid in an OCI tag.
+            base="$(grep -m1 -oP '(?<=<version>)[^<]+' pom.xml || true)"
+            base="${base%-SNAPSHOT}"
+            case "$base" in
+              [0-9]*.[0-9]*.[0-9]*) ;;
+              *)
+                echo "::error::could not derive a base version from pom.xml (got '$base')"
+                exit 1
+                ;;
+            esac
+            version="${base}-dev.${RUN_NUMBER}"
+            chart_version="${chart_base}-dev.${RUN_NUMBER}"
+            is_release=false
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "chart-version=$chart_version" >> "$GITHUB_OUTPUT"
+          echo "is-release=$is_release" >> "$GITHUB_OUTPUT"
+          echo "Resolved application version: $version; chart version: $chart_version (release: $is_release)"
+
+  # --- OPTIONAL test gate (disabled: the EC2 self-hosted fleet is currently red) ----------------
+  # Once the fleet is green (Phase 2), uncomment this job and add `test` to the `needs:` of the
+  # `container` and `artifacts` jobs below. That makes the publish wait on the suite and publish
+  # only when it is green. Until then, tests gate at PR time and this tag build publishes from an
+  # already-tested commit.
+  #
+  # test:
+  #   needs: version
+  #   uses: ./.github/workflows/test-post-merge.yml
+  #   secrets: inherit
+
+  container:
+    name: Build and Push AGS Container Images
+    needs: [version, artifacts]   # once the test gate is on: add `test`
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: full
+            app_version: ${{ needs.version.outputs.version }}
+            versions_override: ""                                   # default tags: X, major, latest
+            build_name: aerospike-graph-service
+            dockerfile: docker/Dockerfile
+            build_args: >-
+              {"FIREFLY_GRAPH": "artifacts/unsigned-artifacts/aerospike-graph-gremlin-${{ needs.version.outputs.version }}.jar",
+               "BULKLOADER": "artifacts/unsigned-artifacts/aerospike-graph-bulk-loader-${{ needs.version.outputs.version }}.jar"}
+          - variant: slim
+            app_version: ${{ needs.version.outputs.version }}-slim
+            versions_override: "${{ needs.version.outputs.version }}-slim,slim,latest-slim"
+            build_name: aerospike-graph-service-slim               # distinct build-info name
+            dockerfile: docker/Dockerfile-slim
+            # Dockerfile-slim declares only FIREFLY_GRAPH; an unconsumed build-arg still
+            # lands in mode=max provenance.
+            build_args: >-
+              {"FIREFLY_GRAPH": "artifacts/unsigned-artifacts/aerospike-graph-gremlin-${{ needs.version.outputs.version }}.jar"}
+    uses: aerospike/shared-workflows/.github/workflows/reusable_docker-build-deploy.yaml@d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0
+    with:
+      jf-project: connect
+      image-name: aerospike-graph-service                          # one repo for both variants
+      app-version: ${{ matrix.app_version }}
+      versions-override: ${{ matrix.versions_override }}
+      file: ${{ matrix.dockerfile }}
+      jf-build-name: ${{ matrix.build_name }}
+      gh-context-artifacts-json: |
+        [{"name": "${{ needs.artifacts.outputs.gh-artifact-name }}", "dest": "artifacts"}]
+      build-args-json: ${{ matrix.build_args }}
+    secrets:
+      build-secrets-json: '{"gpg_public_key": ${{ toJSON(secrets.GPG_PUBLIC_KEY) }}}'
+
+  artifacts:
+    name: Build and Publish AGS Artifacts
+    needs: version   # once the test gate is on: needs: [version, test]
+    uses: aerospike/shared-workflows/.github/workflows/reusable_artifacts-cicd.yaml@d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0
+    with:
+      gh-workflows-ref: d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0
+      jf-project: connect
+      jf-build-name: aerospike-graph-service-artifacts
+      version: ${{ needs.version.outputs.version }}
+      oidc-provider-name: gh-aerospike
+      oidc-audience: aerospike
+      gh-artifact-directory: dist
+      setup-java: true
+      java-version: "17"
+      setup-helm: true
+      jar-group-id: com.aerospike
+      # Emits the graph uber jar, the bulk-loader uber jar, and the packaged aerospike-graph chart.
+      build-script: ./scripts/build-ags-artifacts.sh ${{ needs.version.outputs.version }} ${{ needs.version.outputs.chart-version }}
+    # Map these explicitly. artifacts-cicd declares gpg-private-key/gpg-public-key/gpg-key-pass as
+    # required, and `secrets: inherit` matches by name: our secrets are UPPER_SNAKE and a secret
+    # name cannot contain a hyphen, so inherit leaves all three empty and the call never starts.
+    secrets:
+      gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
+      gpg-public-key: ${{ secrets.GPG_PUBLIC_KEY }}
+      gpg-key-pass: ${{ secrets.GPG_PASS }}
+
+  # Pull each published image and round-trip a Gremlin write and read against it. A TCP liveness
+  # check is not sufficient: a process can hold 8182 open without the application classes loaded.
+  #
+  # Container exit code is not a valid oracle. docker-runtime-scripts/firefly-server.sh returns 0
+  # after the JVM dies.
+  #
+  # No ci-guard: this workflow triggers only on tag push and workflow_dispatch, so a fork cannot
+  # reach it.
+  smoke-test:
+    name: AGS Image Smoke Test and Snyk Container Scan (${{ matrix.variant }}, ${{ matrix.platform }})
+    needs: [version, container]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: full
+            tag: ${{ needs.version.outputs.version }}
+            platform: linux/amd64
+            runner: ubuntu-24.04
+            expect_arch: X64
+          - variant: slim
+            tag: ${{ needs.version.outputs.version }}-slim
+            platform: linux/amd64
+            runner: ubuntu-24.04
+            expect_arch: X64
+          # Native on both sides: ubuntu-24.04-arm runners, and the Aerospike fixture image
+          # publishes a linux/arm64 manifest.
+          - variant: full
+            tag: ${{ needs.version.outputs.version }}
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            expect_arch: ARM64
+          - variant: slim
+            tag: ${{ needs.version.outputs.version }}-slim
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            expect_arch: ARM64
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # An amd64 host running `--platform linux/arm64` falls back to QEMU once binfmt is
+      # registered, which would pass while testing something other than what ships.
+      - name: Assert Native Runner Architecture
+        env:
+          EXPECT_ARCH: ${{ matrix.expect_arch }}
+          RUNNER_ARCH_ACTUAL: ${{ runner.arch }}
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_ARCH_ACTUAL" != "$EXPECT_ARCH" ]; then
+            echo "::error::${{ matrix.platform }} leg is on $RUNNER_ARCH_ACTUAL, expected $EXPECT_ARCH"
+            exit 1
+          fi
+          echo "runner arch $RUNNER_ARCH_ACTUAL, native for ${{ matrix.platform }}"
+
+      - name: Install JFrog CLI
+        id: jf
+        uses: step-security/setup-jfrog-cli@3054b554c0fb4915b3d58847fb7730c593dbb934 # v5.0.0
+        env:
+          JF_URL: https://artifact.aerospike.io
+          JF_PROJECT: connect
+        with:
+          version: 2.78.8
+          oidc-provider-name: gh-aerospike
+          oidc-audience: aerospike
+
+      - name: Docker Login to Artifactory
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          registry: artifact.aerospike.io
+          username: ${{ steps.jf.outputs.oidc-user }}
+          password: ${{ steps.jf.outputs.oidc-token }}
+
+      - name: Pull the Published Image
+        id: pull
+        env:
+          IMAGE: artifact.aerospike.io/connect-docker-dev-local/aerospike-graph-service:${{ matrix.tag }}
+        run: |
+          set -euo pipefail
+          docker pull --platform "${{ matrix.platform }}" "$IMAGE"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Set Up Snyk CLI for Container Scan
+        env:
+          RUNNER_ARCH: ${{ runner.arch }}
+        run: |
+          set -euo pipefail
+          case "$RUNNER_ARCH" in
+            X64) binary=snyk-linux ;;
+            ARM64) binary=snyk-linux-arm64 ;;
+            *)
+              echo "::error::Unsupported architecture: $RUNNER_ARCH"
+              exit 1
+              ;;
+          esac
+          curl --fail --location --retry 3 --compressed \
+            "https://downloads.snyk.io/cli/stable/${binary}" \
+            --output "${RUNNER_TEMP}/snyk"
+          chmod +x "${RUNNER_TEMP}/snyk"
+          echo "${RUNNER_TEMP}" >> "$GITHUB_PATH"
+          "${RUNNER_TEMP}/snyk" version
+
+      - name: Snyk Container Scan (${{ matrix.variant }} Image)
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          IMAGE: ${{ steps.pull.outputs.image }}
+        run: |
+          snyk container test "$IMAGE" \
+            --severity-threshold=high
+
+      - name: Start Aerospike
+        id: aerospike
+        env:
+          AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          NETWORK: ags-smoke-net
+          SERVER: aerospike-1
+          TOOLS: aerospike/aerospike-tools:12.1.1_2
+        run: |
+          set -euo pipefail
+          # The secret holds base64. Written raw, the server reports
+          # "missing value for key <the encoded blob>" and exits.
+          printf '%s' "$AEROSPIKE_FEATURES_B64" | base64 -d > "${RUNNER_TEMP}/features.conf"
+          grep -q '^feature-key-version' "${RUNNER_TEMP}/features.conf"
+          docker network create "$NETWORK"
+
+          # The server's config asks for 15000 descriptors and it exits at startup if the
+          # container cannot supply them.
+          docker run -d --name "$SERVER" --network "$NETWORK" \
+            --ulimit nofile=15000 \
+            -v "${RUNNER_TEMP}/features.conf:/etc/aerospike/features.conf:ro" \
+            aerospike/aerospike-server-enterprise:8.1
+
+          # cluster-stable is the first signal that the node accepts client work. The port
+          # binds and the namespace list populates well before that, so neither is a gate.
+          ready=""
+          for _ in $(seq 1 40); do
+            out="$(docker run --rm --network "$NETWORK" "$TOOLS" \
+                    asinfo -h "$SERVER" -p 3000 -v cluster-stable 2>/dev/null || true)"
+            case "$out" in
+              "" | *ERROR*) ;;
+              *) ready=1; break ;;
+            esac
+            sleep 3
+          done
+          if [ -z "$ready" ]; then
+            echo "::error::Aerospike never reported cluster-stable"
+            docker logs "$SERVER" 2>&1 | tail -40
+            exit 1
+          fi
+
+          echo "network=$NETWORK" >> "$GITHUB_OUTPUT"
+          echo "container=$SERVER" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Gremlin Write and Read Round-Trip
+        env:
+          IMAGE: ${{ steps.pull.outputs.image }}
+        run: |
+          set -euo pipefail
+          # Do not unpin: a newer client compiles iterate() into a discard() step this server lacks.
+          tinkerpop="$(grep -m1 -oP '(?<=<tinkerpop.version>)[^<]+' pom.xml)"
+          pip3 install "gremlinpython==${tinkerpop}"
+
+          # Graph Service exits for good if Aerospike is not ready when it starts, so a client
+          # retry loop alone would poll a dead container. Restart the image instead.
+          for attempt in 1 2 3; do
+            docker rm -f ags-smoke >/dev/null 2>&1 || true
+            docker run -d --name ags-smoke -p 8182:8182 \
+              --platform "${{ matrix.platform }}" \
+              --network "${{ steps.aerospike.outputs.network }}" \
+              -e aerospike.client.host="${{ steps.aerospike.outputs.container }}" \
+              "$IMAGE"
+            if python3 scripts/smoke_gremlin_roundtrip.py ws://localhost:8182/gremlin 120; then
+              exit 0
+            fi
+            echo "::warning::Graph Service did not serve on attempt ${attempt}"
+            docker logs ags-smoke 2>&1 | tail -20
+          done
+          echo "::error::Graph Service never served after 3 starts"
+          exit 1
+
+      - name: Collect AGS Container Logs on Failure
+        if: failure()
+        run: docker logs ags-smoke || true
+
+  # Tag runs only. A manual dispatch publishes artifacts but deliberately creates no bundle:
+  # bundles are the promotion vehicle, and a promoted one locks its underlying dev-local
+  # artifacts, which would then block re-deploying the same paths.
+  #
+  # smoke-test is in `needs` so a failed image cannot be bundled. A bundle around a broken image
+  # is unrecoverable once PROD promotion mirrors it to Docker Hub.
+  release-bundle:
+    name: Create JFrog Release Bundle
+    needs: [version, container, artifacts, smoke-test]
+    if: needs.version.outputs.is-release == 'true'
+    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0
+    with:
+      gh-workflows-ref: d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0
+      jf-project: connect
+      jf-bundle-name: aerospike-graph-service
+      version: ${{ needs.version.outputs.version }}
+      # Three build-info names, two numbering schemes: the docker workflow uses run_number,
+      # the artifacts pipeline uses run_id-run_attempt.
+      jf-build-names: "aerospike-graph-service:${{ github.run_number }},aerospike-graph-service-slim:${{ github.run_number }},aerospike-graph-service-artifacts:${{ github.run_id }}-${{ github.run_attempt }}"
+    secrets: inherit

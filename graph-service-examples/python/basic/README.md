@@ -11,9 +11,10 @@ A command-line application that generates a graph of transactions between users 
 
 ## Usage
 
-1. From the example directory root, start Docker Compose:
+1. From `graph-service-examples/`, start the shared Docker Compose stack:
 
    ```shell
+   cd ../..
    docker compose up -d
    ```
 

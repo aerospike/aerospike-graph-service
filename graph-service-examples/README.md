@@ -7,8 +7,7 @@ Aerospike Graph is a real-time, scalable graph database that supports billions o
 ## Prerequisites
 
 - Docker and Docker Compose.
-- For the root `docker-compose.yaml` stack, Aerospike Database in the compose file is **Enterprise Edition** and requires a [feature-key file](https://aerospike.com/docs/database/manage/planning/feature-key). Get a trial key from the [Aerospike Enterprise trial page](https://aerospike.com/get-started-aerospike-database/).
-- As of AGS 3.2.2, AGS does not require the `graph-service` feature in the feature-key file. See [AGS 3.2.2 release notes](https://aerospike.com/docs/graph/release/3-2-2).
+- The root `docker-compose.yaml` stack uses Aerospike Database **Enterprise Edition** as an example. AGS also works with Community Edition. If you use Enterprise Edition, provide the [feature-key file](https://aerospike.com/docs/database/manage/planning/feature-key) required by that database edition.
 
 ## Compatibility
 

@@ -1,107 +1,70 @@
 # Compatibility
 
-This page pins down the supported versions of Aerospike Graph
-Service against everything it talks to. It is kept in lock-step with
-the root `pom.xml` and with release-note additions.
+This page records the current Aerospike Graph Service compatibility
+baseline and optional feature requirements.
 
-## At a glance (current `3.x-dev`)
+## Current baseline
 
-| Component                           | Supported                             | Notes                                               |
-|-------------------------------------|---------------------------------------|-----------------------------------------------------|
-| **JDK (runtime + build)**           | 11, 17                                | 11 is the source/target. 17 works as the runtime.   |
-| **Apache TinkerPop / Gremlin**      | 3.7.3                                 | Server + driver must match the same 3.7.x line.     |
-| **Aerospike Database (server)**     | 7.0+                                  | Minimum supported version. MRT and related APIs build on capabilities available from Aerospike Database 6.0 onward. |
-| **Aerospike Java client**           | 9.3.x                                 | Wire protocol: Aerospike 7+ server.                 |
-| **Spark (OLAP + bulk loader)**      | 3.5.x                                 | Both Spark side processes are tested on 3.5.        |
-| **Docker image base**               | `eclipse-temurin:17-jre-jammy`        | Produced by the `publish-ghcr-container.yml` flow.  |
-| **Maven (build)**                   | 3.9+                                  | Enforced by `.mvn/maven-version` / CI.              |
+| Component                  | Version or Boundary           | Notes                                     |
+| -------------------------- | ----------------------------- | ----------------------------------------- |
+| Java Build Target          | Java 11                       | Compiles source and target 11 bytecode.   |
+| Container Runtime          | JDK 17                        | Used by the Docker images.                |
+| Apache TinkerPop / Gremlin | 3.7.3                         | Drivers should use the 3.7.x line.        |
+| Aerospike Java Client      | 10.3.0                        |                                           |
+| Spark Dependencies         | 3.5.8, Scala 2.12             | Used by the bulk loader and OLAP modules. |
+| Container Base             | Alpine 3.24.1 with OpenJDK 17 | Used by the full and slim Docker images.  |
 
-The authoritative versions are the properties at the top of the root
-[`pom.xml`](../pom.xml) (`<aerospike-client.version>`,
-`<tinkerpop.version>`, `<java.version>`). If this table and the POM
-ever drift, **the POM wins**. Open a PR to correct this
-document.
+## Aerospike Database
 
-## Aerospike server features relied on
+Aerospike Graph Service requires Aerospike Database `6.2.0.7` or
+newer. Community Edition works without a feature key. If you choose
+Enterprise or Standard Edition, provide the feature key required by
+that database edition.
 
-The graph service is not a thin wrapper over basic kv. It uses:
+Some features have stricter requirements:
 
-- **Secondary indexes** on list / map sub-paths, used by index-driven
-  traversals (`has(...)` with a value filter).
-- **Batch operations** with per-key operation lists, used on every
-  multi-key read and write.
-- **Multi-record transactions (MRT)** when
-  `aerospike.graph.transaction.enabled=true`: requires Aerospike
-  server 7.0+.
-- **Query filters / `QueryPolicy.filterExp`**: server-side filter
-  expressions pushed down from Gremlin `has(...)` steps.
-- **Set-level truncate**: used by admin operations and tests.
-- **CDT** (list and map ops) as the carrier format for vertex and edge
-  properties.
+- Multi-record transactions require Aerospike Database 8+ with strong
+  consistency and are enabled with `aerospike.graph.mrt.enabled`.
+- TinkerPop transaction support is configured separately with
+  `aerospike.graph.tx.enabled`.
+- Expression and compound indexes require Aerospike Database 8.1+.
 
-Running against a pre-7.0 server is not supported and not tested.
-Some features (MRT, specific CDT ops) will return errors the service
-does not currently translate to user-friendly messages.
+## Optional AGS Features
+
+This table lists only optional AGS capabilities with requirements above
+the `6.2.0.7` baseline or that require an Enterprise Edition
+capability. In the Enterprise column, `☑` means the feature requires
+Enterprise Edition; `☐` means it is available in Community Edition.
+
+| Feature                       | AGS Configuration or API                             | Minimum Database Version | Enterprise Required |
+| ----------------------------- | ---------------------------------------------------- | ------------------------ | ------------------- |
+| Expression / Compound Indexes | Compound-index configuration and admin calls         | 8.1.0                    | ☐ No                |
+| TinkerPop Transactions        | `aerospike.graph.tx.enabled` and `graph.tx()`        | 8.0.0 with SC namespace  | ☑ Yes               |
+| Multi-Record Transactions     | `aerospike.graph.mrt.enabled`                        | 8.0.0 with SC namespace  | ☑ Yes               |
+| Database RBAC                 | `aerospike.client.user`, `password`, and `auth.mode` | 6.2.0.7                  | ☑ Yes               |
+
+Community Edition works without a feature key. Enterprise and Standard
+Edition deployments require the feature key appropriate to that
+database edition.
+
+XDR is not an AGS requirement. If configured independently of AGS,
+refer to Aerospike Database documentation for its edition and version
+requirements.
 
 ## TinkerPop / Gremlin
 
-The service implements the full
-[Apache TinkerPop Graph API](https://tinkerpop.apache.org/docs/3.7.3/reference/)
-for the pinned 3.7.x line. That means a Gremlin driver pinned to a
-**matching 3.7.x minor** will work out of the box. A 3.6 client, a
-3.8 client, or a 4.x preview will likely not: bytecode, serializer,
-and strategy contracts change between minor lines, and TinkerPop 3.8
-in particular introduced breaking changes that we have not yet
-adopted. Tracking 3.8 / 4.x is on the roadmap but not scheduled.
+AGS targets TinkerPop 3.7.3. It has documented TinkerPop opt-outs, so
+it does not claim complete implementation of every TinkerPop Graph API
+feature.
 
-Compatibility is verified on every PR via the standard TinkerPop
-`ProcessStandardTest` / `StructureStandardTest` harnesses: see the
-`Firefly*ProcessStandardTest` and `Firefly*StructureStandardTest`
-classes.
+## Spark
 
-## JDK
-
-- `java.version` in the POM is `11`: that is the `--source` /
-  `--target` pair. Building with JDK 11 produces class files that run
-  on JDK 11+.
-- Production Docker images use JDK 17 by default (Temurin jammy).
-- The test matrix covers JDK 11 and JDK 17. JDK 21 is on the roadmap
-  but not yet in CI.
-
-## Aerospike Java client
-
-Pinned to `9.3.x`. The service depends on behavior only available in
-the 9.x line (batch-write policy shape, MRT client API,
-`filterExp` placement). Downgrading to an 8.x client will fail to
-compile.
-
-## Spark (OLAP + bulk loader)
-
-Both side processes (`aerospike-graph-olap` / `GraphComputer` and
-`aerospike-graph-bulk-loader`) are tested on Spark 3.5.x. They
-should also work on any 3.4+ release that has the same Kryo
-serializer defaults, but that is not part of the CI matrix; file an
-issue before relying on a different line.
-
-## Upgrade policy
-
-- **Patch** (`x.y.z` → `x.y.z+1`): no behavior or wire-format changes
-  expected. Safe to drop in.
-- **Minor** (`x.y` → `x.y+1`): additive behavior only. Existing
-  configs and data remain valid. Release notes may tighten guarantees
-  (e.g. new validator for a pre-existing config key).
-- **Major** (`x` → `x+1`): reserved for breaking changes. Accompanied by
-  release notes with step-by-step upgrade guidance.
+The bulk loader uses Spark 3.5.8. The OLAP module compiles against the
+same Spark version. Other Spark versions are not documented as
+compatible.
 
 ## Reporting an incompatibility
 
-If something in this matrix is wrong or stale, open an issue (or a PR
-against this file) with:
-
-- Aerospike server build string (`asinfo -v build`).
-- JDK version (`java -version`).
-- Gremlin driver coordinates (`org.apache.tinkerpop:gremlin-driver:…`).
-- The failing query / operation.
-
-Compatibility-matrix bugs are a standing priority and the fastest
-class of issue to get merged.
+Include the Aerospike build string, JDK version, Gremlin driver
+coordinates, deployment configuration, and failing operation when
+opening an issue.

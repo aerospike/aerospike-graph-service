@@ -12,13 +12,13 @@ For the underlying record layout the indexes are defined over, see
 Firefly uses four kinds of index, all implemented as native Aerospike
 secondary indexes:
 
-| Category | Indexed bin | Created when | Purpose |
-| --- | --- | --- | --- |
-| Adjacency indexes (`E_IN_IDX`, `E_OUT_IDX`) | `IN_V` / `OUT_V` on the edge set | Always | Resolve `g.V(x).out()` / `in()` / `both()` by scanning edges incident to a vertex |
-| TTL indexes (`TTL_V_IDX`, `TTL_E_IDX`) | TTL bin on vertex / edge set | When `aerospike.graph.ttl.enabled=true` | Background sweep of expired records |
-| Vertex label index (`V_LABEL_IDX`) | `LABEL` bin on vertex set | When `aerospike.graph.index.vertex.label.enabled=true` | `g.V().hasLabel(x)` |
-| Vertex property indexes | `VP_DATA` bin on vertex set | Per-key, from configuration or the `sindex` service | Property lookups by key/value |
-| Vertex expression (compound) indexes | Expression over `VP_DATA` | From configuration; requires Aerospike ≥ the expression-index-supporting version | Multi-key equality lookups evaluated server-side |
+| Category                                              | Indexed bin                                               | Created when                                                                     | Purpose                                          |
+| ----------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Supernode traversal indexes (`E_IN_IDX`, `E_OUT_IDX`) | `SUPERNODE_IN` / `SUPERNODE_OUT` map keys on the edge set | Always                                                                           | Support traversal of supernode adjacency data    |
+| TTL indexes (`TTL_V_IDX`, `TTL_E_IDX`)                | TTL bin on vertex / edge set                              | When `aerospike.graph.ttl.enabled=true`                                          | Background sweep of expired records              |
+| Vertex label index (`V_LABEL_IDX`)                    | `LABEL` bin on vertex set                                 | When `aerospike.graph.index.vertex.label.enabled=true`                           | `g.V().hasLabel(x)`                              |
+| Vertex property indexes                               | `VP_DATA` bin on vertex set                               | Per-key, from configuration or the `sindex` service                              | Property lookups by key/value                    |
+| Vertex expression (compound) indexes                  | Expression over `VP_DATA`                                 | From configuration; requires Aerospike ≥ the expression-index-supporting version | Multi-key equality lookups evaluated server-side |
 
 Adjacency and TTL indexes are internal plumbing; vertex label, property,
 and expression indexes are user-configurable.
@@ -27,18 +27,18 @@ and expression indexes are user-configurable.
 
 Configured through these properties:
 
-| Property | Meaning |
-| --- | --- |
-| `aerospike.graph.index.vertex.properties` | Create both `STRING` and `NUMERIC` indexes for each listed key |
-| `aerospike.graph.index.vertex.properties.string` | Create only the `STRING` index for each listed key |
-| `aerospike.graph.index.vertex.properties.numeric` | Create only the `NUMERIC` index for each listed key |
-| `aerospike.graph.index.vertex.compound` | Comma-separated expression-index definitions |
+| Property                                          | Meaning                                                        |
+| ------------------------------------------------- | -------------------------------------------------------------- |
+| `aerospike.graph.index.vertex.properties`         | Create both `STRING` and `NUMERIC` indexes for each listed key |
+| `aerospike.graph.index.vertex.properties.string`  | Create only the `STRING` index for each listed key             |
+| `aerospike.graph.index.vertex.properties.numeric` | Create only the `NUMERIC` index for each listed key            |
+| `aerospike.graph.index.vertex.compound`           | Comma-separated expression-index definitions                   |
 
 Vertex property indexes target the `VP_DATA` map bin with
 `IndexCollectionType.MAPKEYS` and one of `IndexType.STRING` or
 `IndexType.NUMERIC`. Each configured key produces an index named
-`<vp_index_prefix>_<key>_<STRING|NUMERIC>` (the prefix is namespace- and
-graph-scoped, see `AerospikeConnection.getVpIndexPrefix()`).
+`<vp_index_prefix>_<key>_<STRING|NUMERIC>` (the prefix is graph-ID
+scoped, see `AerospikeConnection.getVpIndexPrefix()`).
 
 The index metadata is refreshed by a background task
 (`FireflyIndexMetadata`) so indexes created after startup: for example
@@ -47,10 +47,10 @@ restarting the graph.
 
 ### Supported predicates
 
-| Value type | Equality (`eq`) | Range (`gt`, `gte`, `lt`, `lte`, `between`) | Substring |
-| --- | --- | --- | --- |
-| String | Yes (`STRING` index) | No | No |
-| Number | Yes (`NUMERIC` index) | Yes (`NUMERIC` index) | N/A |
+| Value type | Equality (`eq`)       | Range (`gt`, `gte`, `lt`, `lte`, `between`) | Substring |
+| ---------- | --------------------- | ------------------------------------------- | --------- |
+| String     | Yes (`STRING` index)  | No                                          | No        |
+| Number     | Yes (`NUMERIC` index) | Yes (`NUMERIC` index)                       | N/A       |
 
 Substring / regex filtering always falls back to an unindexed scan.
 
@@ -107,9 +107,9 @@ via a direct `~id` read on the edge record. Global edge scans
 
 These are internal and users don't configure them directly:
 
-* `E_IN_IDX` / `E_OUT_IDX`: `NUMERIC` indexes on the `IN_V` and `OUT_V`
-  bins of the edge set. They're the primary path for `out()`, `in()`,
-  and `both()` traversals.
+* `E_IN_IDX` / `E_OUT_IDX`: `STRING` map-key indexes on `SUPERNODE_IN` and `SUPERNODE_OUT`
+  bins of the edge set. They are used for supernode traversals; normal
+  vertices use their on-record `IN_EDGES` and `OUT_EDGES` adjacency caches.
 * `TTL_V_IDX` / `TTL_E_IDX`: `NUMERIC` indexes on the TTL bin of the
   vertex and edge sets. Created only when TTL is enabled. Used by the
   background TTL sweeper.

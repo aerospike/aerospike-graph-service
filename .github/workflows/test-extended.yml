@@ -12,18 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Build and Test Aerospike Graph Service (Post-Merge)
+name: Build and Test Aerospike Graph Service (Extended)
 
-# Post-merge comprehensive gate. test-pull-request.yml already runs the full
-# ~30-job test suite at PR time (including the weekly PR into 3.x-snyk); this
-# workflow adds the heavier/slower jobs that are not worth gating every PR on:
-# heap-usage soak testing, in-repo benchmarks, and the Spark bulk-loader recovery
-# suite. Running these after merges to both 3.x-dev and 3.x-snyk keeps the weekly
-# Snyk flow comprehensive without duplicating the PR test suite.
+# Run extended tests after merges to 3.x-dev and on PRs into 3.x-snyk.
 
 on:
   push:
-    branches: [3.x-dev, 3.x-snyk]
+    branches: [3.x-dev]
+  pull_request:
+    branches: [3.x-snyk]
 
 jobs:
   test-heap-usage:

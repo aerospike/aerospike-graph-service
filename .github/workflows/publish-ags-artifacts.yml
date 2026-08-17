@@ -116,7 +116,7 @@ jobs:
   #
   # test:
   #   needs: version
-  #   uses: ./.github/workflows/test-post-merge.yml
+  #   uses: ./.github/workflows/test-extended.yml
   #   secrets: inherit
 
   container:

@@ -18,6 +18,12 @@ import yaml
 import subprocess
 import shutil
 
+# Certificate mount directories. These paths are absolute because the
+# container runs from /opt.
+GREMLIN_SERVER_TLS_DIR = "/opt/aerospike-graph/gremlin-server-tls"
+GREMLIN_SERVER_CA_DIR = "/opt/aerospike-graph/gremlin-server-ca"
+AEROSPIKE_CLIENT_TLS_DIR = "/opt/aerospike-graph/aerospike-client-tls"
+
 
 def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, output_java_options_file):
 
@@ -341,8 +347,8 @@ processors:
 
 
 def generate_server_keystore(ssl_options, ssl_out_dir):
-    keystore_dir = "/opt/aerospike-graph/gremlin-server-tls"
-    ca_dir = "opt/aerospike-graph/gremlin-server-ca"
+    keystore_dir = GREMLIN_SERVER_TLS_DIR
+    ca_dir = GREMLIN_SERVER_CA_DIR
     certificate = None
     alias_name = None
     private_key = None
@@ -552,7 +558,7 @@ def generate_java_options(java_options_file_path, max_heap, min_heap, tls_out_di
     # The truststore is seeded from the system CA bundle (cacerts) so that public
     # CAs remain trusted alongside the Aerospike CA. Without this, any outbound
     # HTTPS (e.g. S3 bulk load) fails with PKIX path building errors.
-    cert_dir = "/opt/aerospike-graph/aerospike-client-tls"
+    cert_dir = AEROSPIKE_CLIENT_TLS_DIR
     cert_found = False
     if os.path.isdir(cert_dir):
         directory = os.fsencode(cert_dir)

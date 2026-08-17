@@ -41,7 +41,7 @@ body:
     attributes:
       label: Version
       description: The release tag or commit SHA you reproduced on.
-      placeholder: "v3.3.0 / commit 777541400"
+      placeholder: "v3.3.1 / commit 777541400"
     validations:
       required: true
   - type: input

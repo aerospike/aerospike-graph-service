@@ -1141,6 +1141,17 @@ jobs:
           fi
           echo "Gremlin-server CA correctly bundled into keystore."
 
+          # Verify that the default user can update the JVM truststore.
+          docker exec ags-tls-test sh -c '
+            set -eu
+            cacerts="$(readlink -f /etc/ssl/certs/java/cacerts)"
+            keytool -importcert -noprompt \
+              -alias ci-cacerts-writability \
+              -file /opt/aerospike-graph/aerospike-client-tls/aerospike.crt \
+              -keystore "$cacerts" \
+              -storepass changeit
+          '
+
           echo "Running TLS test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTLSIntegration --no-transfer-progress
 

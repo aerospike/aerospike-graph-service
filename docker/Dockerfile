@@ -153,6 +153,22 @@ RUN chmod +x scripts/gremlin-server-docker.sh
 RUN chmod +x scripts/firefly-server.sh
 RUN chmod -R 777 $CONF_DIR
 
+# Allow certificate import wrappers to update the JVM truststore.
+RUN set -eu; \
+    cacerts=""; \
+    for path in \
+      /etc/ssl/certs/java/cacerts \
+      /usr/lib/jvm/java-17-openjdk/lib/security/cacerts \
+      /usr/lib/jvm/java-17-openjdk/jre/lib/security/cacerts; do \
+      if [ -e "$path" ]; then \
+        cacerts="$(readlink -f "$path")"; \
+        break; \
+      fi; \
+    done; \
+    [ -n "$cacerts" ] || { echo "JVM cacerts not found." >&2; exit 1; }; \
+    chown firefly:firefly "$cacerts" "$(dirname "$cacerts")"; \
+    chmod u+rw "$cacerts"
+
 USER firefly
 
 # Document the served ports: Gremlin server and Prometheus metrics.

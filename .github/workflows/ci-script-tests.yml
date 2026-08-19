@@ -23,6 +23,7 @@ on:
     paths:
       - 'scripts/**'
       - '.github/workflows/ci-script-tests.yml'
+      - '.github/workflows/publish-ags-artifacts.yml'
   push:
     branches:
       - 3.x-dev
@@ -30,6 +31,7 @@ on:
     paths:
       - 'scripts/**'
       - '.github/workflows/ci-script-tests.yml'
+      - '.github/workflows/publish-ags-artifacts.yml'
   workflow_dispatch:
 
 permissions:
@@ -57,6 +59,21 @@ jobs:
           assert-install: false
           detik-install: false
           file-install: false
+
+      - name: Install helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+
+      # Pinned: the routing test reads the workflow, and mikefarah yq and python yq
+      # are different languages.
+      - name: Install yq
+        env:
+          YQ_VERSION: v4.44.3
+          YQ_SHA256: a2c097180dd884a8d50c956ee16a9cec070f30a7947cf4ebf87d5f36213e9ed7
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+          echo "${YQ_SHA256}  /tmp/yq" | sha256sum -c -
+          sudo install -m 0755 /tmp/yq /usr/local/bin/yq
 
       - name: Run Script Tests
         run: bats scripts/

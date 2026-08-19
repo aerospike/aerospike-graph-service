@@ -59,7 +59,7 @@ jobs:
           fetch-depth: 0   # required, or extract-version falls back to 0.0.0-dev+<sha>
       - id: tag
         if: github.event_name == 'push'
-        uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0
+        uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
       - name: Resolve Release or Development Version
         id: v
         env:
@@ -121,7 +121,7 @@ jobs:
 
   container:
     name: Build and Push AGS Container Images
-    needs: [version, artifacts]   # once the test gate is on: add `test`
+    needs: [version, jars-sign, jars-deploy]   # once the test gate is on: add `test`
     strategy:
       fail-fast: false
       matrix:
@@ -143,7 +143,7 @@ jobs:
             # lands in mode=max provenance.
             build_args: >-
               {"FIREFLY_GRAPH": "artifacts/unsigned-artifacts/aerospike-graph-gremlin-${{ needs.version.outputs.version }}.jar"}
-    uses: aerospike/shared-workflows/.github/workflows/reusable_docker-build-deploy.yaml@d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0
+    uses: aerospike/shared-workflows/.github/workflows/reusable_docker-build-deploy.yaml@0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
     with:
       jf-project: connect
       image-name: aerospike-graph-service                          # one repo for both variants
@@ -152,41 +152,107 @@ jobs:
       file: ${{ matrix.dockerfile }}
       jf-build-name: ${{ matrix.build_name }}
       gh-context-artifacts-json: |
-        [{"name": "${{ needs.artifacts.outputs.gh-artifact-name }}", "dest": "artifacts"}]
+        [{"name": "${{ needs.jars-sign.outputs.gh-artifact-name }}", "dest": "artifacts"}]
       build-args-json: ${{ matrix.build_args }}
     secrets:
       build-secrets-json: '{"gpg_public_key": ${{ toJSON(secrets.GPG_PUBLIC_KEY) }}}'
-
-  artifacts:
-    name: Build and Publish AGS Artifacts
-    needs: version   # once the test gate is on: needs: [version, test]
-    uses: aerospike/shared-workflows/.github/workflows/reusable_artifacts-cicd.yaml@d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0
+  jars-build:
+    name: Build AGS JARs
+    needs: version
+    uses: aerospike/shared-workflows/.github/workflows/reusable_execute-build.yaml@0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
     with:
-      gh-workflows-ref: d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0
+      gh-workflows-ref: 0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
       jf-project: connect
-      jf-build-name: aerospike-graph-service-artifacts
-      version: ${{ needs.version.outputs.version }}
+      jf-build-name: aerospike-graph-service-jars
+      # Deploy discovers metadata children by AQL prefix, so this must start with the prefix
+      # jars-deploy passes as jf-metadata-build-id.
+      jf-build-id: ${{ github.run_id }}-${{ github.run_attempt }}-buildinfo-jars
+      gh-artifact-name: jars-unsigned
+      gh-artifact-directory: dist
       oidc-provider-name: gh-aerospike
       oidc-audience: aerospike
-      gh-artifact-directory: dist
       setup-java: true
       java-version: "17"
-      setup-helm: true
-      jar-group-id: com.aerospike
-      # Emits the graph uber jar, the bulk-loader uber jar, and the packaged aerospike-graph chart.
-      build-script: ./scripts/build-ags-artifacts.sh ${{ needs.version.outputs.version }} ${{ needs.version.outputs.chart-version }}
-    # Map these explicitly. artifacts-cicd declares gpg-private-key/gpg-public-key/gpg-key-pass as
-    # required, and `secrets: inherit` matches by name: our secrets are UPPER_SNAKE and a secret
-    # name cannot contain a hyphen, so inherit leaves all three empty and the call never starts.
+      publish-build-info: true
+      build-script: ./scripts/build-ags-artifacts.sh ${{ needs.version.outputs.version }}
+
+  jars-sign:
+    name: Sign AGS JARs
+    needs: jars-build
+    uses: aerospike/shared-workflows/.github/workflows/reusable_sign-artifacts.yaml@0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
+    with:
+      gh-workflows-ref: 0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
+      gh-unsigned-artifacts: ${{ needs.jars-build.outputs.gh-artifact-name }}
+      gh-artifact-name: jars-signed
+    # sign-artifacts declares these as required and `secrets: inherit` matches by name; our secrets
+    # are UPPER_SNAKE and a secret name cannot contain a hyphen, so inherit leaves them empty.
     secrets:
       gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
       gpg-public-key: ${{ secrets.GPG_PUBLIC_KEY }}
       gpg-key-pass: ${{ secrets.GPG_PASS }}
 
-  # Pull each published image and round-trip a Gremlin write and read against it. A TCP liveness
-  # check is not sufficient: a process can hold 8182 open without the application classes loaded.
-  #
-  # Container exit code is not a valid oracle. docker-runtime-scripts/firefly-server.sh returns 0
+  jars-deploy:
+    name: Publish AGS JARs
+    needs: [version, jars-sign]
+    uses: aerospike/shared-workflows/.github/workflows/reusable_deploy-artifacts.yaml@0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
+    with:
+      gh-workflows-ref: 0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
+      jf-project: connect
+      jf-build-name: aerospike-graph-service-jars
+      jf-build-id: ${{ github.run_id }}-${{ github.run_attempt }}
+      jf-metadata-build-id: ${{ github.run_id }}-${{ github.run_attempt }}-buildinfo
+      version: ${{ needs.version.outputs.version }}
+      jar-group-id: com.aerospike
+      gh-artifact-name: ${{ needs.jars-sign.outputs.gh-artifact-name }}
+      oidc-provider-name: gh-aerospike
+      oidc-audience: aerospike
+
+  chart-build:
+    name: Build the AGS Helm Chart
+    needs: version
+    uses: aerospike/shared-workflows/.github/workflows/reusable_execute-build.yaml@0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
+    with:
+      gh-workflows-ref: 0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
+      jf-project: connect
+      jf-build-name: aerospike-graph-service-chart
+      jf-build-id: ${{ github.run_id }}-${{ github.run_attempt }}-buildinfo-chart
+      gh-artifact-name: chart-unsigned
+      gh-artifact-directory: dist
+      oidc-provider-name: gh-aerospike
+      oidc-audience: aerospike
+      setup-helm: true
+      setup-java: false
+      publish-build-info: true
+      build-script: ./scripts/build-ags-chart.sh ${{ needs.version.outputs.version }} ${{ needs.version.outputs.chart-version }}
+
+  chart-sign:
+    name: Sign the AGS Helm Chart
+    needs: chart-build
+    uses: aerospike/shared-workflows/.github/workflows/reusable_sign-artifacts.yaml@0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
+    with:
+      gh-workflows-ref: 0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
+      gh-unsigned-artifacts: ${{ needs.chart-build.outputs.gh-artifact-name }}
+      gh-artifact-name: chart-signed
+    secrets:
+      gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
+      gpg-public-key: ${{ secrets.GPG_PUBLIC_KEY }}
+      gpg-key-pass: ${{ secrets.GPG_PASS }}
+
+  chart-deploy:
+    name: Publish the AGS Helm Chart
+    needs: [version, chart-sign]
+    uses: aerospike/shared-workflows/.github/workflows/reusable_deploy-artifacts.yaml@0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
+    with:
+      gh-workflows-ref: 0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
+      jf-project: connect
+      jf-build-name: aerospike-graph-service-chart
+      jf-build-id: ${{ github.run_id }}-${{ github.run_attempt }}
+      jf-metadata-build-id: ${{ github.run_id }}-${{ github.run_attempt }}-buildinfo
+      version: ${{ needs.version.outputs.chart-version }}
+      gh-artifact-name: ${{ needs.chart-sign.outputs.gh-artifact-name }}
+      oidc-provider-name: gh-aerospike
+      oidc-audience: aerospike
+
   # after the JVM dies.
   #
   # No ci-guard: this workflow triggers only on tag push and workflow_dispatch, so a fork cannot
@@ -373,18 +439,41 @@ jobs:
   # artifacts, which would then block re-deploying the same paths.
   #
   # smoke-test is in `needs` so a failed image cannot be bundled. A bundle around a broken image
-  # is unrecoverable once PROD promotion mirrors it to Docker Hub.
-  release-bundle:
-    name: Create JFrog Release Bundle
-    needs: [version, container, artifacts, smoke-test]
+  jars-bundle:
+    name: Create JAR Release Bundle
+    needs: [version, jars-deploy]
     if: needs.version.outputs.is-release == 'true'
-    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0
+    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
     with:
-      gh-workflows-ref: d813883a3999057edebb922f0ecd504250e68925 # unreleased main, awaiting v4.1.0
+      gh-workflows-ref: 0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
       jf-project: connect
-      jf-bundle-name: aerospike-graph-service
+      jf-bundle-name: aerospike-graph-service-jars
       version: ${{ needs.version.outputs.version }}
-      # Three build-info names, two numbering schemes: the docker workflow uses run_number,
-      # the artifacts pipeline uses run_id-run_attempt.
-      jf-build-names: "aerospike-graph-service:${{ github.run_number }},aerospike-graph-service-slim:${{ github.run_number }},aerospike-graph-service-artifacts:${{ github.run_id }}-${{ github.run_attempt }}"
-    secrets: inherit
+      jf-build-names: "aerospike-graph-service-jars:${{ github.run_id }}-${{ github.run_attempt }}"
+
+  # Deliberately does not wait on jars-bundle: the two are independent release lines.
+  container-bundle:
+    name: Create Container Release Bundle
+    needs: [version, container, smoke-test]
+    if: needs.version.outputs.is-release == 'true'
+    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
+    with:
+      gh-workflows-ref: 0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
+      jf-project: connect
+      jf-bundle-name: aerospike-graph-service-container
+      version: ${{ needs.version.outputs.version }}
+      # The docker workflow numbers build-info by run_number, not run_id-run_attempt.
+      jf-build-names: "aerospike-graph-service:${{ github.run_number }},aerospike-graph-service-slim:${{ github.run_number }}"
+
+  chart-bundle:
+    name: Create Chart Release Bundle
+    needs: [version, chart-deploy]
+    if: needs.version.outputs.is-release == 'true'
+    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
+    with:
+      gh-workflows-ref: 0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
+      jf-project: connect
+      jf-bundle-name: aerospike-graph-service-chart
+      # The chart moves on its own version line, so the bundle is versioned by chart-version.
+      version: ${{ needs.version.outputs.chart-version }}
+      jf-build-names: "aerospike-graph-service-chart:${{ github.run_id }}-${{ github.run_attempt }}"

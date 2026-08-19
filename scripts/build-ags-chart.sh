@@ -30,6 +30,18 @@ CHART_DIR="${CHART_DIR:-${ROOT_DIR}/helm/aerospike-graph}"
 # whatever kubeconform defaults to rather than what the clusters run.
 KUBE_VERSION="${KUBE_VERSION:-1.30.0}"
 
+# Not on GitHub runners, and execute-build has no input that installs it.
+KUBECONFORM_VERSION="${KUBECONFORM_VERSION:-v0.7.0}"
+KUBECONFORM_SHA256="c31518ddd122663b3f3aa874cfe8178cb0988de944f29c74a0b9260920d115d3"
+if ! command -v kubeconform >/dev/null 2>&1; then
+  echo "==> Installing kubeconform ${KUBECONFORM_VERSION}"
+  curl -fsSL -o /tmp/kubeconform.tgz \
+    "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+  echo "${KUBECONFORM_SHA256}  /tmp/kubeconform.tgz" | sha256sum -c -
+  tar xzf /tmp/kubeconform.tgz -C /tmp kubeconform
+  sudo install -m 0755 /tmp/kubeconform /usr/local/bin/kubeconform
+fi
+
 mkdir -p "${OUT_DIR}"
 
 echo "==> Packaging the aerospike-graph chart ${CHART_VERSION} for AGS ${APP_VERSION}"

@@ -188,6 +188,9 @@ jobs:
       setup-java: true
       java-version: "17"
       publish-build-info: true
+      # execute-build checks the repo out into gh-source-path (default "local") but defaults
+      # working-directory to "."; artifacts-cicd hides this by resolving one to the other.
+      working-directory: local
       build-script: ./scripts/build-ags-artifacts.sh ${{ needs.version.outputs.version }}
 
   jars-sign:
@@ -274,6 +277,7 @@ jobs:
       setup-helm: true
       setup-java: false
       publish-build-info: true
+      working-directory: local
       build-script: ./scripts/build-ags-chart.sh ${{ needs.version.outputs.version }} ${{ needs.version.outputs.chart-version }}
 
   chart-sign:

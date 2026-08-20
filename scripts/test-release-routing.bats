@@ -78,3 +78,12 @@ gate() {
         [[ "$(gate "$job")" == *"is-release == 'true'"* ]]
     done
 }
+
+# A skip propagates downstream, so a job whose chain contains a skipped ancestor is
+# skipped too unless it breaks the propagation. jars-fetch is skipped on every release.
+@test "jobs downstream of the container break the skip propagation" {
+    local job
+    for job in smoke-test container-bundle; do
+        [[ "$(gate "$job")" == *"always()"* ]]
+    done
+}

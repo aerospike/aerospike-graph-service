@@ -315,6 +315,9 @@ jobs:
   smoke-test:
     name: AGS Image Smoke Test and Snyk Container Scan (${{ matrix.variant }}, ${{ matrix.platform }})
     needs: [version, container]
+    # A skip propagates downstream, and jars-fetch is skipped on every release, so without
+    # always() this inherits that skip and the image is never smoke-tested.
+    if: always() && needs.container.result == 'success'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     strategy:
@@ -510,7 +513,7 @@ jobs:
   container-bundle:
     name: Create Container Release Bundle
     needs: [version, container, smoke-test]
-    if: needs.version.outputs.is-release == 'true'
+    if: always() && needs.smoke-test.result == 'success' && needs.version.outputs.is-release == 'true'
     uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
     with:
       gh-workflows-ref: 0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0

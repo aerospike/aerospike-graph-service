@@ -1,0 +1,40 @@
+# Copyright 2022-2026 Aerospike, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Re-releases the aerospike-graph Helm chart alone, at the version in
+# helm/aerospike-graph/Chart.yaml, into its own release bundle.
+#
+# Bump Chart.yaml before dispatching. An overwrite of an already published chart path succeeds
+# silently, and the published copy then drifts from the bundle that referenced it.
+name: Respin AGS Helm Chart
+
+on:
+  workflow_dispatch:
+
+# publish-ags-artifacts.yml cannot request more than this grants.
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+  attestations: write
+
+jobs:
+  publish:
+    name: Publish the Chart
+    uses: ./.github/workflows/publish-ags-artifacts.yml
+    with:
+      scope: chart
+    # Its own calls to sign-artifacts pass the GPG secrets explicitly because those input names
+    # are hyphenated; the repository secret names are UPPER_SNAKE, which inherit does match.
+    secrets: inherit

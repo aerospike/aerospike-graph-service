@@ -13,29 +13,25 @@
 # limitations under the License.
 
 # Publish Aerospike Graph Service artifacts to JFrog via the shared-workflows pipeline.
-#
-# Two triggers, one pipeline:
-#
-#   push (vX.Y.Z[-rcN])  A real release. The tagged commit was already tested at PR time, so
-#                        this builds, signs, deploys, and bundles. It does not re-run the EC2
-#                        test fleet (see the commented-out `test` gate below).
-#
-#   workflow_dispatch    A manual smoke run that publishes uniquely versioned development
-#                        artifacts and skips release-bundle creation.
-#
-# Produces, all under the `connect` JFrog project:
-#   - the multi-arch container (full + slim) -> connect-docker-dev-local
-#   - the graph + bulk-loader uber JARs       -> connect-maven-dev-local
-#   - the aerospike-graph Helm chart          -> connect-helm-dev-local
-# then, on a tag only, assembles a release bundle (aerospike-graph-service) for DEV -> PROD
-# promotion. On PROD promotion the existing artifact-publisher automation mirrors the image to
-# Docker Hub.
 name: Publish AGS Artifacts
 
 on:
   push:
     tags: ["v*.*.*"]
   workflow_dispatch:
+  # `scope` is a workflow_call input only. As a workflow_dispatch input it would let anyone with
+  # dispatch access re-release one deliverable from any ref; as a workflow_call input, choosing a
+  # partial release means choosing which workflow in this repository to run.
+  workflow_call:
+    inputs:
+      scope:
+        description: Which deliverable to re-release on its own, `chart` or `container`.
+        required: true
+        type: string
+      app-version:
+        description: Published AGS version a container respin rebuilds from. Container scope only.
+        required: false
+        type: string
 
 # Unlisted scopes become none, and a nested workflow cannot request more than the caller grants.
 # This is the union the pinned call tree needs.
@@ -53,7 +49,7 @@ jobs:
       version: ${{ steps.v.outputs.version }}
       chart-version: ${{ steps.v.outputs.chart-version }}
       is-release: ${{ steps.v.outputs.is-release }}
-      mode: ${{ steps.v.outputs.mode }}
+      scope: ${{ steps.v.outputs.scope }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -61,10 +57,12 @@ jobs:
       - id: tag
         if: github.event_name == 'push'
         uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
-      - name: Resolve Release or Development Version
+      - name: Resolve Scope and Version
         id: v
         env:
           EVENT: ${{ github.event_name }}
+          SCOPE_INPUT: ${{ inputs.scope }}
+          APP_VERSION_INPUT: ${{ inputs.app-version }}
           TAG_VERSION: ${{ steps.tag.outputs.version }}
           RUN_NUMBER: ${{ github.run_number }}
         run: |
@@ -77,48 +75,89 @@ jobs:
               exit 1
               ;;
           esac
+          # A workflow_call carries the caller's event, so the scope input is what separates a
+          # respin from the dispatch that triggered it.
           if [ "$EVENT" = "push" ]; then
-            version="$TAG_VERSION"
-            case "$version" in
-              "" | 0.0.0-dev*)
-                echo "::error::version did not resolve from the tag (got '$version'); need fetch-depth: 0 and a vX.Y.Z tag"
-                exit 1
-                ;;
-            esac
-            chart_version="$chart_base"
-            is_release=true
-          else
-            # Manual run. Derive the version rather than accepting one, so a dispatch can
-            # never overwrite a shipped release. Separators must stay '-' and '.': '+' is
-            # valid in semver but invalid in an OCI tag.
-            base="$(grep -m1 -oP '(?<=<version>)[^<]+' pom.xml || true)"
-            base="${base%-SNAPSHOT}"
-            case "$base" in
-              [0-9]*.[0-9]*.[0-9]*) ;;
+            scope=release
+          elif [ -n "$SCOPE_INPUT" ]; then
+            case "$SCOPE_INPUT" in
+              chart | container) scope="$SCOPE_INPUT" ;;
               *)
-                echo "::error::could not derive a base version from pom.xml (got '$base')"
+                echo "::error::scope must be 'chart' or 'container' (got '$SCOPE_INPUT')"
                 exit 1
                 ;;
             esac
-            version="${base}-dev.${RUN_NUMBER}"
-            chart_version="${chart_base}-dev.${RUN_NUMBER}"
-            is_release=false
-          fi
-          if [ "$EVENT" = "push" ]; then
-            mode="release"
           else
-            last_tag="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)"
-            if [ -n "$last_tag" ]; then
-              mode="$(git diff --name-only "${last_tag}..HEAD" | ./scripts/classify-release-change.sh)"
-            else
-              mode="dev"
-            fi
+            scope=dev
+          fi
+          chart_version="$chart_base"
+          case "$scope" in
+            release)
+              version="$TAG_VERSION"
+              case "$version" in
+                "" | 0.0.0-dev*)
+                  echo "::error::version did not resolve from the tag (got '$version'); need fetch-depth: 0 and a vX.Y.Z tag"
+                  exit 1
+                  ;;
+              esac
+              ;;
+            dev)
+              # Derive the version rather than accepting one, so a dispatch can never overwrite a
+              # shipped release. Separators must stay '-' and '.': '+' is valid in semver but
+              # invalid in an OCI tag.
+              base="$(grep -m1 -oP '(?<=<version>)[^<]+' pom.xml || true)"
+              base="${base%-SNAPSHOT}"
+              case "$base" in
+                [0-9]*.[0-9]*.[0-9]*) ;;
+                *)
+                  echo "::error::could not derive a base version from pom.xml (got '$base')"
+                  exit 1
+                  ;;
+              esac
+              version="${base}-dev.${RUN_NUMBER}"
+              chart_version="${chart_base}-dev.${RUN_NUMBER}"
+              ;;
+            chart)
+              # Chart.yaml already names the app version the chart targets, so a chart respin
+              # takes no version input.
+              version="$(grep -m1 -oP '^\s*appVersion:\s*"?\K[^"\s]+' helm/aerospike-graph/Chart.yaml || true)"
+              case "$version" in
+                [0-9]*.[0-9]*.[0-9]*) ;;
+                *)
+                  echo "::error::could not derive appVersion from helm/aerospike-graph/Chart.yaml (got '$version')"
+                  exit 1
+                  ;;
+              esac
+              ;;
+            container)
+              # A respin rebuilds from JARs already published, which the tree has usually moved
+              # past, so this version cannot be derived from pom.xml.
+              version="$APP_VERSION_INPUT"
+              case "$version" in
+                *-dev.*)
+                  echo "::error::app-version '$version' is a development version; a respin re-releases published bytes and this would bundle dev ones"
+                  exit 1
+                  ;;
+                [0-9]*.[0-9]*.[0-9]*) ;;
+                *)
+                  echo "::error::a container respin needs app-version set to a published AGS version (got '$version')"
+                  exit 1
+                  ;;
+              esac
+              ;;
+          esac
+          # A dev build creates no bundle, and every bundle gate reads this. A promoted bundle
+          # locks its underlying dev-local artifacts, which then blocks re-deploying those paths.
+          if [ "$scope" = "dev" ]; then
+            is_release=false
+          else
+            is_release=true
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "chart-version=$chart_version" >> "$GITHUB_OUTPUT"
           echo "is-release=$is_release" >> "$GITHUB_OUTPUT"
-          echo "mode=$mode" >> "$GITHUB_OUTPUT"
-          echo "Resolved application version: $version; chart version: $chart_version (release: $is_release; mode: $mode)"
+          echo "scope=$scope" >> "$GITHUB_OUTPUT"
+          echo "Resolved scope: $scope; application version: $version; chart version: $chart_version (release: $is_release)"
 
   # --- OPTIONAL test gate (disabled: the EC2 self-hosted fleet is currently red) ----------------
   # Once the fleet is green (Phase 2), uncomment this job and add `test` to the `needs:` of the
@@ -134,6 +173,8 @@ jobs:
   container:
     name: Build and Push AGS Container Images
     needs: [version, jars-sign, jars-deploy, jars-fetch]
+    # Gates on which JAR producer ran rather than on scope: a release feeds it same-run signed
+    # JARs and a container respin feeds it fetched ones, so one producer is always skipped.
     if: always() && needs.version.result == 'success' && (needs.jars-sign.result == 'success' || needs.jars-fetch.result == 'success')
     strategy:
       fail-fast: false
@@ -172,7 +213,7 @@ jobs:
   jars-build:
     name: Build AGS JARs
     needs: version
-    if: contains(fromJSON('["release", "dev"]'), needs.version.outputs.mode)
+    if: contains(fromJSON('["release", "dev"]'), needs.version.outputs.scope)
     uses: aerospike/shared-workflows/.github/workflows/reusable_execute-build.yaml@0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
     with:
       gh-workflows-ref: 0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
@@ -228,7 +269,7 @@ jobs:
   jars-fetch:
     name: Fetch Published AGS JARs
     needs: version
-    if: contains(needs.version.outputs.mode, 'container')
+    if: needs.version.outputs.scope == 'container'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     outputs:
@@ -263,7 +304,7 @@ jobs:
   chart-build:
     name: Build the AGS Helm Chart
     needs: version
-    if: contains(fromJSON('["release", "dev"]'), needs.version.outputs.mode) || contains(needs.version.outputs.mode, 'chart')
+    if: contains(fromJSON('["release", "dev", "chart"]'), needs.version.outputs.scope)
     uses: aerospike/shared-workflows/.github/workflows/reusable_execute-build.yaml@0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
     with:
       gh-workflows-ref: 0d843cff870d70ac527048ab0d006c7c301fbb2f # v4.1.0
@@ -308,10 +349,14 @@ jobs:
       oidc-provider-name: gh-aerospike
       oidc-audience: aerospike
 
+  # Pull each published image and round-trip a Gremlin write and read against it. A TCP liveness
+  # check is not sufficient: a process can hold 8182 open without the application classes loaded.
+  #
+  # Container exit code is not a valid oracle. docker-runtime-scripts/firefly-server.sh returns 0
   # after the JVM dies.
   #
-  # No ci-guard: this workflow triggers only on tag push and workflow_dispatch, so a fork cannot
-  # reach it.
+  # No ci-guard: this workflow triggers only on tag push, workflow_dispatch, and a workflow_call
+  # from a workflow in this repository, so a fork cannot reach it.
   smoke-test:
     name: AGS Image Smoke Test and Snyk Container Scan (${{ matrix.variant }}, ${{ matrix.platform }})
     needs: [version, container]
@@ -492,11 +537,6 @@ jobs:
         if: failure()
         run: docker logs ags-smoke || true
 
-  # Tag runs only. A manual dispatch publishes artifacts but deliberately creates no bundle:
-  # bundles are the promotion vehicle, and a promoted one locks its underlying dev-local
-  # artifacts, which would then block re-deploying the same paths.
-  #
-  # smoke-test is in `needs` so a failed image cannot be bundled. A bundle around a broken image
   jars-bundle:
     name: Create JAR Release Bundle
     needs: [version, jars-deploy]
@@ -509,7 +549,6 @@ jobs:
       version: ${{ needs.version.outputs.version }}
       jf-build-names: "aerospike-graph-service-jars:${{ github.run_id }}-${{ github.run_attempt }}"
 
-  # Deliberately does not wait on jars-bundle: the two are independent release lines.
   container-bundle:
     name: Create Container Release Bundle
     needs: [version, container, smoke-test]

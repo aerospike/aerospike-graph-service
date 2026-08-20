@@ -100,6 +100,12 @@ jobs:
                   exit 1
                   ;;
               esac
+              # A prerelease tag carries its suffix onto the chart. Without this an rc publishes
+              # the final chart version, consuming what the release needs, and the next rc fails
+              # at bundle creation on a duplicate version.
+              case "$version" in
+                *-*) chart_version="${chart_base}-${version#*-}" ;;
+              esac
               ;;
             dev)
               # Derive the version rather than accepting one, so a dispatch can never overwrite a

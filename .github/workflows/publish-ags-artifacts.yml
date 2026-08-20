@@ -182,13 +182,17 @@ jobs:
     # Gates on which JAR producer ran rather than on scope: a release feeds it same-run signed
     # JARs and a container respin feeds it fetched ones, so one producer is always skipped.
     if: always() && needs.version.result == 'success' && (needs.jars-sign.result == 'success' || needs.jars-fetch.result == 'success')
+    # versions_override carries the version tag only. The called workflow always adds the
+    # immutable {version}_{timestamp} tag; the aggregate tags it would add otherwise (latest and
+    # the major) are computed from the app version with no knowledge of what is already published,
+    # so a rebuild of an older version moves them backwards over a newer release.
     strategy:
       fail-fast: false
       matrix:
         include:
           - variant: full
             app_version: ${{ needs.version.outputs.version }}
-            versions_override: ""                                   # default tags: X, major, latest
+            versions_override: ${{ needs.version.outputs.version }}
             build_name: aerospike-graph-service
             dockerfile: docker/Dockerfile
             build_args: >-
@@ -196,7 +200,7 @@ jobs:
                "BULKLOADER": "artifacts/unsigned-artifacts/aerospike-graph-bulk-loader-${{ needs.version.outputs.version }}.jar"}
           - variant: slim
             app_version: ${{ needs.version.outputs.version }}-slim
-            versions_override: "${{ needs.version.outputs.version }}-slim,slim,latest-slim"
+            versions_override: "${{ needs.version.outputs.version }}-slim"
             build_name: aerospike-graph-service-slim               # distinct build-info name
             dockerfile: docker/Dockerfile-slim
             # Dockerfile-slim declares only FIREFLY_GRAPH; an unconsumed build-arg still

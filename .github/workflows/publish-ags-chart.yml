@@ -12,12 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Re-releases the aerospike-graph Helm chart alone, at the version in
+# Publishes the aerospike-graph Helm chart alone, using the version in
 # helm/aerospike-graph/Chart.yaml, into its own release bundle.
+#
+# Normal dev and release runs use publish-ags-artifacts.yml, which includes
+# the chart. This workflow is rarely needed; use it when the chart changes
+# independently of an AGS version release.
 #
 # Bump Chart.yaml before dispatching. An overwrite of an already published chart path succeeds
 # silently, and the published copy then drifts from the bundle that referenced it.
-name: Respin AGS Helm Chart
+name: Publish AGS Helm Chart
 
 on:
   workflow_dispatch:

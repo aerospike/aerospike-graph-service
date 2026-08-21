@@ -19,7 +19,7 @@
 #              and Helm chart.
 #   dev        workflow_dispatch with no scope. Publishes uniquely versioned dev artifacts and
 #              creates no release bundle.
-#   chart      workflow_call from respin-chart.yml. Re-releases only the Helm chart.
+#   chart      workflow_call from publish-ags-chart.yml. Publishes only the Helm chart.
 #   container  workflow_call from respin-container.yml. Re-releases only the container, built
 #              from JARs already published for the given app-version.
 name: Publish AGS Artifacts

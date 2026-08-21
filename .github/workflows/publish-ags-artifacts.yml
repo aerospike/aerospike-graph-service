@@ -13,6 +13,15 @@
 # limitations under the License.
 
 # Publish Aerospike Graph Service artifacts to JFrog via the shared-workflows pipeline.
+#
+# Runs in one of four scopes, resolved by the `version` job:
+#   release    tag push (vX.Y.Z[-rcN]). Builds, signs, deploys, and bundles the JARs, container,
+#              and Helm chart.
+#   dev        workflow_dispatch with no scope. Publishes uniquely versioned dev artifacts and
+#              creates no release bundle.
+#   chart      workflow_call from respin-chart.yml. Re-releases only the Helm chart.
+#   container  workflow_call from respin-container.yml. Re-releases only the container, built
+#              from JARs already published for the given app-version.
 name: Publish AGS Artifacts
 
 on:

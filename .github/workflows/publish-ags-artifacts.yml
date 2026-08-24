@@ -60,7 +60,7 @@ jobs:
       is-release: ${{ steps.v.outputs.is-release }}
       scope: ${{ steps.v.outputs.scope }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0   # required, or extract-version falls back to 0.0.0-dev+<sha>
       - id: tag
@@ -299,7 +299,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup JFrog CLI
         uses: step-security/setup-jfrog-cli@53aeacb709fce45d0baf69a13ec3342f7e2d71a9 # v5.1.0
@@ -411,7 +411,7 @@ jobs:
             runner: ubuntu-24.04-arm
             expect_arch: ARM64
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # An amd64 host running `--platform linux/arm64` falls back to QEMU once binfmt is
       # registered, which would pass while testing something other than what ships.

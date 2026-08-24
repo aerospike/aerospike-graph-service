@@ -52,4 +52,6 @@ are not product deployment guides.
 - [Bulk loader design](BULK_LOADER_DESIGN.md)
 - [Synthetic dataset capacity](SYNTHETIC_DATASET_CAPACITY.md)
 - [Write consistency](WRITE_CONSISTENCY.md)
+- [Release workflow](RELEASE_WORKFLOW.md): how AGS artifacts are built,
+  published, and selectively rebuilt.
 - [Bidirectional search (part I)](blogs/BIDIRECTIONAL_SEARCH_PART_1.md)

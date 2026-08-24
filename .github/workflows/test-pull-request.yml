@@ -1096,22 +1096,67 @@ jobs:
         run: |
           bash -x scripts/start_aerospike_tls.sh
 
-          echo "Running docker image with SSL enabled on GLV<->Gremlin Server and TLS enabled on AGS<->Aerospike DB"
+          # Generate and mount a CA to exercise server certificate-chain handling.
+          CA_MOUNT_DIR="$(mktemp -d)"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 2 \
+            -keyout "${CA_MOUNT_DIR}/ci-gremlin-ca.key" \
+            -out "${CA_MOUNT_DIR}/ci-gremlin-ca.crt" \
+            -subj "/CN=graph-ci-test-ca"
+          # The CA directory accepts exactly one certificate.
+          rm -f "${CA_MOUNT_DIR}/ci-gremlin-ca.key"
+
+          echo "Running docker image with SSL enabled on GLV<->Gremlin Server (with a mounted CA) and TLS enabled on AGS<->Aerospike DB"
           docker run -d -p 8182:8182 \
+            --name ags-tls-test \
             --add-host=host.docker.internal:host-gateway \
             -e aerospike.client.host=host.docker.internal:test-tls:4303 \
             -e JAVA_OPTIONS="-Dio.netty.handler.ssl.defaultEndpointVerificationAlgorithm=NONE" \
             -v ${{ github.workspace }}/conf/test-tls/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/aerospike-client-tls/aerospike.crt \
             -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/gremlin-server-tls/aerospike.crt \
-            -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.key:/opt/aerospike-graph/gremlin-server-tls/aerospike.key firefly
+            -v ${{ github.workspace }}/.github/aerospike/tls/aerospike.key:/opt/aerospike-graph/gremlin-server-tls/aerospike.key \
+            -v "${CA_MOUNT_DIR}/ci-gremlin-ca.crt":/opt/aerospike-graph/gremlin-server-ca/ci-gremlin-ca.crt \
+            firefly
           bash scripts/wait_for_gremlin_server.sh
+
+          # Verify that the mounted CA is included in the generated keystore.
+          echo "Verifying the mounted Gremlin-server CA was bundled into the generated keystore"
+
+          # Confirm that the configuration script discovered the mounted CA.
+          if ! docker logs ags-tls-test 2>&1 | grep -q "Found CA file to use for Gremlin Client SSL: ci-gremlin-ca.crt"; then
+            echo "ERROR: configure_aerospike_graph.py never detected the mounted Gremlin-server CA."
+            echo "----- container logs (tail) -----"
+            docker logs ags-tls-test 2>&1 | tail -n 60
+            exit 1
+          fi
+
+          # Confirm that the keystore contains the server certificate and CA.
+          KEYSTORE=/opt/conf/ssl/keystore.p12
+          CERT_COUNT="$(docker exec ags-tls-test sh -c \
+            "openssl pkcs12 -in ${KEYSTORE} -passin pass:aerospike -nokeys 2>/dev/null | grep -c 'BEGIN CERTIFICATE'")"
+          echo "Certificates found in ${KEYSTORE}: ${CERT_COUNT}"
+          if [ "${CERT_COUNT}" -lt 2 ]; then
+            echo "ERROR: mounted Gremlin-server CA was not bundled into ${KEYSTORE} (found ${CERT_COUNT} cert(s), expected >= 2)."
+            exit 1
+          fi
+          echo "Gremlin-server CA correctly bundled into keystore."
+
+          # Verify that the default user can update the JVM truststore.
+          docker exec ags-tls-test sh -c '
+            set -eu
+            cacerts="$(readlink -f /etc/ssl/certs/java/cacerts)"
+            keytool -importcert -noprompt \
+              -alias ci-cacerts-writability \
+              -file /opt/aerospike-graph/aerospike-client-tls/aerospike.crt \
+              -keystore "$cacerts" \
+              -storepass changeit
+          '
 
           echo "Running TLS test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTLSIntegration --no-transfer-progress
 
           echo "Stopping docker image"
-          docker stop $(docker ps -q --filter ancestor=firefly)
+          docker stop ags-tls-test
   test-aerospike-ttl:
     needs: ci-guard
     name: Test Aerospike TTL Rejection

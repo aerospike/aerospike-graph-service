@@ -1,7 +1,7 @@
 
 Lists of 383 third-party dependencies.
      (BSD 3-Clause "New" or "Revised" License (BSD-3-Clause)) abego TreeLayout Core (org.abego.treelayout:org.abego.treelayout.core:1.0.3 - http://treelayout.sourceforge.net)
-     (Apache License, Version 2.0) Aerospike :: Graph (com.aerospike:aerospike-graph-gremlin:3.3.0-SNAPSHOT - https://github.com/aerospike/aerospike-graph-service/aerospike-graph-gremlin)
+     (Apache License, Version 2.0) Aerospike :: Graph (com.aerospike:aerospike-graph-gremlin:3.3.1-SNAPSHOT - https://github.com/aerospike/aerospike-graph-service/aerospike-graph-gremlin)
      (The Apache License, Version 2.0) Aerospike Java Client BC (com.aerospike:aerospike-client-bc-jdk8:10.3.0 - https://github.com/aerospike/aerospike-client-java)
      (Apache License, Version 2.0) Aliyun OSS SDK for Java (com.aliyun.oss:aliyun-sdk-oss:3.13.0 - http://www.aliyun.com/product/oss)
      (Apache License, Version 2.0) aliyun-java-sdk-core (com.aliyun:aliyun-java-sdk-core:4.5.10 - http://www.aliyun.com)

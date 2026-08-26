@@ -109,7 +109,7 @@
         <lz4-java.version>1.11.2</lz4-java.version>
         <protobuf.version>3.25.9</protobuf.version>
         <grpc.version>1.83.1</grpc.version>
-        <jetbrains-annotations.version>17.0.0</jetbrains-annotations.version>
+        <jetbrains-annotations.version>26.1.0</jetbrains-annotations.version>
         <nimbus-jose-jwt.version>9.48</nimbus-jose-jwt.version>
         <bouncycastle.version>1.85.2</bouncycastle.version>
         <guice.version>4.2.3</guice.version>

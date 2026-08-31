@@ -83,39 +83,39 @@
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-        <aerospike-client.version>10.3.0</aerospike-client.version>
+        <aerospike-client.version>10.4.0</aerospike-client.version>
         <tinkerpop.version>3.7.3</tinkerpop.version>
         <junit.version>4.13.2</junit.version>
         <hamcrest.version>2.2</hamcrest.version>
-        <logback.version>1.5.38</logback.version>
+        <logback.version>1.6.3</logback.version>
         <slf4j.version>2.0.18</slf4j.version>
-        <log4j.version>2.25.5</log4j.version>
+        <log4j.version>2.26.1</log4j.version>
         <guava.version>31.1-jre</guava.version>
         <resilience4j.version>1.7.1</resilience4j.version>
         <spark.version>3.5.8</spark.version>
         <vertx.version>4.5.32</vertx.version>
-        <jackson.version>2.21.5</jackson.version>
+        <jackson.version>2.22.2</jackson.version>
         <prometheus.version>0.16.0</prometheus.version>
         <awssdk.version>1.12.797</awssdk.version>
         <netty.version>4.2.17.Final</netty.version>
         <caffeine.version>3.2.4</caffeine.version>
         <jmh.version>1.37</jmh.version>
-        <commons-cli.version>1.5.0</commons-cli.version>
-        <commons-io.version>2.21.0</commons-io.version>
+        <commons-cli.version>1.11.0</commons-cli.version>
+        <commons-io.version>2.22.0</commons-io.version>
         <commons-compress.version>1.28.0</commons-compress.version>
-        <ivy.version>2.5.3</ivy.version>
+        <ivy.version>2.6.0</ivy.version>
         <zookeeper.version>3.9.5</zookeeper.version>
         <jettison.version>1.5.7</jettison.version>
         <lz4-java.version>1.11.2</lz4-java.version>
         <protobuf.version>3.25.9</protobuf.version>
-        <grpc.version>1.76.3</grpc.version>
+        <grpc.version>1.83.1</grpc.version>
         <jetbrains-annotations.version>17.0.0</jetbrains-annotations.version>
-        <nimbus-jose-jwt.version>9.37.4</nimbus-jose-jwt.version>
-        <bouncycastle.version>1.85</bouncycastle.version>
+        <nimbus-jose-jwt.version>9.48</nimbus-jose-jwt.version>
+        <bouncycastle.version>1.85.2</bouncycastle.version>
         <guice.version>4.2.3</guice.version>
-        <docker-java.version>3.3.6</docker-java.version>
-        <opentelemetry.version>1.63.0</opentelemetry.version>
-        <opentelemetry-semconv.version>1.41.1</opentelemetry-semconv.version>
+        <docker-java.version>3.7.1</docker-java.version>
+        <opentelemetry.version>1.64.0</opentelemetry.version>
+        <opentelemetry-semconv.version>1.43.0</opentelemetry-semconv.version>
         <gcs-connector.version>hadoop3-2.2.33</gcs-connector.version>
         <!-- MAVEN PLUGIN VERSIONS -->
         <mvn-shade-plugin.version>3.6.2</mvn-shade-plugin.version>

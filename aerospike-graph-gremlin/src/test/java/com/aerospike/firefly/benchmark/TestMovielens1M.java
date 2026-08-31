@@ -26,6 +26,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -39,6 +40,7 @@ import static com.aerospike.firefly.util.Movielens.YEAR;
 import static com.aerospike.firefly.util.Util.verifyClean;
 import static org.junit.Assert.assertEquals;
 
+@Ignore("Disabled indefinitely: files.grouplens.org's TLS certificate has repeatedly been allowed to expire, blocking MovieLens downloads.")
 public class TestMovielens1M extends AbstractFireflySuite {
     @Override
     protected boolean clearData() {

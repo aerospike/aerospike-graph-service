@@ -31,6 +31,7 @@ import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyFilteredBatchEdgeIterator;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromIndexedVertex;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
+import com.aerospike.firefly.util.FireflyGeoValue;
 import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.util.exceptions.GraphError;
@@ -78,6 +79,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     protected Map<Long, HashMap<Object, List<Long>>> vertexProperties;
     protected Map<Long, Map<Long, Object>> vpTypeHints;
     protected Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties;
+    protected Map<Long, List<String>> geoData;
     protected boolean isEdgeCacheOverflowed;
 
     // Cache for transformed edge IDs to avoid repeated object creation
@@ -92,6 +94,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                          final Map<Long, HashMap<Object, List<Long>>> vertexProperties,
                          final Map<Long, Map<Long, Object>> vpTypeHints,
                          final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties,
+                         final Map<Long, List<String>> geoData,
                          final boolean isEdgeCacheOverflowed) {
         super(fid, label);
         this.graph = graph;
@@ -100,8 +103,21 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         this.vertexProperties = vertexProperties == null ? new TreeMap<>() : vertexProperties;
         this.vpTypeHints = vpTypeHints == null ? new HashMap<>() : vpTypeHints;
         this.vpProperties = vpProperties == null ? new HashMap<>() : vpProperties;
+        this.geoData = FireflyVertexFactory.normalizeGeoDataMap(geoData);
         this.isEdgeCacheOverflowed = isEdgeCacheOverflowed;
         this.db = graph.getBaseGraph();
+    }
+
+    public FireflyVertex(final FireflyId fid,
+                         final String label,
+                         final FireflyGraph graph,
+                         final Map<String, List<LazyIdTransform>> inEdgeIds,
+                         final Map<String, List<LazyIdTransform>> outEdgeIds,
+                         final Map<Long, HashMap<Object, List<Long>>> vertexProperties,
+                         final Map<Long, Map<Long, Object>> vpTypeHints,
+                         final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties,
+                         final boolean isEdgeCacheOverflowed) {
+        this(fid, label, graph, inEdgeIds, outEdgeIds, vertexProperties, vpTypeHints, vpProperties, null, isEdgeCacheOverflowed);
     }
 
     /**
@@ -119,6 +135,23 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             } else {
                 return Collections.emptyIterator();
             }
+        }
+
+        if (this.db.schemaManager.isRegisteredGeoProperty(key)) {
+            final Long geoSchemaKey = this.db.schemaManager.getGeoPropertyRead(key);
+            if (this.geoData == null || !this.geoData.containsKey(geoSchemaKey)) {
+                return Collections.emptyIterator();
+            }
+            final List<VertexProperty<V>> geoVertexProperties = new ArrayList<>();
+            final List<String> points = this.geoData.get(geoSchemaKey);
+            for (int i = 0; i < points.size(); i++) {
+                final FireflyId fireflyVpId = this.db.getIdFactory().createVertexPropertyId(-(geoSchemaKey * 1000L + i));
+                @SuppressWarnings("unchecked")
+                final V convertedValue = (V) FireflyGeoValue.fromGeoJsonPoint(points.get(i));
+                final VertexProperty<V> vertexProperty = new FireflyVertexProperty<>(graph, fireflyVpId, this, key, convertedValue, null);
+                geoVertexProperties.add(vertexProperty);
+            }
+            return geoVertexProperties.iterator();
         }
 
         final Long schemaPropertyKey = this.db.schemaManager.getVertexPropertyRead(key);
@@ -143,10 +176,18 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     public void updateVertexPropertyJVMCache(final Map<Long, HashMap<Object, List<Long>>> vertexProperties,
                                              final Map<Long, Map<Long, Object>> vpTypeHints,
-                                             final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties) {
+                                             final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties,
+                                             final Map<Long, List<String>> geoData) {
         this.vertexProperties = vertexProperties == null ? new TreeMap<>() : vertexProperties;
         this.vpTypeHints = vpTypeHints == null ? new HashMap<>() : vpTypeHints;
         this.vpProperties = vpProperties == null ? new HashMap<>() : vpProperties;
+        this.geoData = FireflyVertexFactory.normalizeGeoDataMap(geoData);
+    }
+
+    public void updateVertexPropertyJVMCache(final Map<Long, HashMap<Object, List<Long>>> vertexProperties,
+                                             final Map<Long, Map<Long, Object>> vpTypeHints,
+                                             final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties) {
+        updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties, this.geoData);
     }
 
     /**

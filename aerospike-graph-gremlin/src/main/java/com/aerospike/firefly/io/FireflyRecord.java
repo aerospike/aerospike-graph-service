@@ -173,13 +173,20 @@ public class FireflyRecord {
                 // read without cache because no edges (see line 152)
                 records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
             } else if (!readInfo.requiredProperties.isEmpty()) {
-                // No cache for non-empty required properties.
-                final List<Value> properties = readInfo.requiredProperties.stream().map(propertyKey -> {
-                    final Long schemaPropertyKey = db.schemaManager.getVertexPropertyRead(propertyKey);
-                    return Value.get(schemaPropertyKey);
-                }).collect(Collectors.toList());
-                db.getConfig().vertexPropertyBins.forEach(bin -> operations.add(MapOperation.getByKeyList(bin, properties, MapReturnType.UNORDERED_MAP)));
-                records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
+                final boolean requiresGeoProperty = readInfo.requiredProperties.stream()
+                        .anyMatch(propertyKey -> db.schemaManager.isRegisteredGeoProperty(propertyKey));
+                if (requiresGeoProperty) {
+                    db.getConfig().vertexPropertyBins.forEach(bin -> operations.add(Operation.get(bin)));
+                    records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
+                } else {
+                    // No cache for non-empty required properties.
+                    final List<Value> properties = readInfo.requiredProperties.stream().map(propertyKey -> {
+                        final Long schemaPropertyKey = db.schemaManager.getVertexPropertyRead(propertyKey);
+                        return Value.get(schemaPropertyKey);
+                    }).collect(Collectors.toList());
+                    db.getConfig().vertexPropertyBins.forEach(bin -> operations.add(MapOperation.getByKeyList(bin, properties, MapReturnType.UNORDERED_MAP)));
+                    records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
+                }
             } else {
                 records = readInfo.areEdgesRequired
                         // No property read uses empty property transaction cache when edges are present

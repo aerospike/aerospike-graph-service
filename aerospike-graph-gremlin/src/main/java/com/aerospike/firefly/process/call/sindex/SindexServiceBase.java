@@ -32,6 +32,7 @@ public abstract class SindexServiceBase<I, R> extends AdminService<I, R> {
     static {
         INDEX_TYPE_LOOKUP.put("string", IndexType.STRING);
         INDEX_TYPE_LOOKUP.put("numeric", IndexType.NUMERIC);
+        INDEX_TYPE_LOOKUP.put("geo", IndexType.GEO2DSPHERE);
     }
 
     public SindexServiceBase(final FireflyGraph graph) {

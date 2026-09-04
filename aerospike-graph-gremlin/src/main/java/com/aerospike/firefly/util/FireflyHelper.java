@@ -20,6 +20,7 @@ import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnectionConfig;
 import com.aerospike.firefly.io.aerospike.query.paged.VertexQueryHelper;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -138,6 +139,22 @@ public final class FireflyHelper {
         if (v instanceof List) {
             throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(v);
         }
+        return validateAndConvertScalarVertexPropertyValue(v);
+    }
+
+    public static Object validateAndConvertVertexPropertyValue(final Object v,
+                                                               final String propertyKey,
+                                                               final AerospikeConnectionConfig config) {
+        if (v instanceof List) {
+            if (isGeoVertexPropertyValue(config, propertyKey, v)) {
+                return FireflyGeoValue.toGeoJsonPoints(v);
+            }
+            throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(v);
+        }
+        return validateAndConvertScalarVertexPropertyValue(v);
+    }
+
+    private static Object validateAndConvertScalarVertexPropertyValue(final Object v) {
         Object validatedValue = validatePropertyValue(v);
         if (validatedValue instanceof Boolean) {
             validatedValue = (Boolean) validatedValue ? TRUE_BOOL_BYTES : FALSE_BOOL_BYTES;
@@ -147,6 +164,21 @@ public final class FireflyHelper {
             validatedValue = convertValueToAerospikeWriteable(validatedValue);
         }
         return validatedValue;
+    }
+
+    public static boolean isGeoVertexPropertyValue(final AerospikeConnectionConfig config,
+                                                   final String propertyKey,
+                                                   final Object value) {
+        return config != null
+                && config.geoEnabled
+                && FireflyGeoValue.isGeoPropertyKey(propertyKey, true, config.geoVertexProperties)
+                && FireflyGeoValue.isGeoCoordinateInput(value);
+    }
+
+    public static boolean isGeoVertexPropertyValue(final AerospikeConnection db,
+                                                   final String propertyKey,
+                                                   final Object value) {
+        return isGeoVertexPropertyValue(db.getConfig(), propertyKey, value);
     }
 
     public static void legalPropertyKeyValueArray(Object... keyValues) {

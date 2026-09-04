@@ -101,6 +101,10 @@ public class AerospikeConnectionConfig {
     public final String vertexPropertyDataBin;
     public final String vertexPropertyTHBin;
     public final String vpPropertyBin;
+    public final String geoDataBin;
+    public final boolean geoEnabled;
+    public final List<String> geoVertexProperties;
+    public final List<String> geoVertexPropertyIndexes;
     public final String usageStatsSet;
     public final String usageStatsBin;
     public long onRecordIdLimit;
@@ -345,6 +349,10 @@ public class AerospikeConnectionConfig {
         vertexPropertyDataBin = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_DATA_BIN.name(), conf);
         vertexPropertyTHBin = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_TH_BIN.name(), conf);
         vpPropertyBin = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VP_PROPERTY_BIN.name(), conf);
+        geoDataBin = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.GEO_DATA_BIN.name(), conf);
+        geoEnabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.GEO_ENABLED, conf);
+        geoVertexProperties = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.GEO_VERTEX_PROPERTIES, conf);
+        geoVertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_GEO_INDEXES, conf);
         propertiesBin = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.PROPERTIES_BIN.name(), conf);
         typeHintsBin = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.TYPE_HINTS_BIN.name(), conf);
         counterBin = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.COUNTER_BIN.name(), conf);
@@ -463,6 +471,7 @@ public class AerospikeConnectionConfig {
         vertexPropertyBins.add(vertexPropertyDataBin);
         vertexPropertyBins.add(vertexPropertyTHBin);
         vertexPropertyBins.add(vpPropertyBin);
+        vertexPropertyBins.add(geoDataBin);
     }
 
     public MapConfiguration getRawConfig() {

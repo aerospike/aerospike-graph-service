@@ -14,7 +14,7 @@ secondary indexes:
 
 | Category | Indexed bin | Created when | Purpose |
 | --- | --- | --- | --- |
-| Adjacency indexes (`E_IN_IDX`, `E_OUT_IDX`) | `IN_V` / `OUT_V` on the edge set | Always | Resolve `g.V(x).out()` / `in()` / `both()` by scanning edges incident to a vertex |
+| Adjacency indexes (`E_IN_IDX`, `E_OUT_IDX`) | `SUPERNODE_IN` / `SUPERNODE_OUT` on the edge set (`STRING`, `MAPKEYS`) | Always | Resolve supernode adjacency when the on-record edge cache is disabled |
 | TTL indexes (`TTL_V_IDX`, `TTL_E_IDX`) | TTL bin on vertex / edge set | When `aerospike.graph.ttl.enabled=true` | Background sweep of expired records |
 | Vertex label index (`V_LABEL_IDX`) | `LABEL` bin on vertex set | When `aerospike.graph.index.vertex.label.enabled=true` | `g.V().hasLabel(x)` |
 | Vertex property indexes | `VP_DATA` bin on vertex set | Per-key, from configuration or the `sindex` service | Property lookups by key/value |
@@ -32,6 +32,7 @@ Configured through these properties:
 | `aerospike.graph.index.vertex.properties` | Create both `STRING` and `NUMERIC` indexes for each listed key |
 | `aerospike.graph.index.vertex.properties.string` | Create only the `STRING` index for each listed key |
 | `aerospike.graph.index.vertex.properties.numeric` | Create only the `NUMERIC` index for each listed key |
+| `aerospike.graph.index.vertex.properties.geo` | Create a `GEO2DSPHERE` index for each listed geo property key |
 | `aerospike.graph.index.vertex.compound` | Comma-separated expression-index definitions |
 
 Vertex property indexes target the `VP_DATA` map bin with
@@ -51,6 +52,14 @@ restarting the graph.
 | --- | --- | --- | --- |
 | String | Yes (`STRING` index) | No | No |
 | Number | Yes (`NUMERIC` index) | Yes (`NUMERIC` index) | N/A |
+| Geo (`geo*` vertex properties) | Yes (exact coordinate match via scan expression) | Radius / region via `GEO2DSPHERE` index on `GEO_DATA` | N/A |
+
+Geo vertex property queries use standard Gremlin `P.within(...)`, rewritten
+server-side when the property key is registered in the geo schema (`_geosch`).
+Radius queries take three numbers `(longitude, latitude, radiusMeters)`;
+region queries take a closed ring of `[longitude, latitude]` pairs. One
+`GEO2DSPHERE` index is required per geo property key
+(`IndexCollectionType.LIST` + `CTX` on the interned key in `GEO_DATA`).
 
 Substring / regex filtering always falls back to an unindexed scan.
 
@@ -107,9 +116,10 @@ via a direct `~id` read on the edge record. Global edge scans
 
 These are internal and users don't configure them directly:
 
-* `E_IN_IDX` / `E_OUT_IDX`: `NUMERIC` indexes on the `IN_V` and `OUT_V`
-  bins of the edge set. They're the primary path for `out()`, `in()`,
-  and `both()` traversals.
+* `E_IN_IDX` / `E_OUT_IDX`: `STRING` indexes with `MAPKEYS` collection
+  type on the `SUPERNODE_IN` and `SUPERNODE_OUT` bins of the edge set.
+  They support supernode adjacency resolution when the vertex on-record
+  edge cache is disabled.
 * `TTL_V_IDX` / `TTL_E_IDX`: `NUMERIC` indexes on the TTL bin of the
   vertex and edge sets. Created only when TTL is enabled. Used by the
   background TTL sweeper.

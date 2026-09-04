@@ -55,10 +55,17 @@ We haver decided to start with `csv` as the input file format, so let's take a l
 From [Amazon's csv documentation](https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-format-gremlin.html) 
 we can see that we get an output vertex file and edge file. Below is the vertex file:
 ```
-~id, name:String, age:Int, lang:String, interests:String[], ~label
-v1, "marko", 29, , "sailing;graphs", person
-v2, "lop", , "java", , software
+~id, name:string, age:int, geoLocation:geo, interests:string:set, ~label
+v1, marko, 29, -122.0862 37.4220, sailing;graphs, person
 ```
+
+Property headers use `name:type` or `name:type:cardinality`, where cardinality is
+`single` (default), `set`, or `list`. Multi-valued cells use `;` as the delimiter.
+Geo properties use the `geo` type with space-separated `longitude latitude` in each
+cell (for example `geoLocation:geo:set` with `-122.0862 37.4220;-122.1000 37.4300`).
+
+The older Neptune-style `interests:String[]` notation in examples below is not what
+the implementation parses; use `:set` or `:list` suffixes instead.
 Now the edge file:
 ```
 ~id, ~from, ~to, ~label, weight:Double

@@ -27,6 +27,7 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyComp
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyCountGlobalLocalStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyEdgeToVertexBatchReadStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyElementMapStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGeoPredicateStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
@@ -70,6 +71,7 @@ public class FireflyStrategyUtil {
         FIREFLY_STRATEGIES.add(new FireflyAdjacentVertexIdStrategy());
 
         // Steps that are generally applicable to most all traversals.
+        FIREFLY_STRATEGIES.add(new FireflyGeoPredicateStrategy());
         FIREFLY_STRATEGIES.add(new FireflyGraphStepStrategy());
         FIREFLY_STRATEGIES.add(new FireflyReadThroughCacheStrategy());
         FIREFLY_STRATEGIES.add(new FireflySchemaResetStrategy());

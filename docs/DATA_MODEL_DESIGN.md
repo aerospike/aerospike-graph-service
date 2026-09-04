@@ -139,6 +139,7 @@ Relevant bins on a vertex record:
 | `VP_DATA` | `Map<Long, Map<Object, List<Long>>>` | Vertex properties. Outer key = interned property key; inner map = value → list of vertex-property-ids (one id per cardinality-set instance). |
 | `VP_HINTS` | `Map<Long, Map<Long, Object>>` | Type hints for non-obvious values: key = interned property key, inner-key = vertex-property-id, value = serialized type hint. Used so e.g. a `Date` round-trips as a `Date`, not a `Long`. |
 | `VP_PROPERTIES` | nested `Map` | Vertex-property meta-properties (TinkerPop allows properties on properties). Empty map when unused. |
+| `GEO_DATA` | `Map<Long, List<String>>` | Geospatial vertex properties stored as GeoJSON Point strings. Outer key = interned geo property key from `_geosch`. Geo cannot live in `VP_DATA` because Aerospike rejects GeoJSON as a map key. Meta-properties on geo properties are not supported. |
 | `IN_EDGES` | `Map<String, List<Long>>` | On-record adjacency cache: edge-label → list of (cached) edge ids, for inbound edges. |
 | `OUT_EDGES` | `Map<String, List<Long>>` | Same as `IN_EDGES`, outbound. |
 | `ECACHE_OFF` | `boolean` | If true, this vertex is a supernode: `IN_EDGES` / `OUT_EDGES` are abandoned and the adjacency lives on the edge records instead. |

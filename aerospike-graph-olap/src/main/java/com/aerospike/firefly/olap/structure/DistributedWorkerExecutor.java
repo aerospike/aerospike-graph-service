@@ -562,6 +562,9 @@ public class DistributedWorkerExecutor {
                 final List<Object> idsList = new ArrayList<>();
                 if (initialIds.size() == 1 && initialIds.get(0) instanceof P) {
                     final P p = (P) initialIds.get(0);
+                    if (p.getBiPredicate() instanceof com.aerospike.firefly.process.traversal.predicate.GeoPredicate) {
+                        throw new IllegalArgumentException("Batch read does not support geo vertex property predicates");
+                    }
                     if (!p.getBiPredicate().toString().equals("within")) {
                         throw new IllegalArgumentException("Batch read only supports within predicate");
                     }

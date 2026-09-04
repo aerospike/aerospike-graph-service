@@ -18,6 +18,7 @@ package com.aerospike.firefly.io.aerospike.admin;
 
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
+import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.aerospike.client.query.IndexType.GEO2DSPHERE;
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
 
@@ -66,6 +68,21 @@ public class Admin {
                     final Map<String, Long> indexInfo = (Map<String, Long>) getStatusVertexPropertyIndex(firefly, index, NUMERIC);
                     if (indexInfo.get("percent_complete") == 100L) {
                         validVertexPropertyIndexes.add(index + ":NUMERIC");
+                    }
+                } catch (final IllegalStateException ignored) {
+                    // Do nothing.
+                }
+            }
+
+            for (final FireflyIndexMetadata.IndexInfo indexInfo : firefly.fireflyIndexMetadata.getPropertyIndexInfos()) {
+                if (!GEO2DSPHERE.equals(indexInfo.indexType)) {
+                    continue;
+                }
+                try {
+                    final Map<String, Long> status = (Map<String, Long>) getStatusVertexPropertyIndex(
+                            firefly, indexInfo.key, GEO2DSPHERE);
+                    if (status.get("percent_complete") == 100L) {
+                        validVertexPropertyIndexes.add(indexInfo.key + ":GEO2DSPHERE");
                     }
                 } catch (final IllegalStateException ignored) {
                     // Do nothing.
@@ -150,12 +167,16 @@ public class Admin {
         }
 
         public I createVertexPropertyIndex(final FireflyGraph firefly, final String key, final IndexType indexType) {
-            firefly.createIndexes(FireflyVertex.class,
-                    firefly.getBaseGraph().getConfig().vertexPropertyDataBin,
-                    firefly.getBaseGraph().getVpIndexPrefix(),
-                    List.of(key),
-                    indexType,
-                    true);
+            if (IndexType.GEO2DSPHERE.equals(indexType)) {
+                firefly.createGeoPropertyIndexAdmin(key);
+            } else {
+                firefly.createIndexes(FireflyVertex.class,
+                        firefly.getBaseGraph().getConfig().vertexPropertyDataBin,
+                        firefly.getBaseGraph().getVpIndexPrefix(),
+                        List.of(key),
+                        indexType,
+                        true);
+            }
             return (I) ("Vertex index creation of type '" + indexType + "' on property key '" + key + "' in progress.");
         }
 

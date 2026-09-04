@@ -32,4 +32,20 @@ public class OperationReturnHandler {
     public static Object getValueAtIndex(final Record operationReturnValue, final String binName, final int index) {
         return operationReturnValue.getList(binName).get(index);
     }
+
+    /**
+     * Returns the last operation result for a bin when multiple operations target the same bin in one Operate call.
+     * A single GET on a bin returns the bin value directly; multiple operations return a list of results.
+     */
+    public static Object getLastOperationResult(final Record operationReturnValue, final String binName) {
+        if (operationReturnValue == null || !operationReturnValue.bins.containsKey(binName)) {
+            return null;
+        }
+        final Object value = operationReturnValue.getValue(binName);
+        if (value instanceof java.util.List) {
+            final java.util.List<?> results = (java.util.List<?>) value;
+            return results.isEmpty() ? null : results.get(results.size() - 1);
+        }
+        return value;
+    }
 }

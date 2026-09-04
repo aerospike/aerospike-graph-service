@@ -49,7 +49,8 @@ public abstract class SparkFireflyElement implements Serializable {
     private static final String STRING = "string";
     private static final String DATE = "date";
     private static final String OFFSETDATETIME = "offsetdatetime";
-    private static final Set<String> VALID_TYPES = Set.of(LONG, INT, INTEGER, DOUBLE, BOOL, BOOLEAN, STRING, DATE, OFFSETDATETIME);
+    private static final String GEO = "geo";
+    private static final Set<String> VALID_TYPES = Set.of(LONG, INT, INTEGER, DOUBLE, BOOL, BOOLEAN, STRING, DATE, OFFSETDATETIME, GEO);
 
     protected static String PROPERTY_INFO_NAME = "PROPERTY_INFO_NAME";
     protected static String PROPERTY_INFO_TYPE = "PROPERTY_INFO_TYPE";
@@ -183,6 +184,13 @@ public abstract class SparkFireflyElement implements Serializable {
                     final String[] values = value.split(MULTI_DELIMITER);
                     propertyValue = Arrays.stream(values).map(parser::parseOffsetDateTime).collect(collector);
                 }
+                break;
+            case GEO:
+                if (isList) {
+                    throw new InvalidCsvHeaderException(
+                            String.format("Geo properties do not support list cardinality in header '%s'. Use set for multiple points.", header));
+                }
+                propertyValue = parser.parseGeo(value, isSet);
                 break;
             default:
                 // This should never happen.

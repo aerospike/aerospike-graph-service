@@ -99,6 +99,7 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.io.aerospike.FireflyTxn.commit;
 import static com.aerospike.firefly.io.aerospike.FireflyTxn.rollback;
+import static com.aerospike.firefly.io.aerospike.OperationReturnHandler.getLastOperationResult;
 import static com.aerospike.firefly.io.aerospike.OperationReturnHandler.getValueAtIndex;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_DATA_SIZE;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_ADJACENT_ID_KEY;
@@ -207,9 +208,11 @@ public class AerospikeOperations {
 
         boolean isSuperNodeViaIncremental = false;
         final Map<Long, HashMap<Object, List<Long>>> vertexProperties = new TreeMap<>();
+        final Map<Long, List<String>> geoData = new TreeMap<>();
         final Map<Long, Map<Long, Object>> vpTypeHints = new HashMap<>();
         final List<Operation> operations = new ArrayList<>();
         Long ttlValueLong = null;
+        final Set<String> geoPropertyKeysWritten = new HashSet<>();
 
         for (final Map.Entry<String, Object> property : properties) {
             // If the property is null, skip it.
@@ -240,6 +243,15 @@ public class AerospikeOperations {
                 continue;
             }
             // Generate disk version of property.
+            if (FireflyHelper.isGeoVertexPropertyValue(db, property.getKey(), property.getValue())) {
+                @SuppressWarnings("unchecked")
+                final List<String> geoPoints = (List<String>) validateAndConvertVertexPropertyValue(
+                        property.getValue(), property.getKey(), db.getConfig());
+                final Long geoSchemaKey = db.schemaManager.getGeoPropertyWrite(property.getKey());
+                geoData.put(geoSchemaKey, geoPoints);
+                geoPropertyKeysWritten.add(property.getKey());
+                continue;
+            }
             final Object validatedValue = validateAndConvertVertexPropertyValue(property.getValue());
             final Long schemaPropertyKey = db.schemaManager.getVertexPropertyWrite(property.getKey());
             if (!vertexProperties.containsKey(schemaPropertyKey)) {
@@ -280,6 +292,11 @@ public class AerospikeOperations {
         final Operation writeVertexProperties = Operation.put(vertexPropertiesBin);
         final Bin vpTypeHintsBin = new Bin(db.getConfig().vertexPropertyTHBin, Value.get(vpTypeHints));
         final Operation writeVpTypeHints = Operation.put(vpTypeHintsBin);
+        Operation writeGeoData = null;
+        if (!geoData.isEmpty()) {
+            final Bin geoDataBin = new Bin(db.getConfig().geoDataBin, Value.get(geoData));
+            writeGeoData = Operation.put(geoDataBin);
+        }
 
         // Create Vertex Property Properties maps.
         // The existence of the Vertex Property ID as a key in this map is what is used to determine whether the
@@ -317,23 +334,33 @@ public class AerospikeOperations {
         operations.add(writeEdgeCacheOut);
         operations.add(writeVertexProperties);
         operations.add(writeVpTypeHints);
+        if (writeGeoData != null) {
+            operations.add(writeGeoData);
+        }
         operations.add(writeVpProperties);
         operations.add(writeIdTypeHint);
 
         db.writeOperate(policy, key, operations.toArray(new Operation[0]));
+        for (final String geoPropertyKey : geoPropertyKeysWritten) {
+            graph.createGeoPropertyIndexIfNeeded(geoPropertyKey);
+        }
         if (partition == null) {
-            graph.fireflySummaryUpdater.addVertexWriteToQueue(label, vertexProperties.keySet().stream().
-                    map(db.schemaManager::getVertexPropertyString).collect(Collectors.toSet()), graph.tx().getCurrentTxn());
+            final Set<String> propertyKeys = vertexProperties.keySet().stream().
+                    map(db.schemaManager::getVertexPropertyString).collect(Collectors.toSet());
+            propertyKeys.addAll(geoPropertyKeysWritten);
+            graph.fireflySummaryUpdater.addVertexWriteToQueue(label, propertyKeys, graph.tx().getCurrentTxn());
         } else {
-            graph.fireflySummaryUpdater.stageVertexWriteToQueue(label, vertexProperties.keySet().stream().
-                    map(db.schemaManager::getVertexPropertyString).collect(Collectors.toSet()), partition);
+            final Set<String> propertyKeys = vertexProperties.keySet().stream().
+                    map(db.schemaManager::getVertexPropertyString).collect(Collectors.toSet());
+            propertyKeys.addAll(geoPropertyKeysWritten);
+            graph.fireflySummaryUpdater.stageVertexWriteToQueue(label, propertyKeys, partition);
             // Increase the supernode counter for fresh/incremental bulk loader (newly added vertices).
             if (isEdgeCacheOverflowed || isSuperNodeViaIncremental) {
                 graph.fireflySummaryUpdater.stageSupernodeWriteToQueue(label, partition);
             }
         }
         final FireflyVertex vertex = FireflyVertexFactory.create(vertexId, label, graph, new TreeMap<>(),
-                new TreeMap<>(), vertexProperties, vpTypeHints, vpProperties, isEdgeCacheOverflowed);
+                new TreeMap<>(), vertexProperties, vpTypeHints, vpProperties, geoData, isEdgeCacheOverflowed);
         return vertex;
     }
 
@@ -630,18 +657,22 @@ public class AerospikeOperations {
         try {
             final Record result = this.db.writeOperate(writePolicy, recordKey, operations.toArray(new Operation[0]));
             final Map<Long, HashMap<Object, List<Long>>> vertexProperties =
-                    (Map<Long, HashMap<Object, List<Long>>>) getValueAtIndex(result, this.db.getConfig().vertexPropertyDataBin, 1);
+                    (Map<Long, HashMap<Object, List<Long>>>) getLastOperationResult(result, this.db.getConfig().vertexPropertyDataBin);
             final Map<Long, Map<Long, Object>> vpTypeHints =
-                    (Map<Long, Map<Long, Object>>) getValueAtIndex(result, this.db.getConfig().vertexPropertyTHBin, 1);
+                    (Map<Long, Map<Long, Object>>) getLastOperationResult(result, this.db.getConfig().vertexPropertyTHBin);
             final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties =
-                    (Map<Long, Map<Long, Map<Long, List<Object>>>>) getValueAtIndex(result, this.db.getConfig().vpPropertyBin, 1);
+                    (Map<Long, Map<Long, Map<Long, List<Object>>>>) getLastOperationResult(result, this.db.getConfig().vpPropertyBin);
+            @SuppressWarnings("unchecked")
+            final Map<Long, List<String>> geoData =
+                    (Map<Long, List<String>>) getLastOperationResult(result, this.db.getConfig().geoDataBin);
 
             // Update this FireflyVertex in JVM cache
-            vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties);
+            vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties, geoData);
             if (vertexPropertyId == null) {
                 // If vertexPropertyId is null it means it was a Cardinality single value null property (removal)
                 return VertexProperty.empty();
-            } else if (cardinality.equals(VertexProperty.Cardinality.set)) {
+            } else if (cardinality.equals(VertexProperty.Cardinality.set)
+                    && !FireflyHelper.isGeoVertexPropertyValue(db, key, value)) {
                 // If Cardinality.set we need to check if the new VP was added to the set (value didn't exist already)
                 final VertexProperty<V> matchedProperty = vertex.postCardinalitySetPropertyWrite(key, value, properties,
                         vertexPropertyId);
@@ -685,14 +716,17 @@ public class AerospikeOperations {
         try {
             final Record result = this.db.writeOperate(writePolicy, recordKey, operations.toArray(new Operation[0]));
             final Map<Long, HashMap<Object, List<Long>>> vertexProperties =
-                    (Map<Long, HashMap<Object, List<Long>>>) getValueAtIndex(result, this.db.getConfig().vertexPropertyDataBin, propertyCount);
+                    (Map<Long, HashMap<Object, List<Long>>>) getLastOperationResult(result, this.db.getConfig().vertexPropertyDataBin);
             final Map<Long, Map<Long, Object>> vpTypeHints =
-                    (Map<Long, Map<Long, Object>>) getValueAtIndex(result, this.db.getConfig().vertexPropertyTHBin, propertyCount);
+                    (Map<Long, Map<Long, Object>>) getLastOperationResult(result, this.db.getConfig().vertexPropertyTHBin);
             final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties =
-                    (Map<Long, Map<Long, Map<Long, List<Object>>>>) getValueAtIndex(result, this.db.getConfig().vpPropertyBin, propertyCount);
+                    (Map<Long, Map<Long, Map<Long, List<Object>>>>) getLastOperationResult(result, this.db.getConfig().vpPropertyBin);
+            @SuppressWarnings("unchecked")
+            final Map<Long, List<String>> geoData =
+                    (Map<Long, List<String>>) getLastOperationResult(result, this.db.getConfig().geoDataBin);
 
             // Update this FireflyVertex in JVM cache
-            vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties);
+            vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties, geoData);
             graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(vertex.label(), writtenKeys,
                     graph.tx().getCurrentTxn());
         } catch (final AerospikeGraphRecordSizeExceededException e) {
@@ -709,6 +743,10 @@ public class AerospikeOperations {
                                                    final String key,
                                                    final Object value,
                                                    final Map<Long, List<Object>> properties) {
+        if (FireflyHelper.isGeoVertexPropertyValue(db, key, value)
+                || (value == null && db.schemaManager.isRegisteredGeoProperty(key))) {
+            return appendWriteGeoPropertyOps(operations, cardinality, key, value);
+        }
         if (value == null) {
             if (cardinality != VertexProperty.Cardinality.single) {
                 // This should never happen.
@@ -727,7 +765,7 @@ public class AerospikeOperations {
             final Long vpIdKey = (Long) vertexPropertyId.getStorageId();
             final Long schemaVpKey = this.db.schemaManager.getVertexPropertyWrite(key);
             final Object typeHint = getTypeHintOf(value, true);
-            final Object verifiedValue = validateAndConvertVertexPropertyValue(value);
+            final Object verifiedValue = validateAndConvertVertexPropertyValue(value, key, db.getConfig());
 
             final Operation writeVpData;
             final Operation writeVpTypeHint;
@@ -823,6 +861,37 @@ public class AerospikeOperations {
         }
     }
 
+    private FireflyId appendWriteGeoPropertyOps(final List<Operation> operations,
+                                                final VertexProperty.Cardinality cardinality,
+                                                final String key,
+                                                final Object value) {
+        final Long schemaKey = value == null
+                ? db.schemaManager.getGeoPropertyRead(key)
+                : db.schemaManager.getGeoPropertyWrite(key);
+        if (value == null) {
+            if (cardinality != VertexProperty.Cardinality.single) {
+                throw new IllegalArgumentException("Null geo property values are invalid when Cardinality is not single.");
+            }
+            operations.add(MapOperation.removeByKey(db.getConfig().geoDataBin, Value.get(schemaKey), MapReturnType.NONE));
+            return null;
+        }
+        @SuppressWarnings("unchecked")
+        final List<String> points = (List<String>) validateAndConvertVertexPropertyValue(value, key, db.getConfig());
+        final MapPolicy hashMapPolicy = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.DEFAULT);
+        if (cardinality.equals(VertexProperty.Cardinality.single)) {
+            operations.add(MapOperation.put(hashMapPolicy, db.getConfig().geoDataBin, Value.get(schemaKey), Value.get(points)));
+        } else {
+            for (final String point : points) {
+                operations.add(ListOperation.append(new ListPolicy(ListOrder.UNORDERED,
+                                ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL | ListWriteFlags.PARTIAL),
+                        db.getConfig().geoDataBin, Value.get(point),
+                        CTX.mapKeyCreate(Value.get(schemaKey), MapOrder.UNORDERED)));
+            }
+        }
+        graph.createGeoPropertyIndexIfNeeded(key);
+        return this.db.getIdFactory().generateId(this.graph, FireflyVertexProperty.class);
+    }
+
     private void appendGetVertexPropertyBinOps(final List<Operation> operations) {
         final Operation getVertexPropertyValues = Operation.get(this.db.getConfig().vertexPropertyDataBin);
         operations.add(getVertexPropertyValues);
@@ -830,6 +899,8 @@ public class AerospikeOperations {
         operations.add(getVertexPropertyTypeHints);
         final Operation getVertexPropertyProperties = Operation.get(this.db.getConfig().vpPropertyBin);
         operations.add(getVertexPropertyProperties);
+        final Operation getGeoData = Operation.get(this.db.getConfig().geoDataBin);
+        operations.add(getGeoData);
     }
 
     /**

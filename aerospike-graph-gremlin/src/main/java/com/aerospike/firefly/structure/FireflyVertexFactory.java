@@ -26,6 +26,7 @@ import com.aerospike.firefly.structure.id.LazyIdTransform;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 public class FireflyVertexFactory {
     public static FireflyVertex create(final FireflyId fid,
@@ -36,6 +37,7 @@ public class FireflyVertexFactory {
                                        final Map<Long, HashMap<Object, List<Long>>> vertexProperties,
                                        final Map<Long, Map<Long, Object>> vpTypeHints,
                                        final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties,
+                                       final Map<Long, List<String>> geoData,
                                        final boolean isEdgeCacheOverflowed) {
 
         return new FireflyVertex(
@@ -47,7 +49,21 @@ public class FireflyVertexFactory {
                 vertexProperties,
                 vpTypeHints,
                 vpProperties,
+                geoData,
                 isEdgeCacheOverflowed);
+    }
+
+    public static FireflyVertex create(final FireflyId fid,
+                                       final String label,
+                                       final FireflyGraph graph,
+                                       final Map<String, List<LazyIdTransform>> inEdgeIds,
+                                       final Map<String, List<LazyIdTransform>> outEdgeIds,
+                                       final Map<Long, HashMap<Object, List<Long>>> vertexProperties,
+                                       final Map<Long, Map<Long, Object>> vpTypeHints,
+                                       final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties,
+                                       final boolean isEdgeCacheOverflowed) {
+        return create(fid, label, graph, inEdgeIds, outEdgeIds, vertexProperties, vpTypeHints, vpProperties,
+                null, isEdgeCacheOverflowed);
     }
 
     /**
@@ -91,8 +107,43 @@ public class FireflyVertexFactory {
         final Map<Long, Map<Long, Object>> vpTypeHints =
                 (Map<Long, Map<Long, Object>>) record.getMap(db.getConfig().vertexPropertyTHBin);
         final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties = (Map) record.getMap(db.getConfig().vpPropertyBin);
+        final Map<Long, List<String>> geoData = readGeoDataMap(record, db.getConfig().geoDataBin);
 
         return create(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds,
-                vertexProperties, vpTypeHints, vpProperties, edgeCacheOverflowed);
+                vertexProperties, vpTypeHints, vpProperties, geoData, edgeCacheOverflowed);
+    }
+
+    static Map<Long, List<String>> normalizeGeoDataMap(final Map<Long, List<String>> geoData) {
+        if (geoData == null || geoData.isEmpty()) {
+            return new TreeMap<>();
+        }
+        final Map<Long, List<String>> normalized = new TreeMap<>();
+        for (final Map.Entry<Long, List<String>> entry : geoData.entrySet()) {
+            final Long schemaKey = entry.getKey() instanceof Number
+                    ? ((Number) entry.getKey()).longValue()
+                    : entry.getKey();
+            normalized.put(schemaKey, entry.getValue());
+        }
+        return normalized;
+    }
+
+    private static Map<Long, List<String>> readGeoDataMap(final Record record, final String binName) {
+        if (record == null || !record.bins.containsKey(binName)) {
+            return null;
+        }
+        final Map<?, ?> raw = record.getMap(binName);
+        if (raw == null || raw.isEmpty()) {
+            return null;
+        }
+        final Map<Long, List<String>> geoData = new TreeMap<>();
+        for (final Map.Entry<?, ?> entry : raw.entrySet()) {
+            final Long schemaKey = entry.getKey() instanceof Number
+                    ? ((Number) entry.getKey()).longValue()
+                    : (Long) entry.getKey();
+            @SuppressWarnings("unchecked")
+            final List<String> points = (List<String>) entry.getValue();
+            geoData.put(schemaKey, points);
+        }
+        return geoData;
     }
 }

@@ -19,6 +19,7 @@ package com.aerospike.firefly.io;
 import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.query.FireflyExpressionIndex;
+import com.aerospike.firefly.process.traversal.predicate.GeoPredicate;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.aerospike.client.query.IndexType.GEO2DSPHERE;
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
 
@@ -94,6 +96,9 @@ public class FireflyIndexMetadata implements FireflyMetadata {
                 } else if (propertyName.endsWith("_" + IndexType.STRING)) {
                     propertyName = propertyName.substring(0, propertyName.length() - IndexType.STRING.toString().length() - 1);
                     indexInfos.add(new IndexInfo(indexName, propertyName, IndexType.STRING, setName));
+                } else if (propertyName.endsWith("_" + IndexType.GEO2DSPHERE)) {
+                    propertyName = propertyName.substring(0, propertyName.length() - IndexType.GEO2DSPHERE.toString().length() - 1);
+                    indexInfos.add(new IndexInfo(indexName, propertyName, IndexType.GEO2DSPHERE, setName));
                 } else {
                     LOG.warn("Unknown index type for index: {}.", indexName);
                 }
@@ -142,6 +147,24 @@ public class FireflyIndexMetadata implements FireflyMetadata {
      * @return PropertyIndexInfo if it exists, empty optional otherwise.
      */
     public Optional<IndexInfo> getPropertyIndexInfo(final Class<? extends FireflyElement> elementClass, final String key, final Object value) {
+        if (value instanceof GeoPredicate || (value instanceof org.apache.tinkerpop.gremlin.process.traversal.P
+                && ((org.apache.tinkerpop.gremlin.process.traversal.P<?>) value).getValue() instanceof GeoPredicate)) {
+            final GeoPredicate geoPredicate = value instanceof GeoPredicate
+                    ? (GeoPredicate) value
+                    : GeoPredicate.unwrap((org.apache.tinkerpop.gremlin.process.traversal.P<?>) value);
+            if (geoPredicate != null && geoPredicate.getQueryType() != GeoPredicate.QueryType.EXACT_POINT) {
+                final List<IndexInfo> indexInfosList = getPropertyIndexInfos();
+                for (final IndexInfo indexInfo : indexInfosList) {
+                    if (FireflyVertex.class.isAssignableFrom(elementClass)
+                            && indexInfo.setName.equals(db.getConfig().vertexAeroSet)
+                            && indexInfo.key.equals(key)
+                            && indexInfo.indexType.equals(GEO2DSPHERE)) {
+                        return Optional.of(indexInfo);
+                    }
+                }
+            }
+            return Optional.empty();
+        }
         final List<IndexInfo> indexInfosList = getPropertyIndexInfos();
         for (final IndexInfo indexInfo : indexInfosList) {
             if (FireflyVertex.class.isAssignableFrom(elementClass)) {

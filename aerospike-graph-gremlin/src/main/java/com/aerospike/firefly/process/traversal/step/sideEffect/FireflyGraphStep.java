@@ -18,6 +18,7 @@ package com.aerospike.firefly.process.traversal.step.sideEffect;
 
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.process.traversal.predicate.GeoPredicate;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -184,15 +185,19 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             return iterator;
         } else if (topContainer.getKey().equals("~label") ||
                 Number.class.isAssignableFrom(topContainer.getValue().getClass()) ||
-                String.class.isAssignableFrom(topContainer.getValue().getClass())) {
+                String.class.isAssignableFrom(topContainer.getValue().getClass()) ||
+                GeoPredicate.unwrap(topContainer.getPredicate()) != null) {
             if (aerospikeSideHasContainers.size() > 0) {
                 // Don't want to filter on something we run as our primary discriminator.
                 aerospikeSideHasContainers.remove(0);
             }
 
             // Find index.
+            final Object indexLookupValue = GeoPredicate.unwrap(topContainer.getPredicate()) != null
+                    ? topContainer.getPredicate().getValue()
+                    : topContainer.getValue();
             final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo =
-                    graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, topContainer.getKey(), topContainer.getValue());
+                    graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, topContainer.getKey(), indexLookupValue);
 
             // If we have index, query it, otherwise we need to scan (or error out).
             if (propertyIndexInfo.isPresent()) {
@@ -203,11 +208,17 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                         evaluationTimeout);
             } else {
                 LOG.debug("No index found for key {} and value {}, running scan", topContainer.getKey(), topContainer.getValue());
+                final GeoPredicate geoPredicate = GeoPredicate.unwrap(topContainer.getPredicate());
+                final String scanBin = geoPredicate != null
+                        ? graph.getBaseGraph().getConfig().geoDataBin
+                        : (topContainer.getKey().equals("~label")
+                        ? graph.getBaseGraph().getConfig().labelBin
+                        : graph.getBaseGraph().getConfig().vertexPropertyDataBin);
                 iterator = graph.graphQuery.scanSet(
                         topContainer.getKey(),
                         graph.getBaseGraph().getConfig().vertexAeroSet,
-                        topContainer.getKey().equals("~label") ? graph.getBaseGraph().getConfig().labelBin : graph.getBaseGraph().getConfig().vertexPropertyDataBin,
-                        topContainer.getPredicate(),
+                        scanBin,
+                        geoPredicate == null ? topContainer.getPredicate() : null,
                         graph::vertexFromRecord,
                         aerospikeSideHasContainers,
                         FireflyVertex.class,

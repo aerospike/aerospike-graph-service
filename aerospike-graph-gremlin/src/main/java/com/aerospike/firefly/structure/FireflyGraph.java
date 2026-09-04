@@ -357,6 +357,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 createVertexPropertyIndexes(FireflyVertex.class, db.getConfig().vertexPropertyDataBin, db.getVpIndexPrefix(),
                         combinedStringVpIndexes, combinedNumericVpIndexes);
 
+                final List<String> geoPropertyIndexes = ConfigurationHelper.getOrDefaultList(
+                        ConfigurationHelper.Keys.VERTEX_PROPERTY_GEO_INDEXES, configuration);
+                createGeoPropertyIndexes(new HashSet<>(geoPropertyIndexes));
+
                 final String expressionIndexesString = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.VERTEX_PROPERTY_EXPRESSION_INDEXES, configuration);
                 createExpressionIndexes(expressionIndexesString);
 
@@ -1485,6 +1489,46 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                                             final Set<String> numericIndexes) {
         createIndexes(elementClass, binName, prefix, stringIndexes, IndexType.STRING, false);
         createIndexes(elementClass, binName, prefix, numericIndexes, IndexType.NUMERIC, false);
+    }
+
+    public void createGeoPropertyIndexes(final Collection<String> geoPropertyIndexes) {
+        if (geoPropertyIndexes == null || geoPropertyIndexes.isEmpty()) {
+            return;
+        }
+        final List<String> existingIndexes =
+                AerospikeConnection.InfoOps.listExistingIndexes(db).stream()
+                        .map(Map.Entry::getKey).collect(Collectors.toList());
+        for (final String index : geoPropertyIndexes) {
+            createGeoPropertyIndex(existingIndexes, index, false);
+        }
+        fireflyIndexMetadata.updateMetadata();
+    }
+
+    public void createGeoPropertyIndexIfNeeded(final String propertyKey) {
+        final List<String> existingIndexes =
+                AerospikeConnection.InfoOps.listExistingIndexes(db).stream()
+                        .map(Map.Entry::getKey).collect(Collectors.toList());
+        createGeoPropertyIndex(existingIndexes, propertyKey, false);
+        fireflyIndexMetadata.updateMetadata();
+    }
+
+    private void createGeoPropertyIndex(final List<String> existingIndexes,
+                                        final String propertyKey,
+                                        final boolean errorOnDuplicate) {
+        final String formattedIndex = String.format("%s_%s", db.getVpIndexPrefix(), propertyKey);
+        final Long indexSchema = db.schemaManager.getGeoPropertyWrite(propertyKey);
+        db.createIndexBackground(existingIndexes, db.setFromElementType(FireflyVertex.class),
+                formattedIndex + "_" + IndexType.GEO2DSPHERE, db.getConfig().geoDataBin,
+                IndexType.GEO2DSPHERE, IndexCollectionType.LIST, errorOnDuplicate,
+                CTX.mapKey(Value.get(indexSchema)));
+    }
+
+    public void createGeoPropertyIndexAdmin(final String propertyKey) {
+        final List<String> existingIndexes =
+                AerospikeConnection.InfoOps.listExistingIndexes(db).stream()
+                        .map(Map.Entry::getKey).collect(Collectors.toList());
+        createGeoPropertyIndex(existingIndexes, propertyKey, true);
+        fireflyIndexMetadata.updateMetadata();
     }
 
     public boolean isEmpty() {

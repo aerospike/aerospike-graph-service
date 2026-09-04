@@ -54,6 +54,7 @@ import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_ADJACEN
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_LABEL_KEY;
 import static com.aerospike.firefly.util.Tokens.EDGE_LABEL_SCHEMA;
 import static com.aerospike.firefly.util.Tokens.EDGE_PROPERTY_SCHEMA;
+import static com.aerospike.firefly.util.Tokens.GEO_PROPERTY_SCHEMA;
 import static com.aerospike.firefly.util.Tokens.VERTEX_LABEL_SCHEMA;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_PROPERTY_SCHEMA;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_SCHEMA;
@@ -70,6 +71,7 @@ public class SchemaManager {
     private final AerospikeConnection db;
     private final Key vertexLabelsKey;
     private final Key vertexPropertiesKey;
+    private final Key geoPropertiesKey;
     private final Key vpPropertiesKey;
     private final Key edgeLabelsKey;
     private final Key edgePropertiesKey;
@@ -78,6 +80,8 @@ public class SchemaManager {
     private final ThreadLocal<Set<String>> missingVertexLabels = ThreadLocal.withInitial(HashSet::new);
     private final BiMap<String, Long> vertexProperties;
     private final ThreadLocal<Set<String>> missingVertexProperties = ThreadLocal.withInitial(HashSet::new);
+    private final BiMap<String, Long> geoProperties;
+    private final ThreadLocal<Set<String>> missingGeoProperties = ThreadLocal.withInitial(HashSet::new);
     private final BiMap<String, Long> vpProperties;
     private final ThreadLocal<Set<String>> missingVpProperties = ThreadLocal.withInitial(HashSet::new);
     private final BiMap<String, Long> edgeLabels;
@@ -92,12 +96,14 @@ public class SchemaManager {
         this.db = db;
         this.vertexLabelsKey = new Key(db.getConfig().namespace, db.getConfig().schemaSet, VERTEX_LABEL_SCHEMA);
         this.vertexPropertiesKey = new Key(db.getConfig().namespace, db.getConfig().schemaSet, VERTEX_PROPERTY_SCHEMA);
+        this.geoPropertiesKey = new Key(db.getConfig().namespace, db.getConfig().schemaSet, GEO_PROPERTY_SCHEMA);
         this.vpPropertiesKey = new Key(db.getConfig().namespace, db.getConfig().schemaSet, VERTEX_PROPERTY_PROPERTY_SCHEMA);
         this.edgeLabelsKey = new Key(db.getConfig().namespace, db.getConfig().schemaSet, EDGE_LABEL_SCHEMA);
         this.edgePropertiesKey = new Key(db.getConfig().namespace, db.getConfig().schemaSet, EDGE_PROPERTY_SCHEMA);
 
         this.vertexLabels = HashBiMap.create();
         this.vertexProperties = HashBiMap.create();
+        this.geoProperties = HashBiMap.create();
         this.vpProperties = HashBiMap.create();
         this.edgeLabels = HashBiMap.create();
         this.edgeProperties = HashBiMap.create();
@@ -106,12 +112,14 @@ public class SchemaManager {
 
         initializedMap.put(this.vertexLabelsKey, new AtomicBoolean(false));
         initializedMap.put(this.vertexPropertiesKey, new AtomicBoolean(false));
+        initializedMap.put(this.geoPropertiesKey, new AtomicBoolean(false));
         initializedMap.put(this.vpPropertiesKey, new AtomicBoolean(false));
         initializedMap.put(this.edgeLabelsKey, new AtomicBoolean(false));
         initializedMap.put(this.edgePropertiesKey, new AtomicBoolean(false));
 
         readableNames.put(this.vertexLabelsKey, "Vertex label");
         readableNames.put(this.vertexPropertiesKey, "Vertex property");
+        readableNames.put(this.geoPropertiesKey, "Geo vertex property");
         readableNames.put(this.vpPropertiesKey, "Vertex properties property");
         readableNames.put(this.edgeLabelsKey, "Edge label");
         readableNames.put(this.edgePropertiesKey, "Edge property");
@@ -203,6 +211,51 @@ public class SchemaManager {
         }
         // This should never happen.
         throw new IllegalStateException("Schema String value did not exist for Vertex property storage type. Please contact support.");
+    }
+
+    public Long getGeoPropertyWrite(final String propertyKey) {
+        for (int attempts = 0; attempts < 10; attempts++) {
+            final Long schema = this.geoProperties.get(propertyKey);
+            if (schema == null) {
+                updateGeoProperties(propertyKey);
+            } else {
+                return schema;
+            }
+        }
+        throw new IllegalStateException("Schema Long value did not exist for Geo vertex property. Please contact support.");
+    }
+
+    public Long getGeoPropertyRead(final String propertyKey) {
+        synchronized (this.geoPropertiesKey) {
+            if (this.geoProperties.containsKey(propertyKey)) {
+                return this.geoProperties.get(propertyKey);
+            } else {
+                if (!missingGeoProperties.get().contains(propertyKey)) {
+                    updateGeoProperties(null);
+                    if (geoProperties.get(propertyKey) == null) {
+                        missingGeoProperties.get().add(propertyKey);
+                    }
+                }
+            }
+            final Long schemaValue = this.geoProperties.get(propertyKey);
+            return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
+        }
+    }
+
+    public String getGeoPropertyString(final Long storagePropertyKey) {
+        for (int attempts = 0; attempts < 10; attempts++) {
+            final String propertyKey = this.geoProperties.inverse().get(storagePropertyKey);
+            if (propertyKey == null) {
+                updateGeoProperties(null);
+            } else {
+                return propertyKey;
+            }
+        }
+        throw new IllegalStateException("Schema String value did not exist for Geo vertex property storage type. Please contact support.");
+    }
+
+    public boolean isRegisteredGeoProperty(final String propertyKey) {
+        return getGeoPropertyRead(propertyKey) != DUMMY_SCHEMA_LONG;
     }
 
     public void populateVertexPropertyStringMapToSchemaMap(final Map<String, ?> vpStringMap,
@@ -416,6 +469,7 @@ public class SchemaManager {
 
     public void resetThreadLocals() {
         this.missingVertexProperties.get().clear();
+        this.missingGeoProperties.get().clear();
         this.missingVertexLabels.get().clear();
         this.missingVpProperties.get().clear();
         this.missingEdgeLabels.get().clear();
@@ -425,6 +479,7 @@ public class SchemaManager {
     public void clearAll() {
         this.vertexLabels.clear();
         this.vertexProperties.clear();
+        this.geoProperties.clear();
         this.vpProperties.clear();
         this.edgeLabels.clear();
         this.edgeProperties.clear();
@@ -442,6 +497,14 @@ public class SchemaManager {
         synchronized (this.vertexPropertiesKey) {
             if (propertyKey == null || !this.vertexProperties.containsKey(propertyKey)) {
                 updateSchemaMap(propertyKey, this.vertexPropertiesKey, this.vertexProperties);
+            }
+        }
+    }
+
+    private void updateGeoProperties(final String propertyKey) {
+        synchronized (this.geoPropertiesKey) {
+            if (propertyKey == null || !this.geoProperties.containsKey(propertyKey)) {
+                updateSchemaMap(propertyKey, this.geoPropertiesKey, this.geoProperties);
             }
         }
     }

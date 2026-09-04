@@ -24,7 +24,9 @@ import com.aerospike.client.exp.Expression;
 import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
+import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.process.traversal.predicate.GeoPredicate;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -83,6 +85,22 @@ public class VertexQueryHelper {
      * @return
      */
     public static Filter predicateToFilter(final AerospikeConnection db, final P<?> predicate, final FireflyIndexMetadata.IndexInfo indexInfo) {
+        if (IndexType.GEO2DSPHERE.equals(indexInfo.indexType)) {
+            final GeoPredicate geoPredicate = GeoPredicate.unwrap(predicate);
+            if (geoPredicate == null) {
+                throw new IllegalArgumentException("Expected GeoPredicate for geo index query.");
+            }
+            final Long schemaKey = db.schemaManager.getGeoPropertyRead(indexInfo.key);
+            final CTX[] ctx = new CTX[]{CTX.mapKey(Value.get(schemaKey))};
+            if (geoPredicate.getQueryType() == GeoPredicate.QueryType.WITHIN_RADIUS) {
+                return Filter.geoWithinRadius(db.getConfig().geoDataBin, IndexCollectionType.LIST,
+                        geoPredicate.getCenterLon(), geoPredicate.getCenterLat(), geoPredicate.getRadiusMeters(), ctx);
+            } else if (geoPredicate.getQueryType() == GeoPredicate.QueryType.WITHIN_REGION) {
+                return Filter.geoWithinRegion(db.getConfig().geoDataBin, IndexCollectionType.LIST,
+                        geoPredicate.getRegionGeoJson(), ctx);
+            }
+            throw new IllegalArgumentException("Geo index queries require radius or region predicates.");
+        }
         final String name;
         if (db.getConfig().labelBin.equals(indexInfo.key)) {
             name = db.getConfig().labelBin;
@@ -116,6 +134,13 @@ public class VertexQueryHelper {
                                             final String binName,
                                             final String mapKey,
                                             final P<?> predicate) {
+        final GeoPredicate geoPredicate = GeoPredicate.unwrap(predicate);
+        if (geoPredicate != null && db.getConfig().geoDataBin.equals(binName)) {
+            return geoPredicateToExpression(db, mapKey, geoPredicate);
+        }
+        if (geoPredicate != null && db.schemaManager.isRegisteredGeoProperty(mapKey)) {
+            return geoPredicateToExpression(db, mapKey, geoPredicate);
+        }
         // If the bin is the label bin, we can make a very simple predicate.
         if (db.getConfig().labelBin.equals(binName)) {
             return Exp.eq(Exp.intBin(db.getConfig().labelBin), Exp.val(db.schemaManager.getVertexLabelRead((String) predicate.getValue())));
@@ -176,12 +201,42 @@ public class VertexQueryHelper {
         }
 
         for (final HasContainer h : hasContainers) {
-            final Exp expFromPredicate = predicateToExpression(db,
-                    h.getKey().equals("~label") ? db.getConfig().labelBin : db.getConfig().vertexPropertyDataBin,
-                    h.getKey(), h.getPredicate());
+            final String binName = resolvePredicateBinName(db, h.getKey());
+            final Exp expFromPredicate = predicateToExpression(db, binName, h.getKey(), h.getPredicate());
             exps.add(expFromPredicate);
         }
         return exps.size() == 1 ? Exp.build(exps.get(0)) : Exp.build(Exp.and(exps.toArray(new Exp[0])));
+    }
+
+    private static String resolvePredicateBinName(final AerospikeConnection db, final String propertyKey) {
+        if ("~label".equals(propertyKey)) {
+            return db.getConfig().labelBin;
+        }
+        if (db.schemaManager.isRegisteredGeoProperty(propertyKey)) {
+            return db.getConfig().geoDataBin;
+        }
+        return db.getConfig().vertexPropertyDataBin;
+    }
+
+    private static Exp geoPredicateToExpression(final AerospikeConnection db,
+                                                  final String mapKey,
+                                                  final GeoPredicate geoPredicate) {
+        final Long schemaKey = db.schemaManager.getGeoPropertyRead(mapKey);
+        final Exp geoValues = MapExp.getByKey(MapReturnType.VALUE, Exp.Type.LIST,
+                Exp.val(schemaKey), Exp.mapBin(db.getConfig().geoDataBin));
+        switch (geoPredicate.getQueryType()) {
+            case WITHIN_RADIUS:
+                final String aeroCircle = String.format(
+                        "{\"type\":\"AeroCircle\",\"coordinates\":[%.10f,%.10f],\"radius\":%.3f}",
+                        geoPredicate.getCenterLon(), geoPredicate.getCenterLat(), geoPredicate.getRadiusMeters());
+                return Exp.geoCompare(geoValues, Exp.geo(aeroCircle));
+            case WITHIN_REGION:
+                return Exp.geoCompare(geoValues, Exp.geo(geoPredicate.getRegionGeoJson()));
+            case EXACT_POINT:
+                return Exp.eq(geoValues, Exp.val(List.of(geoPredicate.getExactGeoJson())));
+            default:
+                throw new IllegalArgumentException("Unsupported geo predicate: " + geoPredicate.getQueryType());
+        }
     }
 
     public static Exp[] hasContainerListToExpArray(final AerospikeConnection db, final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
@@ -196,7 +251,7 @@ public class VertexQueryHelper {
         }
         for (final HasContainer h : hasContainers) {
             final Exp expFromPredicate = predicateToExpression(db,
-                    h.getKey().equals("~label") ? db.getConfig().labelBin : db.getConfig().vertexPropertyDataBin,
+                    resolvePredicateBinName(db, h.getKey()),
                     h.getKey(), h.getPredicate());
             exps.add(expFromPredicate);
         }

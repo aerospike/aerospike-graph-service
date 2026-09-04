@@ -109,6 +109,9 @@ public final class ConfigurationHelper {
         public static final String VERTEX_PROPERTY_STRING_INDEXES = "aerospike.graph.index.vertex.properties.string";
         public static final String VERTEX_PROPERTY_NUMERIC_INDEXES = "aerospike.graph.index.vertex.properties.numeric";
         public static final String VERTEX_PROPERTY_EXPRESSION_INDEXES = "aerospike.graph.index.vertex.compound";
+        public static final String VERTEX_PROPERTY_GEO_INDEXES = "aerospike.graph.index.vertex.properties.geo";
+        public static final String GEO_ENABLED = "aerospike.graph.geo.enabled";
+        public static final String GEO_VERTEX_PROPERTIES = "aerospike.graph.geo.vertex.properties";
         public static final String EDGE_PROPERTY_INDEXES = "aerospike.graph.index.edge.properties";
         public static final String GRAPH_ID = "aerospike.graph.id";
         public static final String TRAVERSAL_NAME = "aerospike.graph.traversal";
@@ -289,6 +292,7 @@ public final class ConfigurationHelper {
             SUPERNODES_IN(Pair.of((byte) 15, "SUPERNODE_IN")),
             SUPERNODES_OUT(Pair.of((byte) 16, "SUPERNODE_OUT")),
             VP_PROPERTY_BIN(Pair.of((byte) 17, "VP_PROPERTIES")),
+            GEO_DATA_BIN(Pair.of((byte) 23, "GEO_DATA")),
             TTL_BIN(Pair.of((byte) 18, "TTL")),
             USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS")),
             EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA")),
@@ -454,6 +458,9 @@ public final class ConfigurationHelper {
         put(Keys.VERTEX_PROPERTY_STRING_INDEXES, "");
         put(Keys.VERTEX_PROPERTY_NUMERIC_INDEXES, "");
         put(Keys.VERTEX_PROPERTY_EXPRESSION_INDEXES, "");
+        put(Keys.VERTEX_PROPERTY_GEO_INDEXES, "");
+        put(Keys.GEO_ENABLED, "true");
+        put(Keys.GEO_VERTEX_PROPERTIES, "");
         put(Keys.EDGE_PROPERTY_INDEXES, "");
         put(Keys.PHAT_EDGE_SIZE, "10");
         put(Keys.MOVEMENT_BARRIER_SIZE, "1000");

@@ -78,6 +78,7 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.olap.process.ConnectedComponentProgram.VertexStatus;
+import static com.aerospike.firefly.util.FireflyHelper.isGeoVertexPropertyValue;
 import static com.aerospike.firefly.util.FireflyHelper.validateAndConvertVertexPropertyValue;
 
 public class DistributedAerospikeConnection {
@@ -671,6 +672,17 @@ public class DistributedAerospikeConnection {
         final List<BatchRecord> batchRecords = new ArrayList<>();
         for (final Map.Entry<FireflyId, Object> entry : values.entrySet()) {
             final Key recordKey = FireflyRecord.getKey(this.db, this.db.getConfig().vertexAeroSet, entry.getKey());
+            if (isGeoVertexPropertyValue(this.db, propertyName, entry.getValue())) {
+                final Long geoSchemaKey = this.db.schemaManager.getGeoPropertyWrite(propertyName);
+                @SuppressWarnings("unchecked")
+                final List<String> points = (List<String>) validateAndConvertVertexPropertyValue(
+                        entry.getValue(), propertyName, this.db.getConfig());
+                final Operation writeGeoData = MapOperation.put(hashMapPolicy, this.db.getConfig().geoDataBin,
+                        Value.get(geoSchemaKey), Value.get(points));
+                batchRecords.add(new BatchWrite(writePolicy, recordKey, new Operation[]{writeGeoData}));
+                this.graph.createGeoPropertyIndexIfNeeded(propertyName);
+                continue;
+            }
             final FireflyId vertexPropertyId = this.db.getIdFactory().generateId(this.graph, FireflyVertexProperty.class);
             final Long vpIdKey = (Long) vertexPropertyId.getStorageId();
             final Object typeHint = getTypeHintOf(entry.getValue(), true);

@@ -36,7 +36,7 @@ public class SindexServiceDrop<I, R> extends SindexServiceBase<I, R> {
     static {
         PARAMS.put(ELEMENT_TYPE, "The type of element to drop the index on. Only 'vertex' is currently supported.");
         PARAMS.put(PROPERTY_KEY, "The property key to drop the index on. '~label' can be used to drop an index on labels.");
-        PARAMS.put(INDEX_TYPE, "Optional parameter and not supported for labels. The type of index to drop on the property key. Value must be 'string' or 'numeric'. If not specified both types are dropped.");
+        PARAMS.put(INDEX_TYPE, "Optional parameter and not supported for labels. The type of index to drop on the property key. Value must be 'string', 'numeric', or 'geo'. If not specified both types are dropped.");
     }
 
     public SindexServiceDrop(final FireflyGraph firefly) {

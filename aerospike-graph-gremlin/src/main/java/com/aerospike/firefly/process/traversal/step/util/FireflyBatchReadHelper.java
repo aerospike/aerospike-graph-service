@@ -19,6 +19,7 @@ package com.aerospike.firefly.process.traversal.step.util;
 import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.process.traversal.predicate.GeoPredicate;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
@@ -332,6 +333,9 @@ public class FireflyBatchReadHelper {
                     }
                 }
                 hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, isSupported));
+            } else if (GeoPredicate.unwrap(hasContainer.getPredicate()) != null) {
+                // Geo predicates are filtered client-side; Aerospike scan/read expressions do not support them yet.
+                hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
             } else if (!Long.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
                     !Integer.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
                     !String.class.isAssignableFrom(hasContainer.getValue().getClass()) &&

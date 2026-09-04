@@ -28,6 +28,7 @@ public final class Tokens {
 
     public static final String VERTEX_LABEL_SCHEMA = "_vxlsch";
     public static final String VERTEX_PROPERTY_SCHEMA = "_vxpsch";
+    public static final String GEO_PROPERTY_SCHEMA = "_geosch";
     public static final String VERTEX_PROPERTY_PROPERTY_SCHEMA = "_vppsch";
     public static final String EDGE_LABEL_SCHEMA = "_elsch";
     public static final String EDGE_PROPERTY_SCHEMA = "_epsch";

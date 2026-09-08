@@ -26,6 +26,7 @@ import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.AfterClass;
@@ -47,6 +48,8 @@ public class TestGeoVertexPropertiesIntegration {
     private static final double NEARBY_LAT = 37.7755;
     private static final double OAKLAND_LON = -122.2711;
     private static final double OAKLAND_LAT = 37.8044;
+
+    private static final String SUPERNODE_GRAPH_ID = "97";
 
     private static FireflyGraph graph;
     private static GraphTraversalSource g;
@@ -190,6 +193,106 @@ public class TestGeoVertexPropertiesIntegration {
         Assert.assertEquals(2, g.V(vertex.id()).values("geoLocation").toList().size());
     }
 
+    /**
+     * Geo properties live in a separate bin, so they have to be added explicitly to the key set that backs keys(),
+     * valueMap() and no-argument properties().
+     */
+    @Test
+    public void keylessAccessIncludesGeoProperty() {
+        final Vertex vertex = g.addV("keyless")
+                .property("geoLocation", Arrays.asList(SF_LON, SF_LAT))
+                .property("name", "keylessCafe")
+                .next();
+
+        Assert.assertTrue("keys() omitted the geo property: " + g.V(vertex.id()).next().keys(),
+                g.V(vertex.id()).next().keys().contains("geoLocation"));
+
+        final Map<Object, Object> valueMap = g.V(vertex.id()).valueMap().next();
+        Assert.assertTrue("valueMap() omitted the geo property: " + valueMap, valueMap.containsKey("geoLocation"));
+        Assert.assertTrue(valueMap.containsKey("name"));
+        Assert.assertEquals(2, g.V(vertex.id()).properties().count().next().intValue());
+    }
+
+    /**
+     * A single write can carry the same property key more than once. The non-geo path keeps every value, so the geo
+     * path must not overwrite all but the last.
+     */
+    @Test
+    public void multiValueGeoPropertyInSingleWriteKeepsEveryPoint() {
+        final Vertex vertex = graph.addVertex(
+                "geoLocation", Arrays.asList(SF_LON, SF_LAT),
+                "geoLocation", Arrays.asList(OAKLAND_LON, OAKLAND_LAT));
+
+        Assert.assertEquals(2, g.V(vertex.id()).values("geoLocation").toList().size());
+    }
+
+    /**
+     * Projecting a geo property alongside an ordinary one must return both, without falling back to reading every
+     * property bin in full.
+     */
+    @Test
+    public void projectedReadReturnsGeoAndNonGeoProperties() {
+        final Vertex vertex = g.addV("projected")
+                .property("geoLocation", Arrays.asList(SF_LON, SF_LAT))
+                .property("name", "projectedCafe")
+                .property("unused", "ignoreMe")
+                .next();
+
+        final Map<Object, Object> valueMap = g.V(vertex.id()).valueMap("geoLocation", "name").next();
+        Assert.assertTrue("Projected read omitted the geo property: " + valueMap, valueMap.containsKey("geoLocation"));
+        Assert.assertTrue(valueMap.containsKey("name"));
+        Assert.assertFalse(valueMap.containsKey("unused"));
+    }
+
+    /**
+     * or() of two radius predicates must match a vertex in either circle.
+     */
+    @Test
+    public void connectiveGeoPredicateMatchesEitherBranch() {
+        g.addV("connective").property("geoLocation", Arrays.asList(SF_LON, SF_LAT)).next();
+        g.addV("connective").property("geoLocation", Arrays.asList(OAKLAND_LON, OAKLAND_LAT)).next();
+
+        final List<Vertex> matches = g.V().has("geoLocation", P.within(SF_LON, SF_LAT, 1000)
+                .or(P.within(OAKLAND_LON, OAKLAND_LAT, 1000))).toList();
+        Assert.assertEquals(2, matches.size());
+    }
+
+    /**
+     * A region query must give the same answer whether Aerospike evaluates it through the geo index or the client
+     * evaluates it during a scan.
+     */
+    @Test
+    public void regionQueryAgreesBetweenIndexAndScan() throws InterruptedException {
+        final Vertex sf = g.addV("region").property("geoLocation", Arrays.asList(SF_LON, SF_LAT)).next();
+        g.addV("region").property("geoLocation", Arrays.asList(OAKLAND_LON, OAKLAND_LAT)).next();
+        waitForGeoIndex("geoLocation");
+
+        final List<Vertex> indexed = g.V().has("geoLocation", P.within(
+                Arrays.asList(-122.52, 37.70),
+                Arrays.asList(-122.35, 37.70),
+                Arrays.asList(-122.35, 37.83),
+                Arrays.asList(-122.52, 37.83),
+                Arrays.asList(-122.52, 37.70))).toList();
+        Assert.assertEquals(1, indexed.size());
+        Assert.assertEquals(sf.id(), indexed.get(0).id());
+
+        g.call("aerospike.graph.admin.index.drop")
+                .with("element_type", "vertex")
+                .with("property_key", "geoLocation")
+                .with("index_type", "geo")
+                .iterate();
+        graph.fireflyIndexMetadata.updateMetadata();
+
+        final List<Vertex> scanned = g.V().has("geoLocation", P.within(
+                Arrays.asList(-122.52, 37.70),
+                Arrays.asList(-122.35, 37.70),
+                Arrays.asList(-122.35, 37.83),
+                Arrays.asList(-122.52, 37.83),
+                Arrays.asList(-122.52, 37.70))).toList();
+        Assert.assertEquals("Index and scan disagree for the same region query", 1, scanned.size());
+        Assert.assertEquals(sf.id(), scanned.get(0).id());
+    }
+
     @Test
     public void geoIdIntegerPropertyDoesNotUseGeoRadiusRewrite() {
         g.addV("legacy").property("geoId", 2).next();
@@ -219,14 +322,205 @@ public class TestGeoVertexPropertiesIntegration {
                 .with("property_key", "geoLocation")
                 .with("index_type", "geo")
                 .next();
-        waitForGeoIndex("geoLocation");
+        waitForGeoIndex(graph, "geoLocation");
+    }
+
+    @Test
+    public void midTraversalHasAfterOutFindsNearbyVertex() throws InterruptedException {
+        final HubSpoke hubSpoke = seedHubSpoke();
+
+        final List<Vertex> matches = g.V(hubSpoke.hub().id()).out().has("geoLocation", P.within(SF_LON, SF_LAT, 1000)).toList();
+        Assert.assertEquals(1, matches.size());
+        Assert.assertEquals(hubSpoke.sf().id(), matches.get(0).id());
+    }
+
+    @Test
+    public void midTraversalHasAfterInVFindsNearbyVertex() throws InterruptedException {
+        final HubSpoke hubSpoke = seedHubSpoke();
+
+        final List<Vertex> matches = g.V(hubSpoke.hub().id()).outE().inV().has("geoLocation", P.within(SF_LON, SF_LAT, 1000)).toList();
+        Assert.assertEquals(1, matches.size());
+        Assert.assertEquals(hubSpoke.sf().id(), matches.get(0).id());
+    }
+
+    @Test
+    public void midTraversalHasAfterOtherVFindsNearbyVertex() throws InterruptedException {
+        final HubSpoke hubSpoke = seedHubSpoke();
+
+        final List<Vertex> matches = g.V(hubSpoke.hub().id()).outE().otherV().has("geoLocation", P.within(SF_LON, SF_LAT, 1000)).toList();
+        Assert.assertEquals(1, matches.size());
+        Assert.assertEquals(hubSpoke.sf().id(), matches.get(0).id());
+    }
+
+    @Test
+    public void midTraversalWhereHasFindsNearbyVertex() throws InterruptedException {
+        final HubSpoke hubSpoke = seedHubSpoke();
+
+        final List<Vertex> matches = g.V(hubSpoke.hub().id()).out()
+                .where(__.has("geoLocation", P.within(SF_LON, SF_LAT, 1000)))
+                .toList();
+        Assert.assertEquals(1, matches.size());
+        Assert.assertEquals(hubSpoke.sf().id(), matches.get(0).id());
+    }
+
+    @Test
+    public void midTraversalValuesAfterOutReturnsGeoCoordinates() throws InterruptedException {
+        final HubSpoke hubSpoke = seedHubSpoke();
+
+        final List<Object> values = g.V(hubSpoke.hub().id()).out().values("geoLocation").toList();
+        Assert.assertEquals(2, values.size());
+        Assert.assertTrue(values.stream().anyMatch(value -> coordinatesNear(value, SF_LON, SF_LAT)));
+        Assert.assertTrue(values.stream().anyMatch(value -> coordinatesNear(value, OAKLAND_LON, OAKLAND_LAT)));
+    }
+
+    @Test
+    public void midTraversalHasAfterOutEOutVFindsNearbyVertex() throws InterruptedException {
+        final HubSpoke hubSpoke = seedHubSpoke();
+
+        final List<Vertex> matches = g.V(hubSpoke.sf().id()).inE("near").outV().out("near")
+                .has("geoLocation", P.within(SF_LON, SF_LAT, 1000))
+                .toList();
+        Assert.assertEquals(1, matches.size());
+        Assert.assertEquals(hubSpoke.sf().id(), matches.get(0).id());
+    }
+
+    @Test
+    public void supernodeVertexReadsAndFiltersGeoProperty() throws InterruptedException {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED, "false");
+        config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, "2");
+        // Its own graph id: this graph gets dropped, and dropping truncates the schema set that the graph id scopes.
+        config.setProperty(ConfigurationHelper.Keys.GRAPH_ID, SUPERNODE_GRAPH_ID);
+        try (FireflyGraph supernodeGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource sg = supernodeGraph.traversal();
+            final Vertex hub = sg.addV("hub")
+                    .property("geoLocation", Arrays.asList(SF_LON, SF_LAT))
+                    .next();
+            for (int i = 0; i < 3; i++) {
+                final Vertex leaf = sg.addV("leaf").property("idx", i).next();
+                sg.V(hub.id()).addE("link").to(leaf).iterate();
+            }
+
+            final FireflyVertex reloadedHub = (FireflyVertex) sg.V(hub.id()).next();
+            Assert.assertTrue(reloadedHub.isEdgeCacheOverflowed());
+
+            waitForGeoIndex(supernodeGraph, "geoLocation");
+
+            @SuppressWarnings("unchecked")
+            final List<Double> roundTrip = (List<Double>) sg.V(hub.id()).values("geoLocation").next();
+            Assert.assertEquals(SF_LON, roundTrip.get(0), 0.0001);
+            Assert.assertEquals(SF_LAT, roundTrip.get(1), 0.0001);
+
+            final List<Vertex> matches = sg.V().has("geoLocation", P.within(SF_LON, SF_LAT, 1000)).toList();
+            Assert.assertEquals(1, matches.size());
+            Assert.assertEquals(hub.id(), matches.get(0).id());
+
+            supernodeGraph.getBaseGraph().dropDatabase(supernodeGraph, true);
+        }
+    }
+
+    @Test
+    public void supernodeHubOutStepFiltersGeoOnAdjacentVertices() throws InterruptedException {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED, "false");
+        config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, "2");
+        // Its own graph id: this graph gets dropped, and dropping truncates the schema set that the graph id scopes.
+        config.setProperty(ConfigurationHelper.Keys.GRAPH_ID, SUPERNODE_GRAPH_ID);
+        try (FireflyGraph supernodeGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource sg = supernodeGraph.traversal();
+            final Vertex hub = sg.addV("hub").property("name", "hub").next();
+            final Vertex sf = sg.addV("leaf").property("geoLocation", Arrays.asList(SF_LON, SF_LAT)).next();
+            final Vertex oakland = sg.addV("leaf").property("geoLocation", Arrays.asList(OAKLAND_LON, OAKLAND_LAT)).next();
+            sg.V(hub.id()).addE("near").to(sf).iterate();
+            sg.V(hub.id()).addE("near").to(oakland).iterate();
+            sg.V(hub.id()).addE("extra").to(sg.addV("leaf").property("idx", 1).next()).iterate();
+
+            Assert.assertTrue(((FireflyVertex) sg.V(hub.id()).next()).isEdgeCacheOverflowed());
+            waitForGeoIndex(supernodeGraph, "geoLocation");
+
+            final List<Vertex> matches = sg.V(hub.id()).out().has("geoLocation", P.within(SF_LON, SF_LAT, 1000)).toList();
+            Assert.assertEquals(1, matches.size());
+            Assert.assertEquals(sf.id(), matches.get(0).id());
+
+            supernodeGraph.getBaseGraph().dropDatabase(supernodeGraph, true);
+        }
+    }
+
+    @Test
+    public void explicitSupernodeFlagReadsAndFiltersGeoProperty() throws InterruptedException {
+        final Vertex hub = g.addV("hub")
+                .property(FireflyVertex.SUPERNODE_PROPERTY_KEY, true)
+                .property("geoLocation", Arrays.asList(SF_LON, SF_LAT))
+                .next();
+        waitForGeoIndex(graph, "geoLocation");
+
+        Assert.assertTrue(((FireflyVertex) g.V(hub.id()).next()).isEdgeCacheOverflowed());
+
+        @SuppressWarnings("unchecked")
+        final List<Double> roundTrip = (List<Double>) g.V(hub.id()).values("geoLocation").next();
+        Assert.assertEquals(SF_LON, roundTrip.get(0), 0.0001);
+        Assert.assertEquals(SF_LAT, roundTrip.get(1), 0.0001);
+
+        final List<Vertex> matches = g.V().has("geoLocation", P.within(SF_LON, SF_LAT, 1000)).toList();
+        Assert.assertEquals(1, matches.size());
+        Assert.assertEquals(hub.id(), matches.get(0).id());
+    }
+
+    private static HubSpoke seedHubSpoke() throws InterruptedException {
+        final Vertex hub = g.addV("place").property("name", "hub").next();
+        final Vertex sf = g.addV("place").property("geoLocation", Arrays.asList(SF_LON, SF_LAT)).next();
+        final Vertex oakland = g.addV("place").property("geoLocation", Arrays.asList(OAKLAND_LON, OAKLAND_LAT)).next();
+        g.V(hub.id()).addE("near").to(sf).iterate();
+        g.V(hub.id()).addE("near").to(oakland).iterate();
+        waitForGeoIndex(graph, "geoLocation");
+        return new HubSpoke(hub, sf, oakland);
+    }
+
+    private static boolean coordinatesNear(final Object value, final double expectedLon, final double expectedLat) {
+        if (!(value instanceof List)) {
+            return false;
+        }
+        final List<?> coordinates = (List<?>) value;
+        if (coordinates.size() != 2) {
+            return false;
+        }
+        return Math.abs(((Number) coordinates.get(0)).doubleValue() - expectedLon) < 0.0001
+                && Math.abs(((Number) coordinates.get(1)).doubleValue() - expectedLat) < 0.0001;
+    }
+
+    private static final class HubSpoke {
+        private final Vertex hub;
+        private final Vertex sf;
+        private final Vertex oakland;
+
+        private HubSpoke(final Vertex hub, final Vertex sf, final Vertex oakland) {
+            this.hub = hub;
+            this.sf = sf;
+            this.oakland = oakland;
+        }
+
+        private Vertex hub() {
+            return hub;
+        }
+
+        private Vertex sf() {
+            return sf;
+        }
+
+        private Vertex oakland() {
+            return oakland;
+        }
     }
 
     private static void waitForGeoIndex(final String propertyKey) throws InterruptedException {
+        waitForGeoIndex(graph, propertyKey);
+    }
+
+    private static void waitForGeoIndex(final FireflyGraph targetGraph, final String propertyKey) throws InterruptedException {
         final long deadline = System.currentTimeMillis() + 30000;
         while (System.currentTimeMillis() < deadline) {
-            graph.fireflyIndexMetadata.updateMetadata();
-            final FireflyIndexMetadata.IndexInfo info = graph.fireflyIndexMetadata.getPropertyIndexInfos().stream()
+            targetGraph.fireflyIndexMetadata.updateMetadata();
+            final FireflyIndexMetadata.IndexInfo info = targetGraph.fireflyIndexMetadata.getPropertyIndexInfos().stream()
                     .filter(indexInfo -> propertyKey.equals(indexInfo.key)
                             && IndexType.GEO2DSPHERE.equals(indexInfo.indexType))
                     .findFirst()
@@ -235,7 +529,7 @@ public class TestGeoVertexPropertiesIntegration {
                 try {
                     @SuppressWarnings("unchecked")
                     final Map<String, Long> status = (Map<String, Long>) Admin.INDEX
-                            .getStatusVertexPropertyIndex(graph, propertyKey, IndexType.GEO2DSPHERE);
+                            .getStatusVertexPropertyIndex(targetGraph, propertyKey, IndexType.GEO2DSPHERE);
                     if (status.get("percent_complete") == 100L) {
                         return;
                     }

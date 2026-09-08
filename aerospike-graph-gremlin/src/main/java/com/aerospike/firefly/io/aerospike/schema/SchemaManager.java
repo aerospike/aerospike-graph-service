@@ -255,6 +255,11 @@ public class SchemaManager {
     }
 
     public boolean isRegisteredGeoProperty(final String propertyKey) {
+        // Called on every property read and every has() rewrite. When geo is off there is nothing to look up, so skip
+        // the schema lock entirely rather than making non-geo graphs pay for it.
+        if (!this.db.getConfig().geoEnabled) {
+            return false;
+        }
         return getGeoPropertyRead(propertyKey) != DUMMY_SCHEMA_LONG;
     }
 
@@ -462,6 +467,7 @@ public class SchemaManager {
     public void updateAll() {
         updateVertexLabels(null);
         updateVertexProperties(null);
+        updateGeoProperties(null);
         updateVpProperties(null);
         updateEdgeLabels(null);
         updateEdgeProperties(null);

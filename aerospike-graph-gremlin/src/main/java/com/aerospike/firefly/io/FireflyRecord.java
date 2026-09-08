@@ -173,20 +173,27 @@ public class FireflyRecord {
                 // read without cache because no edges (see line 152)
                 records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
             } else if (!readInfo.requiredProperties.isEmpty()) {
-                final boolean requiresGeoProperty = readInfo.requiredProperties.stream()
-                        .anyMatch(propertyKey -> db.schemaManager.isRegisteredGeoProperty(propertyKey));
-                if (requiresGeoProperty) {
-                    db.getConfig().vertexPropertyBins.forEach(bin -> operations.add(Operation.get(bin)));
-                    records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
-                } else {
-                    // No cache for non-empty required properties.
-                    final List<Value> properties = readInfo.requiredProperties.stream().map(propertyKey -> {
-                        final Long schemaPropertyKey = db.schemaManager.getVertexPropertyRead(propertyKey);
-                        return Value.get(schemaPropertyKey);
-                    }).collect(Collectors.toList());
-                    db.getConfig().vertexPropertyBins.forEach(bin -> operations.add(MapOperation.getByKeyList(bin, properties, MapReturnType.UNORDERED_MAP)));
-                    records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
+                // No cache for non-empty required properties. Geo properties are keyed by their own schema in a
+                // separate bin, so they need a projection of their own rather than a full read of every bin.
+                final List<Value> properties = new ArrayList<>();
+                final List<Value> geoProperties = new ArrayList<>();
+                for (final String propertyKey : readInfo.requiredProperties) {
+                    if (db.schemaManager.isRegisteredGeoProperty(propertyKey)) {
+                        geoProperties.add(Value.get(db.schemaManager.getGeoPropertyRead(propertyKey)));
+                    } else {
+                        properties.add(Value.get(db.schemaManager.getVertexPropertyRead(propertyKey)));
+                    }
                 }
+                for (final String bin : db.getConfig().vertexPropertyBins) {
+                    if (bin.equals(db.getConfig().geoDataBin)) {
+                        if (!geoProperties.isEmpty()) {
+                            operations.add(MapOperation.getByKeyList(bin, geoProperties, MapReturnType.UNORDERED_MAP));
+                        }
+                    } else if (!properties.isEmpty()) {
+                        operations.add(MapOperation.getByKeyList(bin, properties, MapReturnType.UNORDERED_MAP));
+                    }
+                }
+                records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
             } else {
                 records = readInfo.areEdgesRequired
                         // No property read uses empty property transaction cache when edges are present

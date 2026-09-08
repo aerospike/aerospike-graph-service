@@ -22,6 +22,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 public class TestFireflyGeoValue {
     @Test
@@ -41,6 +42,24 @@ public class TestFireflyGeoValue {
                 List.of(-122.1000, 37.4300));
         final List<String> points = FireflyGeoValue.toGeoJsonPoints(input);
         Assert.assertEquals(2, points.size());
+    }
+
+    /**
+     * Coordinates must always format with a dot decimal separator. Under a locale such as Germany a comma turns the
+     * two-element coordinate array into four elements, which the server stores without complaint.
+     */
+    @Test
+    public void formatsCoordinatesWithDotSeparatorUnderCommaDecimalLocale() {
+        final Locale original = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.GERMANY);
+            final String point = FireflyGeoValue.toGeoJsonPoint(-122.0862, 37.4220);
+            Assert.assertTrue("Coordinates must use a dot decimal separator: " + point,
+                    point.contains("-122.0862") && point.contains("37.4220"));
+            Assert.assertEquals(List.of(-122.0862, 37.4220), FireflyGeoValue.fromGeoJsonPoint(point));
+        } finally {
+            Locale.setDefault(original);
+        }
     }
 
     @Test

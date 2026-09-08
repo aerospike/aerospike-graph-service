@@ -22,6 +22,7 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 
 public final class FireflyGeoValue {
     public static final long GEO_TYPE_HINT = 10L;
@@ -92,7 +93,9 @@ public final class FireflyGeoValue {
 
     public static String toGeoJsonPoint(final double lon, final double lat) {
         validateCoordinates(lon, lat);
-        return String.format("{\"type\":\"Point\",\"coordinates\":[%.10f,%.10f]}", lon, lat);
+        // Locale.ROOT keeps the decimal separator a dot. A comma silently yields a four-element coordinate array,
+        // which the server stores without complaint.
+        return String.format(Locale.ROOT, "{\"type\":\"Point\",\"coordinates\":[%.10f,%.10f]}", lon, lat);
     }
 
     public static List<String> toGeoJsonPoints(final Object value) {

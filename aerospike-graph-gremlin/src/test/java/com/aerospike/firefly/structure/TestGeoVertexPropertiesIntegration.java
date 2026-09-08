@@ -89,11 +89,15 @@ public class TestGeoVertexPropertiesIntegration {
                 graph.getBaseGraph().getConfig().vertexAeroSet,
                 Value.get(vertex.id()));
         final Record record = graph.getBaseGraph().read(recordKey, null);
-        final Map<Long, List<String>> geoData = (Map<Long, List<String>>) record.getMap(
+        final Map<Long, List<Object>> geoData = (Map<Long, List<Object>>) record.getMap(
                 graph.getBaseGraph().getConfig().geoDataBin);
         Assert.assertNotNull(geoData);
         Assert.assertEquals(1, geoData.size());
-        Assert.assertTrue(geoData.values().iterator().next().get(0).contains("Point"));
+        final Object storedPoint = geoData.values().iterator().next().get(0);
+        // A GEO2DSPHERE index only indexes GeoJSON particles, so the stored point must not be a plain string.
+        Assert.assertTrue("Stored geo point should be a GeoJSON particle but was " + storedPoint.getClass(),
+                storedPoint instanceof Value.GeoJSONValue);
+        Assert.assertTrue(storedPoint.toString().contains("Point"));
 
         waitForGeoIndex("geoLocation");
     }
@@ -107,6 +111,25 @@ public class TestGeoVertexPropertiesIntegration {
         final List<Vertex> matches = g.V().has("geoLocation", P.within(SF_LON, SF_LAT, 1000)).toList();
         Assert.assertEquals(1, matches.size());
         Assert.assertEquals(sf.id(), matches.get(0).id());
+    }
+
+    /**
+     * Geo points must be written as Aerospike GeoJSON values. Plain strings are written as STRING particles, which a
+     * GEO2DSPHERE index silently declines to index, leaving a fully-built index with zero entries.
+     */
+    @Test
+    public void geoIndexContainsEntriesForWrittenPoints() throws InterruptedException {
+        g.addV("indexed").property("geoLocation", Arrays.asList(SF_LON, SF_LAT)).next();
+        g.addV("indexed").property("geoLocation", Arrays.asList(OAKLAND_LON, OAKLAND_LAT)).next();
+        waitForGeoIndex("geoLocation");
+
+        @SuppressWarnings("unchecked")
+        final Map<String, Long> status = (Map<String, Long>) Admin.INDEX
+                .getStatusVertexPropertyIndex(graph, "geoLocation", IndexType.GEO2DSPHERE);
+        Assert.assertEquals(Long.valueOf(100L), status.get("percent_complete"));
+        Assert.assertTrue("Geo index reported " + status.get("total_entries")
+                        + " entries; geo points are not being indexed.",
+                status.get("total_entries") >= 2L);
     }
 
     @Test

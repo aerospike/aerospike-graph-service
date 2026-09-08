@@ -22,7 +22,9 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.LazyEdgeCacheIdTransform;
 import com.aerospike.firefly.structure.id.LazyIdTransform;
+import com.aerospike.firefly.util.FireflyGeoValue;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +39,7 @@ public class FireflyVertexFactory {
                                        final Map<Long, HashMap<Object, List<Long>>> vertexProperties,
                                        final Map<Long, Map<Long, Object>> vpTypeHints,
                                        final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties,
-                                       final Map<Long, List<String>> geoData,
+                                       final Map<Long, ?> geoData,
                                        final boolean isEdgeCacheOverflowed) {
 
         return new FireflyVertex(
@@ -113,18 +115,34 @@ public class FireflyVertexFactory {
                 vertexProperties, vpTypeHints, vpProperties, geoData, edgeCacheOverflowed);
     }
 
-    static Map<Long, List<String>> normalizeGeoDataMap(final Map<Long, List<String>> geoData) {
+    /**
+     * Coerce a raw GEO_DATA bin value into the map representation vertices cache. Aerospike returns geo points as
+     * {@link com.aerospike.client.Value.GeoJSONValue}, so points are unwrapped to their GeoJSON strings here.
+     */
+    static Map<Long, List<String>> normalizeGeoDataMap(final Map<Long, ?> geoData) {
         if (geoData == null || geoData.isEmpty()) {
             return new TreeMap<>();
         }
         final Map<Long, List<String>> normalized = new TreeMap<>();
-        for (final Map.Entry<Long, List<String>> entry : geoData.entrySet()) {
+        for (final Map.Entry<Long, ?> entry : geoData.entrySet()) {
             final Long schemaKey = entry.getKey() instanceof Number
                     ? ((Number) entry.getKey()).longValue()
                     : entry.getKey();
-            normalized.put(schemaKey, entry.getValue());
+            normalized.put(schemaKey, normalizeGeoPoints(entry.getValue()));
         }
         return normalized;
+    }
+
+    private static List<String> normalizeGeoPoints(final Object points) {
+        if (!(points instanceof List)) {
+            throw new IllegalArgumentException("Unexpected geo point collection: " + points);
+        }
+        final List<?> rawPoints = (List<?>) points;
+        final List<String> geoJsonPoints = new ArrayList<>(rawPoints.size());
+        for (final Object point : rawPoints) {
+            geoJsonPoints.add(FireflyGeoValue.fromStoredPoint(point));
+        }
+        return geoJsonPoints;
     }
 
     private static Map<Long, List<String>> readGeoDataMap(final Record record, final String binName) {
@@ -135,15 +153,13 @@ public class FireflyVertexFactory {
         if (raw == null || raw.isEmpty()) {
             return null;
         }
-        final Map<Long, List<String>> geoData = new TreeMap<>();
+        final Map<Long, Object> geoData = new TreeMap<>();
         for (final Map.Entry<?, ?> entry : raw.entrySet()) {
             final Long schemaKey = entry.getKey() instanceof Number
                     ? ((Number) entry.getKey()).longValue()
                     : (Long) entry.getKey();
-            @SuppressWarnings("unchecked")
-            final List<String> points = (List<String>) entry.getValue();
-            geoData.put(schemaKey, points);
+            geoData.put(schemaKey, entry.getValue());
         }
-        return geoData;
+        return normalizeGeoDataMap(geoData);
     }
 }

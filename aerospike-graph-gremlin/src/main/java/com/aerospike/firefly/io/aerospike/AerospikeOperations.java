@@ -67,6 +67,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import com.aerospike.firefly.structure.iterator.FireflyBatchEdgeIterator;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
+import com.aerospike.firefly.util.FireflyGeoValue;
 import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
@@ -294,7 +295,9 @@ public class AerospikeOperations {
         final Operation writeVpTypeHints = Operation.put(vpTypeHintsBin);
         Operation writeGeoData = null;
         if (!geoData.isEmpty()) {
-            final Bin geoDataBin = new Bin(db.getConfig().geoDataBin, Value.get(geoData));
+            final Map<Long, List<Value>> geoDataValues = new TreeMap<>();
+            geoData.forEach((schemaKey, points) -> geoDataValues.put(schemaKey, FireflyGeoValue.toGeoJsonValues(points)));
+            final Bin geoDataBin = new Bin(db.getConfig().geoDataBin, Value.get(geoDataValues));
             writeGeoData = Operation.put(geoDataBin);
         }
 
@@ -663,8 +666,8 @@ public class AerospikeOperations {
             final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties =
                     (Map<Long, Map<Long, Map<Long, List<Object>>>>) getLastOperationResult(result, this.db.getConfig().vpPropertyBin);
             @SuppressWarnings("unchecked")
-            final Map<Long, List<String>> geoData =
-                    (Map<Long, List<String>>) getLastOperationResult(result, this.db.getConfig().geoDataBin);
+            final Map<Long, ?> geoData =
+                    (Map<Long, ?>) getLastOperationResult(result, this.db.getConfig().geoDataBin);
 
             // Update this FireflyVertex in JVM cache
             vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties, geoData);
@@ -722,8 +725,8 @@ public class AerospikeOperations {
             final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties =
                     (Map<Long, Map<Long, Map<Long, List<Object>>>>) getLastOperationResult(result, this.db.getConfig().vpPropertyBin);
             @SuppressWarnings("unchecked")
-            final Map<Long, List<String>> geoData =
-                    (Map<Long, List<String>>) getLastOperationResult(result, this.db.getConfig().geoDataBin);
+            final Map<Long, ?> geoData =
+                    (Map<Long, ?>) getLastOperationResult(result, this.db.getConfig().geoDataBin);
 
             // Update this FireflyVertex in JVM cache
             vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties, geoData);
@@ -879,12 +882,13 @@ public class AerospikeOperations {
         final List<String> points = (List<String>) validateAndConvertVertexPropertyValue(value, key, db.getConfig());
         final MapPolicy hashMapPolicy = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.DEFAULT);
         if (cardinality.equals(VertexProperty.Cardinality.single)) {
-            operations.add(MapOperation.put(hashMapPolicy, db.getConfig().geoDataBin, Value.get(schemaKey), Value.get(points)));
+            operations.add(MapOperation.put(hashMapPolicy, db.getConfig().geoDataBin, Value.get(schemaKey),
+                    Value.get(FireflyGeoValue.toGeoJsonValues(points))));
         } else {
             for (final String point : points) {
                 operations.add(ListOperation.append(new ListPolicy(ListOrder.UNORDERED,
                                 ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL | ListWriteFlags.PARTIAL),
-                        db.getConfig().geoDataBin, Value.get(point),
+                        db.getConfig().geoDataBin, Value.getAsGeoJSON(point),
                         CTX.mapKeyCreate(Value.get(schemaKey), MapOrder.UNORDERED)));
             }
         }

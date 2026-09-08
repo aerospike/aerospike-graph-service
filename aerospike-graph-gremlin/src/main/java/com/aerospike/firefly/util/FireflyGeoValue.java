@@ -16,6 +16,7 @@
 
 package com.aerospike.firefly.util;
 
+import com.aerospike.client.Value;
 import org.apache.tinkerpop.gremlin.structure.Property;
 
 import java.util.ArrayList;
@@ -116,6 +117,35 @@ public final class FireflyGeoValue {
             points.add(toGeoJsonPoint(coords[0], coords[1]));
         }
         return points;
+    }
+
+    /**
+     * Wrap GeoJSON point strings as Aerospike GeoJSON values. Plain strings are written as STRING particles, which a
+     * GEO2DSPHERE index does not index, so every geo write must go through this.
+     */
+    public static List<Value> toGeoJsonValues(final List<String> geoJsonPoints) {
+        final List<Value> values = new ArrayList<>(geoJsonPoints.size());
+        for (final String point : geoJsonPoints) {
+            values.add(Value.getAsGeoJSON(point));
+        }
+        return values;
+    }
+
+    /**
+     * Convert a stored geo point back to its GeoJSON string. Reads return {@link Value.GeoJSONValue}, but records
+     * written before geo values were typed still hold plain strings.
+     */
+    public static String fromStoredPoint(final Object storedPoint) {
+        if (storedPoint == null) {
+            throw new IllegalArgumentException("Stored geo point cannot be null.");
+        }
+        if (storedPoint instanceof String) {
+            return (String) storedPoint;
+        }
+        if (storedPoint instanceof Value.GeoJSONValue) {
+            return storedPoint.toString();
+        }
+        throw new IllegalArgumentException("Unexpected stored geo point type: " + storedPoint.getClass().getName());
     }
 
     public static List<Double> fromGeoJsonPoint(final String geoJson) {

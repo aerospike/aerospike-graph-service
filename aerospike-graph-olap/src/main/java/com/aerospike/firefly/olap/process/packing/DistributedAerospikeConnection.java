@@ -59,6 +59,7 @@ import com.aerospike.firefly.olap.structure.job.Job;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.util.FireflyGeoValue;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
@@ -678,7 +679,7 @@ public class DistributedAerospikeConnection {
                 final List<String> points = (List<String>) validateAndConvertVertexPropertyValue(
                         entry.getValue(), propertyName, this.db.getConfig());
                 final Operation writeGeoData = MapOperation.put(hashMapPolicy, this.db.getConfig().geoDataBin,
-                        Value.get(geoSchemaKey), Value.get(points));
+                        Value.get(geoSchemaKey), Value.get(FireflyGeoValue.toGeoJsonValues(points)));
                 batchRecords.add(new BatchWrite(writePolicy, recordKey, new Operation[]{writeGeoData}));
                 this.graph.createGeoPropertyIndexIfNeeded(propertyName);
                 continue;

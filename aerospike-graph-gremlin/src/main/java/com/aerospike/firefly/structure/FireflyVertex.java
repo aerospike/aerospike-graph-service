@@ -94,7 +94,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                          final Map<Long, HashMap<Object, List<Long>>> vertexProperties,
                          final Map<Long, Map<Long, Object>> vpTypeHints,
                          final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties,
-                         final Map<Long, List<String>> geoData,
+                         final Map<Long, ?> geoData,
                          final boolean isEdgeCacheOverflowed) {
         super(fid, label);
         this.graph = graph;
@@ -177,7 +177,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     public void updateVertexPropertyJVMCache(final Map<Long, HashMap<Object, List<Long>>> vertexProperties,
                                              final Map<Long, Map<Long, Object>> vpTypeHints,
                                              final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties,
-                                             final Map<Long, List<String>> geoData) {
+                                             final Map<Long, ?> geoData) {
         this.vertexProperties = vertexProperties == null ? new TreeMap<>() : vertexProperties;
         this.vpTypeHints = vpTypeHints == null ? new HashMap<>() : vpTypeHints;
         this.vpProperties = vpProperties == null ? new HashMap<>() : vpProperties;

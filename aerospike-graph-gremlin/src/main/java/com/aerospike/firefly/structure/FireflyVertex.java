@@ -670,10 +670,19 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      * @return Set of vertex property keys.
      */
     protected Set<String> readVertexPropertyKeys() {
-        return this.vertexProperties.keySet()
+        final Set<String> keys = this.vertexProperties.keySet()
                 .stream()
                 .map(this.db.schemaManager::getVertexPropertyString)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(HashSet::new));
+        // Geo properties live in their own bin, so they would otherwise be invisible to keys(), valueMap() and
+        // no-argument properties().
+        if (this.geoData != null) {
+            this.geoData.keySet()
+                    .stream()
+                    .map(this.db.schemaManager::getGeoPropertyString)
+                    .forEach(keys::add);
+        }
+        return keys;
     }
 
 

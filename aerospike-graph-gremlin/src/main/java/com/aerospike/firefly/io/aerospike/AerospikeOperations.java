@@ -249,7 +249,14 @@ public class AerospikeOperations {
                 final List<String> geoPoints = (List<String>) validateAndConvertVertexPropertyValue(
                         property.getValue(), property.getKey(), db.getConfig());
                 final Long geoSchemaKey = db.schemaManager.getGeoPropertyWrite(property.getKey());
-                geoData.put(geoSchemaKey, geoPoints);
+                // Accumulate rather than replace: the same key can appear more than once in a single write, and the
+                // non-geo path below keeps every value too.
+                final List<String> existingPoints = geoData.computeIfAbsent(geoSchemaKey, k -> new ArrayList<>());
+                for (final String geoPoint : geoPoints) {
+                    if (!existingPoints.contains(geoPoint)) {
+                        existingPoints.add(geoPoint);
+                    }
+                }
                 geoPropertyKeysWritten.add(property.getKey());
                 continue;
             }

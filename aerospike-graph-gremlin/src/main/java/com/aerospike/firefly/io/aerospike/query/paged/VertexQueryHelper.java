@@ -134,13 +134,6 @@ public class VertexQueryHelper {
                                             final String binName,
                                             final String mapKey,
                                             final P<?> predicate) {
-        final GeoPredicate geoPredicate = GeoPredicate.unwrap(predicate);
-        if (geoPredicate != null && db.getConfig().geoDataBin.equals(binName)) {
-            return geoPredicateToExpression(db, mapKey, geoPredicate);
-        }
-        if (geoPredicate != null && db.schemaManager.isRegisteredGeoProperty(mapKey)) {
-            return geoPredicateToExpression(db, mapKey, geoPredicate);
-        }
         // If the bin is the label bin, we can make a very simple predicate.
         if (db.getConfig().labelBin.equals(binName)) {
             return Exp.eq(Exp.intBin(db.getConfig().labelBin), Exp.val(db.schemaManager.getVertexLabelRead((String) predicate.getValue())));
@@ -216,27 +209,6 @@ public class VertexQueryHelper {
             return db.getConfig().geoDataBin;
         }
         return db.getConfig().vertexPropertyDataBin;
-    }
-
-    private static Exp geoPredicateToExpression(final AerospikeConnection db,
-                                                  final String mapKey,
-                                                  final GeoPredicate geoPredicate) {
-        final Long schemaKey = db.schemaManager.getGeoPropertyRead(mapKey);
-        final Exp geoValues = MapExp.getByKey(MapReturnType.VALUE, Exp.Type.LIST,
-                Exp.val(schemaKey), Exp.mapBin(db.getConfig().geoDataBin));
-        switch (geoPredicate.getQueryType()) {
-            case WITHIN_RADIUS:
-                final String aeroCircle = String.format(
-                        "{\"type\":\"AeroCircle\",\"coordinates\":[%.10f,%.10f],\"radius\":%.3f}",
-                        geoPredicate.getCenterLon(), geoPredicate.getCenterLat(), geoPredicate.getRadiusMeters());
-                return Exp.geoCompare(geoValues, Exp.geo(aeroCircle));
-            case WITHIN_REGION:
-                return Exp.geoCompare(geoValues, Exp.geo(geoPredicate.getRegionGeoJson()));
-            case EXACT_POINT:
-                return Exp.eq(geoValues, Exp.val(List.of(geoPredicate.getExactGeoJson())));
-            default:
-                throw new IllegalArgumentException("Unsupported geo predicate: " + geoPredicate.getQueryType());
-        }
     }
 
     public static Exp[] hasContainerListToExpArray(final AerospikeConnection db, final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {

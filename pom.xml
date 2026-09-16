@@ -93,7 +93,7 @@
         <guava.version>31.1-jre</guava.version>
         <resilience4j.version>1.7.1</resilience4j.version>
         <spark.version>3.5.8</spark.version>
-        <vertx.version>4.5.32</vertx.version>
+        <vertx.version>5.1.6</vertx.version>
         <jackson.version>2.22.2</jackson.version>
         <prometheus.version>0.16.0</prometheus.version>
         <awssdk.version>1.12.797</awssdk.version>

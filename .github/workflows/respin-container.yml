@@ -24,7 +24,7 @@ on:
   workflow_dispatch:
     inputs:
       app-version:
-        description: Published AGS version to rebuild the image from, for example 3.3.1
+        description: Published AGS version to rebuild the image from, for example 3.4.0
         required: true
         type: string
 

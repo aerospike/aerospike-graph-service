@@ -27,7 +27,7 @@ break_apiversion() {
 }
 
 @test "the shipped chart packages and every manifest validates" {
-    run "$SCRIPT" 3.3.1 3.7.0 "${BATS_TEST_TMPDIR}/ok"
+    run "$SCRIPT" 3.4.0 3.7.0 "${BATS_TEST_TMPDIR}/ok"
     [ "$status" -eq 0 ]
     [ -f "${BATS_TEST_TMPDIR}/ok/aerospike-graph-3.7.0.tgz" ]
 }
@@ -35,7 +35,7 @@ break_apiversion() {
 @test "a swallowed apiVersion in a default template fails the build" {
     local chart
     chart="$(break_apiversion serviceaccount.yaml)"
-    CHART_DIR="$chart" run "$SCRIPT" 3.3.1 3.7.0 "${BATS_TEST_TMPDIR}/bad1"
+    CHART_DIR="$chart" run "$SCRIPT" 3.4.0 3.7.0 "${BATS_TEST_TMPDIR}/bad1"
     [ "$status" -ne 0 ]
     [[ "$output" == *"ServiceAccount"* ]]
 }
@@ -44,7 +44,7 @@ break_apiversion() {
 @test "a swallowed apiVersion in an optional template fails the build" {
     local chart
     chart="$(break_apiversion ingress.yaml)"
-    CHART_DIR="$chart" run "$SCRIPT" 3.3.1 3.7.0 "${BATS_TEST_TMPDIR}/bad2"
+    CHART_DIR="$chart" run "$SCRIPT" 3.4.0 3.7.0 "${BATS_TEST_TMPDIR}/bad2"
     [ "$status" -ne 0 ]
     [[ "$output" == *"Ingress"* ]]
 }

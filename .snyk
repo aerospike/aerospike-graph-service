@@ -17,4 +17,9 @@ ignore:
         reason: Out-of-bounds Write
         expires: 2100-01-01T00:00:00.000Z
         created: 2026-09-16T20:58:00.000Z
+  SNYK-JAVA-ORGXERIALSNAPPY-19964087:
+    - '*':
+        reason: Out-of-bounds Write
+        expires: 2100-01-01T00:00:00.000Z
+        created: 2026-09-23T20:01:00.000Z
 patch: {}

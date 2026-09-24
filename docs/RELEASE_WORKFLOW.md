@@ -79,7 +79,7 @@ after a base-image or OS-package security update.
 
 1. Actions → **Respin AGS Container** → **Run workflow**.
 2. Pick the ref with the container-side fix.
-3. Enter the released AGS version to rebuild from (e.g. `3.3.1`).
+3. Enter the released AGS version to rebuild from (e.g. `3.4.0`).
 
 ### Publish AGS Helm Chart
 

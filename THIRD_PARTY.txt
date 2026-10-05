@@ -2,7 +2,7 @@
 Lists of 386 third-party dependencies.
      (BSD 3-Clause "New" or "Revised" License (BSD-3-Clause)) abego TreeLayout Core (org.abego.treelayout:org.abego.treelayout.core:1.0.3 - http://treelayout.sourceforge.net)
      (Apache License, Version 2.0) Aerospike :: Graph (com.aerospike:aerospike-graph-gremlin:3.4.0-SNAPSHOT - https://github.com/aerospike/aerospike-graph-service/aerospike-graph-gremlin)
-     (The Apache License, Version 2.0) Aerospike Java Client BC (com.aerospike:aerospike-client-bc-jdk8:10.4.0 - https://github.com/aerospike/aerospike-client-java)
+     (The Apache License, Version 2.0) Aerospike Java Client BC (com.aerospike:aerospike-client-bc-jdk8:10.5.0 - https://github.com/aerospike/aerospike-client-java)
      (Apache License, Version 2.0) Aliyun OSS SDK for Java (com.aliyun.oss:aliyun-sdk-oss:3.13.0 - http://www.aliyun.com/product/oss)
      (Apache License, Version 2.0) aliyun-java-sdk-core (com.aliyun:aliyun-java-sdk-core:4.5.10 - http://www.aliyun.com)
      (Apache License, Version 2.0) aliyun-java-sdk-kms (com.aliyun:aliyun-java-sdk-kms:2.11.0 - http://www.aliyun.com)
@@ -85,7 +85,7 @@ Lists of 386 third-party dependencies.
      (Apache License, Version 2.0) AWS Java SDK for AWS KMS (com.amazonaws:aws-java-sdk-kms:1.12.797 - https://aws.amazon.com/sdkforjava)
      (Apache License, Version 2.0) AWS SDK for Java - Core (com.amazonaws:aws-java-sdk-core:1.12.797 - https://aws.amazon.com/sdkforjava)
      (MIT License) Azure Data Lake Store - Java client SDK (com.microsoft.azure:azure-data-lake-store-sdk:2.3.9 - https://azure.microsoft.com/en-us/services/data-lake-store)
-     (Bouncy Castle Licence) Bouncy Castle Provider (org.bouncycastle:bcprov-jdk18on:1.85.2 - https://www.bouncycastle.org/download/bouncy-castle-java/)
+     (Bouncy Castle Licence) Bouncy Castle Provider (org.bouncycastle:bcprov-jdk18on:1.86 - https://www.bouncycastle.org/download/bouncy-castle-java/)
      (Apache License, Version 2.0) Caffeine cache (com.github.ben-manes.caffeine:caffeine:3.2.4 - https://github.com/ben-manes/caffeine)
      (Apache License, Version 2.0) CEL Java Common (dev.cel:common:0.13.0 - https://github.com/google/cel-java)
      (Apache License, Version 2.0) CEL Java Protobuf adapter (dev.cel:protobuf:0.13.0 - https://github.com/google/cel-java)

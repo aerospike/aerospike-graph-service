@@ -83,7 +83,7 @@
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-        <aerospike-client.version>10.4.0</aerospike-client.version>
+        <aerospike-client.version>10.5.0</aerospike-client.version>
         <tinkerpop.version>3.7.3</tinkerpop.version>
         <junit.version>4.13.2</junit.version>
         <hamcrest.version>2.2</hamcrest.version>
@@ -113,7 +113,7 @@
         <grpc.version>1.83.1</grpc.version>
         <jetbrains-annotations.version>17.0.0</jetbrains-annotations.version>
         <nimbus-jose-jwt.version>9.48</nimbus-jose-jwt.version>
-        <bouncycastle.version>1.85.2</bouncycastle.version>
+        <bouncycastle.version>1.86</bouncycastle.version>
         <guice.version>4.2.3</guice.version>
         <docker-java.version>3.7.1</docker-java.version>
         <opentelemetry.version>1.64.0</opentelemetry.version>
@@ -317,7 +317,7 @@
                 <version>${nimbus-jose-jwt.version}</version>
             </dependency>
             <dependency>
-                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGBOUNCYCASTLE-18512520 in aerospike-client-bc-jdk8@10.3.0 -->
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGBOUNCYCASTLE-18512520 in aerospike-client-bc-jdk8@10.5.0 -->
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bcprov-jdk18on</artifactId>
                 <version>${bouncycastle.version}</version>

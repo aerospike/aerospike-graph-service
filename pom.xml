@@ -87,17 +87,17 @@
         <tinkerpop.version>3.7.3</tinkerpop.version>
         <junit.version>4.13.2</junit.version>
         <hamcrest.version>2.2</hamcrest.version>
-        <logback.version>1.6.3</logback.version>
-        <slf4j.version>2.0.18</slf4j.version>
+        <logback.version>1.6.5</logback.version>
+        <slf4j.version>2.0.20</slf4j.version>
         <log4j.version>2.26.1</log4j.version>
         <guava.version>31.1-jre</guava.version>
         <resilience4j.version>1.7.1</resilience4j.version>
-        <spark.version>3.5.8</spark.version>
-        <vertx.version>4.5.32</vertx.version>
+        <spark.version>3.5.9</spark.version>
+        <vertx.version>4.5.35</vertx.version>
         <jackson.version>2.22.3</jackson.version>
         <prometheus.version>0.16.0</prometheus.version>
         <awssdk.version>1.12.797</awssdk.version>
-        <netty.version>4.2.18.Final</netty.version>
+        <netty.version>4.2.19.Final</netty.version>
         <caffeine.version>3.2.4</caffeine.version>
         <jmh.version>1.37</jmh.version>
         <commons-cli.version>1.11.0</commons-cli.version>
@@ -106,18 +106,19 @@
         <ivy.version>2.6.0</ivy.version>
         <zookeeper.version>3.9.6</zookeeper.version>
         <jettison.version>1.5.7</jettison.version>
-        <zstd-jni.version>1.5.7-17</zstd-jni.version>
+        <zstd-jni.version>1.5.7-22</zstd-jni.version>
+        <snappy-java.version>1.1.10.11</snappy-java.version>
         <parquet-hadoop.version>1.18.1</parquet-hadoop.version>
-        <lz4-java.version>1.11.2</lz4-java.version>
+        <lz4-java.version>1.11.4</lz4-java.version>
         <protobuf.version>3.25.9</protobuf.version>
-        <grpc.version>1.83.1</grpc.version>
+        <grpc.version>1.84.1</grpc.version>
         <jetbrains-annotations.version>17.0.0</jetbrains-annotations.version>
         <nimbus-jose-jwt.version>9.48</nimbus-jose-jwt.version>
         <bouncycastle.version>1.86</bouncycastle.version>
         <guice.version>4.2.3</guice.version>
         <docker-java.version>3.7.1</docker-java.version>
         <opentelemetry.version>1.64.0</opentelemetry.version>
-        <opentelemetry-semconv.version>1.43.0</opentelemetry-semconv.version>
+        <opentelemetry-semconv.version>1.44.0</opentelemetry-semconv.version>
         <gcs-connector.version>hadoop3-2.2.33</gcs-connector.version>
         <!-- MAVEN PLUGIN VERSIONS -->
         <mvn-shade-plugin.version>3.6.2</mvn-shade-plugin.version>
@@ -167,7 +168,7 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMGOOGLEPROTOBUF-8055227 and -8055228 in gcs-connector@hadoop3-2.2.29 -->
+            <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMGOOGLEPROTOBUF-8055227 and -8055228 in gcs-connector@hadoop3-2.2.33 -->
             <dependency>
                 <groupId>com.google.protobuf</groupId>
                 <artifactId>protobuf-bom</artifactId>
@@ -200,7 +201,7 @@
             <!-- Whole-family BOMs: keep every artifact in the family aligned (a single managed entry would
                  leave siblings behind, e.g. log4j-core bumped but log4j-api stale). Version-only, applied
                  on demand: pulled in only when spark/gcs actually request the family. -->
-            <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHELOGGINGLOG4J-15967769 in spark-core_2.12@3.5.8 -->
+            <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHELOGGINGLOG4J-15967769 in spark-core_2.12@3.5.9 -->
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-bom</artifactId>
@@ -208,7 +209,7 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-IOGRPC-13786834 in gcs-connector@hadoop3-2.2.29 -->
+            <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-IOGRPC-13786834 in gcs-connector@hadoop3-2.2.33 -->
             <dependency>
                 <groupId>io.grpc</groupId>
                 <artifactId>grpc-bom</artifactId>
@@ -238,37 +239,43 @@
 
             <!-- Forced safe versions of vulnerable transitive dependencies. -->
             <dependency>
-                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECOMMONS-6254296 in spark-core_2.12@3.5.8 -->
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECOMMONS-6254296 in spark-core_2.12@3.5.9 -->
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-compress</artifactId>
                 <version>${commons-compress.version}</version>
             </dependency>
             <dependency>
-                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEIVY-5847858 in spark-core_2.12@3.5.8 -->
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEIVY-19432141 in spark-core_2.12@3.5.9 and gremlin-server@3.7.3 -->
                 <groupId>org.apache.ivy</groupId>
                 <artifactId>ivy</artifactId>
                 <version>${ivy.version}</version>
             </dependency>
             <dependency>
-                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEZOOKEEPER-15443353 in spark-core_2.12@3.5.8 -->
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEZOOKEEPER-15443353 in spark-core_2.12@3.5.9 -->
                 <groupId>org.apache.zookeeper</groupId>
                 <artifactId>zookeeper</artifactId>
                 <version>${zookeeper.version}</version>
             </dependency>
             <dependency>
-                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGCODEHAUSJETTISON-3168085 in spark-core_2.12@3.5.8 -->
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGCODEHAUSJETTISON-3168085 in spark-hadoop-cloud_2.12@3.5.9 -->
                 <groupId>org.codehaus.jettison</groupId>
                 <artifactId>jettison</artifactId>
                 <version>${jettison.version}</version>
             </dependency>
             <dependency>
-                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMGITHUBLUBEN-19653585 in spark-core_2.12@3.5.8 -->
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMGITHUBLUBEN-19653585 in spark-core_2.12@3.5.9 -->
                 <groupId>com.github.luben</groupId>
                 <artifactId>zstd-jni</artifactId>
                 <version>${zstd-jni.version}</version>
             </dependency>
             <dependency>
-                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEPARQUET-19666552 in spark-sql_2.12@3.5.8 -->
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGXERIALSNAPPY-19778376, -19964086 and -19964087 in spark-core_2.12@3.5.9 -->
+                <groupId>org.xerial.snappy</groupId>
+                <artifactId>snappy-java</artifactId>
+                <version>${snappy-java.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEPARQUET-19666552 in spark-sql_2.12@3.5.9 -->
                 <groupId>org.apache.parquet</groupId>
                 <artifactId>parquet-hadoop</artifactId>
                 <version>${parquet-hadoop.version}</version>

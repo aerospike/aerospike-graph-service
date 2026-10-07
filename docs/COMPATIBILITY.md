@@ -10,9 +10,9 @@ baseline and optional feature requirements.
 | Java Build Target          | Java 11                       | Compiles source and target 11 bytecode.   |
 | Container Runtime          | JDK 17                        | Used by the Docker images.                |
 | Apache TinkerPop / Gremlin | 3.7.3                         | Drivers should use the 3.7.x line.        |
-| Aerospike Java Client      | 10.3.0                        |                                           |
-| Spark Dependencies         | 3.5.8, Scala 2.12             | Used by the bulk loader and OLAP modules. |
-| Container Base             | Alpine 3.24.1 with OpenJDK 17 | Used by the full and slim Docker images.  |
+| Aerospike Java Client      | 10.5.0                        |                                           |
+| Spark Dependencies         | 3.5.9, Scala 2.12             | Used by the bulk loader and OLAP modules. |
+| Container Base             | Alpine 3.24.2 with OpenJDK 17 | Used by the full and slim Docker images.  |
 
 ## Aerospike Database
 
@@ -59,7 +59,7 @@ feature.
 
 ## Spark
 
-The bulk loader uses Spark 3.5.8. The OLAP module compiles against the
+The bulk loader uses Spark 3.5.9. The OLAP module compiles against the
 same Spark version. Other Spark versions are not documented as
 compatible.
 

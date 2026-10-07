@@ -99,7 +99,7 @@
         </dependency>
         <!-- Direct (not dependency-managed): this is a patched fork under a different groupId that
              replaces the excluded org.lz4:lz4-java, so nothing pulls it transitively. -->
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGLZ4-14151788 in spark-core_2.12@3.5.8 -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGLZ4-14151788 in spark-core_2.12@3.5.9 -->
         <dependency>
             <groupId>at.yawk.lz4</groupId>
             <artifactId>lz4-java</artifactId>
@@ -137,7 +137,8 @@
             <artifactId>spark-sql_2.12</artifactId>
             <version>${spark.version}</version>
             <exclusions>
-                <!-- CVE-2025-67721: no fix available for legacy artifact; ORC code path unused (Parquet only) -->
+                <!-- CVE-2025-67721 (https://security.snyk.io/vuln/SNYK-JAVA-IOAIRLIFT-14412703) in aircompressor@0.27 from
+                     spark-sql_2.12@3.5.9: fixed only in the 2.x line, not the 0.x line ORC uses; ORC code path unused (Parquet only) -->
                 <exclusion>
                     <groupId>io.airlift</groupId>
                     <artifactId>aircompressor</artifactId>
@@ -206,13 +207,6 @@
             <artifactId>annotations</artifactId>
             <version>${jetbrains-annotations.version}</version>
             <scope>compile</scope>
-        </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMNIMBUSDS-6247633 in gremlin-test@3.7.3 -->
-        <dependency>
-            <groupId>com.nimbusds</groupId>
-            <artifactId>nimbus-jose-jwt</artifactId>
-            <version>${nimbus-jose-jwt.version}</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.tinkerpop</groupId>

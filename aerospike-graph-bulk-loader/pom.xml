@@ -20,7 +20,7 @@
     <parent>
         <artifactId>firefly</artifactId>
         <groupId>com.aerospike</groupId>
-        <version>3.4.0-SNAPSHOT</version>
+        <version>3.3.2-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -93,7 +93,7 @@
         </dependency>
         <!-- Direct (not dependency-managed): this is a patched fork under a different groupId that
              replaces the excluded org.lz4:lz4-java, so nothing pulls it transitively. -->
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGLZ4-14151788 in spark-core_2.12@3.5.8 -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGLZ4-14151788 in spark-core_2.12@3.5.9 -->
         <dependency>
             <groupId>at.yawk.lz4</groupId>
             <artifactId>lz4-java</artifactId>
@@ -115,7 +115,8 @@
             <artifactId>spark-sql_2.12</artifactId>
             <version>${spark.version}</version>
             <exclusions>
-                <!-- CVE-2025-67721: no fix available for legacy artifact; ORC code path unused (Parquet only) -->
+                <!-- CVE-2025-67721 (https://security.snyk.io/vuln/SNYK-JAVA-IOAIRLIFT-14412703) in aircompressor@0.27 from
+                     spark-sql_2.12@3.5.9: fixed only in the 2.x line, not the 0.x line ORC uses; ORC code path unused (Parquet only) -->
                 <exclusion>
                     <groupId>io.airlift</groupId>
                     <artifactId>aircompressor</artifactId>

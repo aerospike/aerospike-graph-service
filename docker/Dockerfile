@@ -135,9 +135,7 @@ ENV CONF_DIR="/opt/conf"
 ENV OUTPUT_SERVER_YAML="$CONF_DIR/aerospike-graph-service.yaml"
 ENV HEALTHCHECK_FILE="/tmp/firefly-ready"
 
-RUN addgroup -S firefly && adduser -S -G firefly firefly
-
-COPY --from=build --chown=firefly:firefly /opt /opt
+COPY --from=build /opt /opt
 
 RUN apk upgrade --no-cache && \
     apk add --no-cache bash openjdk17-jdk python3 py3-pip openssl gcompat
@@ -152,24 +150,6 @@ WORKDIR /opt
 RUN chmod +x scripts/gremlin-server-docker.sh
 RUN chmod +x scripts/firefly-server.sh
 RUN chmod -R 777 $CONF_DIR
-
-# Allow certificate import wrappers to update the JVM truststore.
-RUN set -eu; \
-    cacerts=""; \
-    for path in \
-      /etc/ssl/certs/java/cacerts \
-      /usr/lib/jvm/java-17-openjdk/lib/security/cacerts \
-      /usr/lib/jvm/java-17-openjdk/jre/lib/security/cacerts; do \
-      if [ -e "$path" ]; then \
-        cacerts="$(readlink -f "$path")"; \
-        break; \
-      fi; \
-    done; \
-    [ -n "$cacerts" ] || { echo "JVM cacerts not found." >&2; exit 1; }; \
-    chown firefly:firefly "$cacerts" "$(dirname "$cacerts")"; \
-    chmod u+rw "$cacerts"
-
-USER firefly
 
 # Document the served ports: Gremlin server and Prometheus metrics.
 EXPOSE 8182 9090

@@ -90,7 +90,7 @@
         <logback.version>1.6.5</logback.version>
         <slf4j.version>2.0.20</slf4j.version>
         <log4j.version>2.26.1</log4j.version>
-        <guava.version>31.1-jre</guava.version>
+        <guava.version>33.7.2-jre</guava.version>
         <resilience4j.version>1.7.1</resilience4j.version>
         <spark.version>3.5.9</spark.version>
         <vertx.version>4.5.35</vertx.version>
@@ -328,6 +328,12 @@
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bcprov-jdk18on</artifactId>
                 <version>${bouncycastle.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMGOOGLEGUAVA-20825054 in guava@31.1-jre (direct dependency of aerospike-graph-gremlin) -->
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

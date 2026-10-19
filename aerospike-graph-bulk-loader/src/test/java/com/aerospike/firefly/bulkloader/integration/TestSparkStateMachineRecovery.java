@@ -17,6 +17,7 @@
 package com.aerospike.firefly.bulkloader.integration;
 
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
+import com.aerospike.firefly.bulkloader.integration.util.BulkLoaderTestCleanup;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderState;
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateDetectSupernodes;
@@ -30,14 +31,14 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.lang3.ArrayUtils;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
 
@@ -65,6 +66,12 @@ public class TestSparkStateMachineRecovery {
     private static final String[] DEFAULT_PARAMS= {"-validate_input_data", "-verify_output_data"};
     protected FireflyGraph graph = null;
 
+    @ClassRule
+    public static final BulkLoaderTestCleanup generatedDataCleanup = BulkLoaderTestCleanup.recoveryCsvData();
+
+    @Rule
+    public final BulkLoaderTestCleanup cleanup = BulkLoaderTestCleanup.tempDirectory();
+
     @Before
     public void beforeEach() {
         Configuration config = getTestConfig();
@@ -78,12 +85,6 @@ public class TestSparkStateMachineRecovery {
         if (python.onExit().get().exitValue() != 0) {
             throw new RuntimeException("Failed to generate csv data to run tests.");
         }
-    }
-
-    @AfterClass
-    public static void clearData() throws IOException {
-        Files.deleteIfExists(Path.of("src/test/resources/recoverydata/vertices/vertexList"));
-        Files.deleteIfExists(Path.of("src/test/resources/recoverydata/edges/edgeList"));
     }
 
     @After

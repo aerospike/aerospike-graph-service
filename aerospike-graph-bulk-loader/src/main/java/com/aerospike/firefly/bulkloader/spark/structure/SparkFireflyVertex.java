@@ -176,7 +176,7 @@ public class SparkFireflyVertex extends SparkFireflyElement {
             for (final List<Object> ids : idsList) {
                 fireflyIds.add(db.getIdFactory().createCompositeEdgeId(
                         db.getIdFactory().createEdgeId(EdgeOperations.decodeEdgeIDFromString((String) ids.get(1))),
-                        db.getIdFactory().createVertexId(ids.get(0))));
+                        db.getIdFactory().createVertexId(PropertyValueParser.parseId((String) ids.get(0)))));
             }
             edgeIds.put(label, fireflyIds);
         }
@@ -191,7 +191,7 @@ public class SparkFireflyVertex extends SparkFireflyElement {
             for (final List<Object> ids : idsList) {
                 fireflyIds.add(db.getIdFactory().createCompositeEdgeId(
                         db.getIdFactory().createEdgeId(EdgeOperations.decodeEdgeIDFromString((String) ids.get(1))),
-                        db.getIdFactory().createVertexId(ids.get(0))));
+                        db.getIdFactory().createVertexId(PropertyValueParser.parseId((String) ids.get(0)))));
             }
             edgeIds.put(label, fireflyIds);
         }

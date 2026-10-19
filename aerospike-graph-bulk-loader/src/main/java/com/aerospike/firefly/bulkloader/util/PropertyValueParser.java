@@ -16,6 +16,8 @@
 
 package com.aerospike.firefly.bulkloader.util;
 
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
+
 import java.time.OffsetDateTime;
 import java.util.Date;
 
@@ -89,10 +91,7 @@ public class PropertyValueParser {
     }
 
     public static Object parseId(final String id) {
-        try {
-            return Long.parseLong(id);
-        } catch (final NumberFormatException ignored) {
-        }
-        return id;
+        final Long numericId = FireflyIdFactory.parseNumericId(id);
+        return numericId != null ? numericId : id;
     }
 }

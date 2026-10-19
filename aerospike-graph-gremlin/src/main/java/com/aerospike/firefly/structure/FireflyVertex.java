@@ -21,6 +21,7 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
+import com.aerospike.firefly.process.traversal.step.util.HasContainerHelper;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
@@ -944,10 +945,16 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             return count;
         }
 
-        final long count = this.isEdgeCacheOverflowed
-                ? getCachedEdgeCount(direction, edgeLabels, hasContainers) +
-                FireflyCloseableIteratorUtils.count(getSupernodeEdgeIds(direction, edgeLabels == null ? Collections.emptySet() : Set.of(edgeLabels), hasContainers))
-                : getCachedEdgeCount(direction, edgeLabels, hasContainers);
+        final long count;
+        if (this.isEdgeCacheOverflowed) {
+            final Set<String> labels = edgeLabels == null ? Collections.emptySet() : Set.of(edgeLabels);
+            final Iterator<FireflyId> supernodeEdgeIds = hasContainers.isEmpty()
+                    ? getSupernodeEdgeIds(direction, labels, hasContainers)
+                    : getSupernodeEdgeIds(direction, labels, Collections.emptyList(), HasContainerHelper.convert(hasContainers, graph));
+            count = getCachedEdgeCount(direction, edgeLabels, hasContainers) + FireflyCloseableIteratorUtils.count(supernodeEdgeIds);
+        } else {
+            count = getCachedEdgeCount(direction, edgeLabels, hasContainers);
+        }
         if (limit != -1 && count >= limit)
             return limit;
 

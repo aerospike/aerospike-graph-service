@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -e
+set -eo pipefail
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 instances=3 # Set number of Aerospike instances in cluster. Default to 3
 as_conf=./aerospike.conf
 features_file=./features.conf
@@ -21,6 +22,14 @@ name=${USER} #set name of cluster to username + optional extra name identifier
 instance_type="c3-standard-4-lssd" # Set instance type for Aerospike nodes in cluster. Default to c3-standard-4-lssd
 ssd_count=1 # Amount of local ssd to attach to the instances. Each is 375 GiB
 storage_type=mmd # Storage architecture of primary/secondary indexes and data. Default to mmd
+# Zones to try in order until one has capacity. They must all be in us-central1,
+# which the Dataproc scripts and CI workflows use as their region.
+zones="us-central1-a us-central1-b us-central1-c us-central1-f"
+zone_file=./aerospike_zone.txt # Receives the zone the cluster was created in
+
+# GCE errors meaning the zone cannot host the request right now. Any other
+# failure would repeat in every zone, so it is not retried.
+retryable_zone_errors='ZONE_RESOURCE_POOL_EXHAUSTED|stockout|does not have enough resources available|does not exist in zone'
 
 
 Help()
@@ -33,7 +42,11 @@ Help()
   USAGE: ${0##*/} [] [number of instances] [name] [instance type]
 
   If no arguments are provided will be effectively:
-    '${0##*/} -c $instances -n $name -i $instance_type -f $features_file -o $as_conf'
+    '${0##*/} -c $instances -n $name -i $instance_type -f $features_file -o $as_conf -z \"$zones\"'
+
+  -z takes a space or comma separated list of zones. They are tried in order,
+  falling back to the next one when GCP has no capacity, and the zone that was
+  used is written to $zone_file.
 
   "
   Hints
@@ -51,7 +64,7 @@ Hints() {
   "
 }
 
-parsed=$(getopt -a -n provision-aerospike-gcp.sh -o i:s:a:c:f:n:o: -- "$@")
+parsed=$(getopt -a -n provision-aerospike-gcp.sh -o i:s:a:c:f:n:o:z: -- "$@")
 eval set -- "$parsed"
 
 while :
@@ -71,6 +84,8 @@ do
             name=$2; shift 2;;
         -o) # aerospike config
             as_conf=$2; shift 2;;
+        -z) # zones to try
+            zones=${2//,/ }; shift 2;;
         -h)
             Help
             exit;;
@@ -92,23 +107,77 @@ name=$name
 instance_type=${instance_type}
 ssd_count=${ssd_count}
 storage_type=${storage_type}
+zones=${zones}
 =============================
 "
 
 echo creating ${name} cluster with ${instances} Aerospikes
+
+# Anything found under this name later on must then have come from this run,
+# so it is safe to delete between zone attempts.
+existing_clusters=$(aerolab cluster list -i)
+if grep -q "^cluster=${name} " <<< "${existing_clusters}"; then
+  echo "Error: an aerolab cluster named ${name} already exists. Destroy it before provisioning a new one."
+  exit 1
+fi
+rm -f "${zone_file}"
 
 # Create Aerospike Cluster but don't start it yet.
 # "-lssd" instance types (C3/C3D) come with a fixed number of local SSDs
 # pre-attached, so the local-ssd disk must not be requested separately as is
 # required for machine types (e.g. N2D) that support independently attached
 # Local SSDs.
-if [[ "$instance_type" == *-lssd ]] ; then
-  aerolab cluster create -c ${instances} --instance ${instance_type} -v 6.4.0.7 -f $features_file --customconf=$as_conf \
-  --zone=us-central1-a --disk=pd-ssd:20 --gcp-expire 0 --name=${name} --start=n;
-else
-  aerolab cluster create -c ${instances} --instance ${instance_type} -v 6.4.0.7 -f $features_file --customconf=$as_conf \
-  --zone=us-central1-a --disk=pd-ssd:20 --disk=local-ssd@${ssd_count} --gcp-expire 0 --name=${name} --start=n;
+# The default network has GKE subnets in us-central1 as well, and without
+# --gcp-subnet aerolab uses whichever subnet of the network it lists first.
+create_cluster() {
+  local zone=$1
+  if [[ "$instance_type" == *-lssd ]] ; then
+    aerolab cluster create -c ${instances} --instance ${instance_type} -v 6.4.0.7 -f $features_file --customconf=$as_conf \
+    --zone=${zone} --gcp-subnet=default --disk=pd-ssd:20 --gcp-expire 0 --name=${name} --start=n;
+  else
+    aerolab cluster create -c ${instances} --instance ${instance_type} -v 6.4.0.7 -f $features_file --customconf=$as_conf \
+    --zone=${zone} --gcp-subnet=default --disk=pd-ssd:20 --disk=local-ssd@${ssd_count} --gcp-expire 0 --name=${name} --start=n;
+  fi
+}
+
+# A failed create can leave some nodes running, and aerolab numbers the next
+# attempt's nodes after them (in any zone), so every node must be gone before
+# trying another zone.
+remove_partial_cluster() {
+  aerolab cluster destroy -f -n "${name}" || true
+  bash "${script_dir}/cleanup-aerolab-gcp-instances.sh" "${name}"
+}
+
+created_zone=""
+create_log=$(mktemp)
+trap 'rm -f "${create_log}"' EXIT
+for zone in ${zones}; do
+  echo "Attempting to create ${name} in ${zone}"
+  if create_cluster "${zone}" 2>&1 | tee "${create_log}"; then
+    created_zone=${zone}
+    break
+  fi
+  echo "Creating ${name} in ${zone} failed, removing any nodes it left behind"
+  remove_partial_cluster
+  if ! grep -Eq "${retryable_zone_errors}" "${create_log}"; then
+    echo "Error: creating ${name} failed for a reason other than zone capacity, not trying other zones"
+    exit 1
+  fi
+done
+
+if [[ -z "${created_zone}" ]]; then
+  echo "Error: none of the zones (${zones}) had capacity for ${instances} ${instance_type} instances"
+  exit 1
 fi
+
+node_zones=$(aerolab cluster list -j | jq -r --arg name "${name}" '.[] | select(.ClusterName == $name) | .Zone')
+if [[ $(grep -c . <<< "${node_zones}") -ne ${instances} ]] || grep -qvxF "${created_zone}" <<< "${node_zones}"; then
+  echo "Error: expected ${instances} ${name} nodes in ${created_zone}, found nodes in:"
+  echo "${node_zones}"
+  exit 1
+fi
+echo "${created_zone}" > "${zone_file}"
+echo "Created ${name} in ${created_zone}"
 
 
 
@@ -155,6 +224,6 @@ aerolab aerospike start --name=${name}
 #aerolab cluster add exporter -n ${name}
 
 # Create the monitoring stack
-#aerolab client create ams --clusters=${name} --group-name=${name}-ams --zone=us-central1-a --instance=${instance_type} --disk=pd-ssd:20
+#aerolab client create ams --clusters=${name} --group-name=${name}-ams --zone=${created_zone} --instance=${instance_type} --disk=pd-ssd:20
 
 Hints

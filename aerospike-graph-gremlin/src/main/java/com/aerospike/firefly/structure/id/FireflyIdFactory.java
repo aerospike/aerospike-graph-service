@@ -80,9 +80,8 @@ public class FireflyIdFactory {
         }
 
         if (convertedId instanceof String) {
-            final String strId = (String) convertedId;
-            if (isAllDigits(strId)) {
-                final long stringIdAsLong = Long.parseLong(strId, 0, strId.length(), 10);
+            final Long stringIdAsLong = parseNumericId((String) convertedId);
+            if (stringIdAsLong != null) {
                 return FireflyIdPoly.fromObject(stringIdAsLong, String.class, this.db.getConfig().vertexAeroSet);
             }
         }
@@ -96,15 +95,42 @@ public class FireflyIdFactory {
         return FireflyIdPoly.fromObject(convertedId, this.db.getConfig().vertexAeroSet);
     }
 
-    private static boolean isAllDigits(String s) {
-        int len = s.length();
-        if (len == 0) return false;
-        int i = (s.charAt(0) == '-') ? 1 : 0;
-        for (; i < len; i++) {
-            char c = s.charAt(i);
-            if (c < '0' || c > '9') return false;
+    /**
+     * Parse a numeric String id into a long. Accepts the same input as {@link Long#parseLong(String)} restricted to
+     * ASCII digits: an optional leading '+' or '-' followed by at least one digit. Returns null instead of throwing
+     * for non-numeric Strings and for numeric Strings that do not fit in a long, since this is on the hot path for
+     * every String id.
+     *
+     * @param id the String id
+     * @return the id as a Long, or null if it should be kept as a String
+     */
+    public static Long parseNumericId(final String id) {
+        final int len = id.length();
+        if (len == 0) {
+            return null;
         }
-        return true;
+        final char first = id.charAt(0);
+        final boolean negative = first == '-';
+        int i = (negative || first == '+') ? 1 : 0;
+        if (i == len) {
+            return null;
+        }
+        // Accumulate negatively, since the magnitude of Long.MIN_VALUE does not fit in a positive long.
+        final long limit = negative ? Long.MIN_VALUE : -Long.MAX_VALUE;
+        final long multiplyLimit = limit / 10;
+        long result = 0;
+        for (; i < len; i++) {
+            final int digit = id.charAt(i) - '0';
+            if (digit < 0 || digit > 9 || result < multiplyLimit) {
+                return null;
+            }
+            result *= 10;
+            if (result < limit + digit) {
+                return null;
+            }
+            result -= digit;
+        }
+        return negative ? result : -result;
     }
 
     /**

@@ -16,6 +16,7 @@
 
 package com.aerospike.firefly.bulkloader.integration;
 
+import com.aerospike.firefly.bulkloader.integration.util.BulkLoaderTestCleanup;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
@@ -25,6 +26,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -45,6 +48,12 @@ public class TestSummaryCallWithBulkLoader {
     }
 
     protected FireflyGraph graph = null;
+
+    @ClassRule
+    public static final BulkLoaderTestCleanup generatedDataCleanup = BulkLoaderTestCleanup.summaryCountCsvData();
+
+    @Rule
+    public final BulkLoaderTestCleanup cleanup = BulkLoaderTestCleanup.tempDirectory();
 
     @BeforeClass
     public static void generateData() throws IOException, InterruptedException, ExecutionException {

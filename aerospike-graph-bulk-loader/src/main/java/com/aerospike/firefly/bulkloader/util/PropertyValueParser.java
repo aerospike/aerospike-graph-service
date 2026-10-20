@@ -91,6 +91,9 @@ public class PropertyValueParser {
     }
 
     public static Object parseId(final String id) {
+        if (id == null) {
+            return null;
+        }
         final Long numericId = FireflyIdFactory.parseNumericId(id);
         return numericId != null ? numericId : id;
     }

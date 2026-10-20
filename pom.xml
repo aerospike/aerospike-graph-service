@@ -110,6 +110,7 @@
         <snappy-java.version>1.1.10.11</snappy-java.version>
         <parquet-hadoop.version>1.18.1</parquet-hadoop.version>
         <lz4-java.version>1.11.4</lz4-java.version>
+        <compress-lzf.version>1.2.1</compress-lzf.version>
         <protobuf.version>3.25.9</protobuf.version>
         <grpc.version>1.84.1</grpc.version>
         <jetbrains-annotations.version>17.0.0</jetbrains-annotations.version>
@@ -273,6 +274,12 @@
                 <groupId>org.xerial.snappy</groupId>
                 <artifactId>snappy-java</artifactId>
                 <version>${snappy-java.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMNING-21280278 in spark-core_2.12@3.5.9 -->
+                <groupId>com.ning</groupId>
+                <artifactId>compress-lzf</artifactId>
+                <version>${compress-lzf.version}</version>
             </dependency>
             <dependency>
                 <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEPARQUET-19666552 in spark-sql_2.12@3.5.9 -->

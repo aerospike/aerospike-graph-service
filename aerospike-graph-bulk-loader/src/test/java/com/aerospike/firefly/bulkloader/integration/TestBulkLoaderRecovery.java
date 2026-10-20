@@ -16,18 +16,19 @@
 
 package com.aerospike.firefly.bulkloader.integration;
 
+import com.aerospike.firefly.bulkloader.integration.util.BulkLoaderTestCleanup;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Rule;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
 
@@ -55,6 +56,12 @@ public class TestBulkLoaderRecovery {
     protected FireflyGraph graph = null;
     protected static long vertexLineCount;
     protected static long edgeLineCount;
+
+    @ClassRule
+    public static final BulkLoaderTestCleanup generatedDataCleanup = BulkLoaderTestCleanup.recoveryCsvData();
+
+    @Rule
+    public final BulkLoaderTestCleanup cleanup = BulkLoaderTestCleanup.tempDirectory();
 
     @Before
     public void beforeEach() {
@@ -88,12 +95,6 @@ public class TestBulkLoaderRecovery {
         // Remove header.
         vertexLineCount--;
         edgeLineCount--;
-    }
-
-    @AfterClass
-    public static void clearData() throws IOException {
-        Files.deleteIfExists(Path.of("src/test/resources/recoverydata/vertices/vertexList"));
-        Files.deleteIfExists(Path.of("src/test/resources/recoverydata/edges/edgeList"));
     }
 
     @After

@@ -18,6 +18,7 @@ package com.aerospike.firefly.bulkloader.integration;
 
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
+import com.aerospike.firefly.bulkloader.integration.util.BulkLoaderTestCleanup;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -31,6 +32,7 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -54,6 +56,9 @@ import static com.aerospike.firefly.structure.FireflyGraph.BULK_LOAD_VERTEX_ADD_
 
 public class TestBulkLoaderCallEntryPoint {
     private final Configuration config;
+
+    @Rule
+    public final BulkLoaderTestCleanup cleanup = BulkLoaderTestCleanup.tempDirectory();
 
     public TestBulkLoaderCallEntryPoint() {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);

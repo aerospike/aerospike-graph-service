@@ -31,8 +31,10 @@ def main(argv):
         clusters = json.load(file)
 
         for cluster in clusters:
-            if github_sha in cluster['ClusterName']:
+            if cluster['ClusterName'] == github_sha:
                 ip_only = ip_only + cluster['PrivateIp'] + ':3000,'
+        if not ip_only:
+            raise ValueError('No nodes found for aerolab cluster ' + github_sha)
         ip_only = ip_only[:-1]
         hosts = hosts + ip_only
 

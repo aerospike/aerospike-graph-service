@@ -122,8 +122,8 @@ jobs:
           gcloud storage cp gs://incremental-datasets/${{ steps.read_property.outputs.benchmark }}/config_base.properties ${{ github.workspace }}/scripts/l3_config_base.properties
       - name: Download, Install, and Configure Aerolab
         run: |
-          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.10.1/aerolab-linux-amd64-7.10.1.zip
-          unzip aerolab-linux-amd64-7.10.1.zip -d /usr/local/bin/
+          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.10.2/aerolab-linux-amd64-7.10.2.zip
+          unzip aerolab-linux-amd64-7.10.2.zip -d /usr/local/bin/
           aerolab config backend -t gcp -o "$GCP_PROJECT_ID"
       - name: Deploy Aerospike Cluster to GCP
         env:
@@ -131,16 +131,17 @@ jobs:
         run: |
           echo $FEATURES_B64 | base64 -d > ${{ github.workspace }}/scripts/features.conf
           cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -i ${{ steps.read_property.outputs.instance-type }} -a ${{ steps.read_property.outputs.storage-type }} -s ${{ steps.read_property.outputs.ssd-count }} -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/aerospike_l3.conf -f ./features.conf
+          echo "GCP_ZONE=$(cat ${{ github.workspace }}/scripts/aerospike_zone.txt)" >> $GITHUB_ENV
       - name: Generate Hosts List and Config for Deployed Cluster
         run: |
           aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
           cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }} ${{ steps.read_property.outputs.benchmark }}
       - name: Provision Graph Service Test Client
         run: |
-          aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance c3d-standard-8 --gcp-expire 0 -n ${{ env.SHA_PATH }}-firefly
+          aerolab client create none --zone=${{ env.GCP_ZONE }} --gcp-subnet=default --disk=pd-ssd:40 --instance c3d-standard-8 --gcp-expire 0 -n ${{ env.SHA_PATH }}-firefly
           cd ${{ github.workspace }}/.. && tar -zcvf firefly.tgz ./aerospike-graph-service
-          cd ${{ github.workspace }}/.. && gcloud compute scp --zone=us-central1-a ./firefly.tgz aerolab4-${{ env.SHA_PATH }}-firefly-1:firefly.tgz
-          cd ${{ github.workspace }}/scripts && gcloud compute scp --zone=us-central1-a ./run-phantom-edge-test-gcp.sh aerolab4-${{ env.SHA_PATH }}-firefly-1:run-phantom-edge-test-gcp.sh
+          cd ${{ github.workspace }}/.. && gcloud compute scp --zone=${{ env.GCP_ZONE }} ./firefly.tgz aerolab4-${{ env.SHA_PATH }}-firefly-1:firefly.tgz
+          cd ${{ github.workspace }}/scripts && gcloud compute scp --zone=${{ env.GCP_ZONE }} ./run-phantom-edge-test-gcp.sh aerolab4-${{ env.SHA_PATH }}-firefly-1:run-phantom-edge-test-gcp.sh
       - name: Build Bulk Loader JAR
         run: |
           cd ${{ github.workspace }} && mvn clean install -DskipTests
@@ -151,10 +152,10 @@ jobs:
           gcloud storage cp ${{ github.workspace }}/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader.jar gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar
       - name: Run L3 Bulk Loading Job
         run: |
-          cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc-pe.sh -n ci-${{ env.SHA_PATH }} -w 5 -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
+          cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc-pe.sh -n ci-${{ env.SHA_PATH }} -w 5 -z ${{ env.GCP_ZONE }} -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
       - name: Run Phantom Edge Test on GCP
         run: |
-          gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo bash run-phantom-edge-test-gcp.sh"
+          gcloud compute ssh --zone=${{ env.GCP_ZONE }} aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo bash run-phantom-edge-test-gcp.sh"
       - name: Remove Graph Service Test Client (Cleanup)
         if: always()
         run: |
@@ -163,6 +164,10 @@ jobs:
         if: always()
         run: |
           aerolab cluster destroy -f -n ${{ env.SHA_PATH }}
+      - name: Verify No Aerolab Instances Remain in Any Zone (Cleanup)
+        if: always() && env.SHA_PATH != ''
+        run: |
+          bash ${{ github.workspace }}/scripts/cleanup-aerolab-gcp-instances.sh ${{ env.SHA_PATH }} ${{ env.SHA_PATH }}-firefly
       - name: Delete Dataproc Clusters (Cleanup)
         if: always()
         run: |
@@ -245,8 +250,8 @@ jobs:
           gcloud storage cp gs://incremental-datasets/${{ steps.read_property.outputs.benchmark }}/benchmark_name.txt ${{ github.workspace }}/benchmark_name.txt
       - name: Download, Install, and Configure Aerolab
         run: |
-          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.10.1/aerolab-linux-amd64-7.10.1.zip
-          unzip aerolab-linux-amd64-7.10.1.zip -d /usr/local/bin/
+          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.10.2/aerolab-linux-amd64-7.10.2.zip
+          unzip aerolab-linux-amd64-7.10.2.zip -d /usr/local/bin/
           aerolab config backend -t gcp -o "$GCP_PROJECT_ID"
       - name: Deploy Aerospike Cluster to GCP
         env:
@@ -254,6 +259,7 @@ jobs:
         run: |
           echo $FEATURES_B64 | base64 -d > ${{ github.workspace }}/scripts/features.conf
           cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -i ${{ steps.read_property.outputs.instance-type }} -a ${{ steps.read_property.outputs.storage-type }} -s ${{ steps.read_property.outputs.ssd-count }} -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/aerospike_l3.conf -f ./features.conf
+          echo "GCP_ZONE=$(cat ${{ github.workspace }}/scripts/aerospike_zone.txt)" >> $GITHUB_ENV
       - name: Generate Hosts List and Config for Deployed Cluster
         run: |
           aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
@@ -261,12 +267,12 @@ jobs:
           cd ${{ github.workspace }} && gcloud storage cp ${{ github.workspace }}/benchmark.properties gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/ci.properties
       - name: Provision Graph Service Benchmark Client
         run: |
-          aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance c3d-standard-8 --gcp-expire 0 -n ${{ env.SHA_PATH }}-firefly
+          aerolab client create none --zone=${{ env.GCP_ZONE }} --gcp-subnet=default --disk=pd-ssd:40 --instance c3d-standard-8 --gcp-expire 0 -n ${{ env.SHA_PATH }}-firefly
           cd ${{ github.workspace }} && echo ${{ steps.read_property.outputs.data-size }} >> data_size.txt
           cd ${{ github.workspace }} && echo ${{ steps.read_property.outputs.storage-type }} >> storage_type.txt
           cd ${{ github.workspace }}/.. && tar -zcvf firefly.tgz ./aerospike-graph-service
-          cd ${{ github.workspace }}/.. && gcloud compute scp --zone=us-central1-a ./firefly.tgz aerolab4-${{ env.SHA_PATH }}-firefly-1:firefly.tgz
-          cd ${{ github.workspace }}/scripts && gcloud compute scp --zone=us-central1-a ./run-benchmark-gcp.sh aerolab4-${{ env.SHA_PATH }}-firefly-1:run-benchmark-gcp.sh
+          cd ${{ github.workspace }}/.. && gcloud compute scp --zone=${{ env.GCP_ZONE }} ./firefly.tgz aerolab4-${{ env.SHA_PATH }}-firefly-1:firefly.tgz
+          cd ${{ github.workspace }}/scripts && gcloud compute scp --zone=${{ env.GCP_ZONE }} ./run-benchmark-gcp.sh aerolab4-${{ env.SHA_PATH }}-firefly-1:run-benchmark-gcp.sh
       - name: Build Bulk Loader JAR
         run: |
           cd ${{ github.workspace }} && mvn clean install -DskipTests
@@ -277,7 +283,7 @@ jobs:
           gcloud storage cp ${{ github.workspace }}/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader.jar gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar
       - name: Run L3 Bulk Loading Job
         run: |
-          cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc.sh -n ci-${{ env.SHA_PATH }} -w 4 -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
+          cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc.sh -n ci-${{ env.SHA_PATH }} -w 4 -z ${{ env.GCP_ZONE }} -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
           cd ${{ github.workspace }} && jq -n --arg name L3_${{ steps.read_property.outputs.data-size }}_${{ steps.read_property.outputs.storage-type }}_${{ steps.read_property.outputs.instance-type }}_${{ steps.read_property.outputs.server-instances }}-node --arg runtime $(cat ./scripts/l3_runtime.txt) '[{"name":$name, "unit":"Minutes", "value":$runtime|tonumber}]' > l3_benchmark.json
           gcloud storage cp ${{ github.workspace }}/l3_benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_benchmark.json
       - name: Archive L3 Bulk Loading Job Log
@@ -300,10 +306,10 @@ jobs:
           process_gcloudignore: false
       - name: Run Graph Service Benchmark
         run: |
-          gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo bash run-benchmark-gcp.sh"
+          gcloud compute ssh --zone=${{ env.GCP_ZONE }} aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo bash run-benchmark-gcp.sh"
       - name: Archive Graph Service Benchmark Results
         run: |
-          gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo cat ./aerospike-graph-service/aerospike-graph-gremlin/target/benchmark.json" > ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json
+          gcloud compute ssh --zone=${{ env.GCP_ZONE }} aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo cat ./aerospike-graph-service/aerospike-graph-gremlin/target/benchmark.json" > ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json
           gcloud storage cp ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/benchmark.json
       - name: Remove Graph Service Benchmark Client (Cleanup)
         if: always()
@@ -318,6 +324,10 @@ jobs:
         if: always()
         run: |
           aerolab cluster destroy -f -n ${{ env.SHA_PATH }}
+      - name: Verify No Aerolab Instances Remain in Any Zone (Cleanup)
+        if: always() && env.SHA_PATH != ''
+        run: |
+          bash ${{ github.workspace }}/scripts/cleanup-aerolab-gcp-instances.sh ${{ env.SHA_PATH }} ${{ env.SHA_PATH }}-firefly
       - name: Delete Dataproc Clusters (Cleanup)
         if: always()
         run: |

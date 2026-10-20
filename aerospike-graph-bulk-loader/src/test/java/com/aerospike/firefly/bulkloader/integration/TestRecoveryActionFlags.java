@@ -16,6 +16,7 @@
 
 package com.aerospike.firefly.bulkloader.integration;
 
+import com.aerospike.firefly.bulkloader.integration.util.BulkLoaderTestCleanup;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderState;
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateDetectSupernodes;
@@ -25,14 +26,14 @@ import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
 
@@ -67,18 +68,18 @@ public class TestRecoveryActionFlags {
 
     protected FireflyGraph graph = null;
 
+    @ClassRule
+    public static final BulkLoaderTestCleanup generatedDataCleanup = BulkLoaderTestCleanup.recoveryCsvData();
+
+    @Rule
+    public final BulkLoaderTestCleanup cleanup = BulkLoaderTestCleanup.tempDirectory();
+
     @BeforeClass
     public static void generateData() throws IOException, InterruptedException, ExecutionException {
         final Process python = Runtime.getRuntime().exec("python3 src/test/resources/csv-generate.py");
         if (python.onExit().get().exitValue() != 0) {
             throw new RuntimeException("Failed to generate csv data to run tests.");
         }
-    }
-
-    @AfterClass
-    public static void clearData() throws IOException {
-        Files.deleteIfExists(Path.of("src/test/resources/recoverydata/vertices/vertexList"));
-        Files.deleteIfExists(Path.of("src/test/resources/recoverydata/edges/edgeList"));
     }
 
     @Before

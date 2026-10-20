@@ -73,8 +73,6 @@ hs_err_pid*
 datageneratoroutput/
 *dependency-reduced-pom.xml
 *.iml
-/aerospike-graph-bulk-loader/src/test/resources/recoverydata/vertices/vertexList.csv
-/aerospike-graph-bulk-loader/src/test/resources/recoverydata/edges/edgeList.csv
 
 # Internal planning scratchpad — must never ship in public history.
 # The open-sourcing playbook is tracked in internal tickets; this path

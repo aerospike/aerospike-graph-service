@@ -16,11 +16,13 @@
 
 package com.aerospike.firefly.bulkloader.integration;
 
+import com.aerospike.firefly.bulkloader.integration.util.BulkLoaderTestCleanup;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.nio.file.Path;
@@ -45,6 +47,9 @@ public class TestBulkLoaderThreadLeak {
     private static final String LEAK_SIGNATURE = "pool-N-thread (leak signature)";
 
     private final Configuration config;
+
+    @Rule
+    public final BulkLoaderTestCleanup cleanup = BulkLoaderTestCleanup.tempDirectory();
 
     public TestBulkLoaderThreadLeak() {
         config = ConfigurationHelper.loadFromFile(Tokens.INTEGRATION_TEST_PROPERTIES);

@@ -17,29 +17,28 @@
 package com.aerospike.firefly.bulkloader.integration;
 
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
+import com.aerospike.firefly.bulkloader.integration.util.BulkLoaderTestCleanup;
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
-import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 
-import java.io.File;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -68,7 +67,6 @@ public class TestSparkBulkLoader {
     private static final String PROVIDED_ID_PROPERTY_NAME = "testIdName";
     private static final String[] DEFAULT_PARAMS = {"-validate_input_data", "-verify_output_data"};
     protected FireflyGraph graph = null;
-    static private final String EDGEID_TEST_DIRECTORIES = "src/test/resources/conf/packed/temp";
     static private final String BASE_PROPERTIES = "src/test/resources/conf/base.properties";
 
     static private final String DEFAULT_CONFIG = "src/test/resources/conf/packed/config.properties";
@@ -92,6 +90,10 @@ public class TestSparkBulkLoader {
     static private final String DATETIME_PROPERTIES = "src/test/resources/conf/packed/config-datetime.properties";
     static private final String BOOLEAN_PROPERTIES = "src/test/resources/conf/packed/bool-parser.properties";
     static private final String MIXED_CARDINALITIES = "src/test/resources/conf/packed/mixed-card.properties";
+    static private final String OVERSIZED_NUMERIC_IDS = "src/test/resources/conf/packed/oversized-numeric-ids.properties";
+
+    @Rule
+    public final BulkLoaderTestCleanup cleanup = BulkLoaderTestCleanup.tempDirectory();
 
     @Before
     public void beforeEach() {
@@ -100,27 +102,10 @@ public class TestSparkBulkLoader {
         graph.getBaseGraph().dropDatabase(graph, false);
     }
 
-    @AfterClass
-    public static void afterClass() {
-        try {
-            // Clean all Edge ID related temporary files after execution of test suite
-            FileUtils.deleteDirectory(new File(EDGEID_TEST_DIRECTORIES));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     @After
     public void afterEach() {
-        graph.getBaseGraph().dropDatabase(graph, true);
-        Configuration config = getTestConfig();
         try {
-            final String edgeIDDirectory = config.getString(BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY);
-            FileUtils.deleteDirectory(new File(edgeIDDirectory));
-        } catch (final IOException ioe) {
-            throw new RuntimeException(ioe);
-        } catch (final ConfigurationRuntimeException cre) {
-            // Do Nothing
+            graph.getBaseGraph().dropDatabase(graph, true);
         } finally {
             graph.close();
         }
@@ -212,6 +197,10 @@ public class TestSparkBulkLoader {
 
     protected String getMixedCardinalities() { return MIXED_CARDINALITIES; }
 
+    protected String getOversizedNumericIds() {
+        return OVERSIZED_NUMERIC_IDS;
+    }
+
     @Test
     public void testDataAccuracy() {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
@@ -296,6 +285,43 @@ public class TestSparkBulkLoader {
         for (final Object id : stringIds) {
             Assert.assertTrue(g.V(id).hasNext());
         }
+    }
+
+    @Test
+    public void testOutOfRangeNumericVertexIds() {
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getOversizedNumericIds()}, DEFAULT_PARAMS));
+        final GraphTraversalSource g = graph.traversal();
+        waitForBulkLoad(g);
+
+        final String bitcoinId = "1997231212526362784799127961188217";
+        final String longMaxValuePlusOneId = "9223372036854775808";
+        final Set<Object> expectedIds = Set.of(bitcoinId, longMaxValuePlusOneId, Long.MAX_VALUE, 42L);
+        Assert.assertEquals(expectedIds, Set.copyOf(g.V().id().toList()));
+        Assert.assertEquals(5L, (long) g.E().count().next());
+        Assert.assertEquals(10L, (long) g.V(bitcoinId).values("balance").next());
+        Assert.assertEquals(20L, (long) g.V(longMaxValuePlusOneId).values("balance").next());
+        Assert.assertEquals(30L, (long) g.V(String.valueOf(Long.MAX_VALUE)).values("balance").next());
+        Assert.assertEquals(30L, (long) g.V(Long.MAX_VALUE).values("balance").next());
+        Assert.assertEquals(40L, (long) g.V("42").values("balance").next());
+        Assert.assertEquals(40L, (long) g.V(42L).values("balance").next());
+
+        Assert.assertEquals(bitcoinId, g.V().hasId(bitcoinId).id().next());
+        Assert.assertEquals(2L, (long) g.V().hasId(P.within(bitcoinId, longMaxValuePlusOneId)).count().next());
+        Assert.assertFalse(g.V(bitcoinId.substring(0, 19)).hasNext());
+        Assert.assertFalse(g.V(Long.MIN_VALUE).hasNext());
+
+        assertThat(g.V(bitcoinId).out("sends").id().toList(), containsInAnyOrder(longMaxValuePlusOneId, 42L));
+        assertThat(g.V(bitcoinId).in("sends").id().toList(), containsInAnyOrder(longMaxValuePlusOneId, 42L));
+        assertThat(g.V(longMaxValuePlusOneId).in("sends").id().toList(), containsInAnyOrder(bitcoinId, Long.MAX_VALUE));
+        Assert.assertEquals(List.of(42L), g.V(bitcoinId).out("sends").hasId(42L).id().toList());
+        Assert.assertEquals(List.of(Long.MAX_VALUE), g.V(longMaxValuePlusOneId).in("sends").hasId(Long.MAX_VALUE).id().toList());
+        Assert.assertEquals(1L, (long) g.V(bitcoinId).where(__.out("sends").hasId(42L)).count().next());
+        Assert.assertEquals(1L, (long) g.V(bitcoinId).out("sends").hasId(longMaxValuePlusOneId).count().next());
+        Assert.assertEquals(2L, (long) g.V(bitcoinId).out("sends").hasId(P.within(longMaxValuePlusOneId, 42L)).count().next());
+        Assert.assertEquals(1L, (long) g.V(42L).out("sends").hasId(bitcoinId).count().next());
+        Assert.assertEquals(2L, (long) g.E().where(__.outV().hasId(bitcoinId)).count().next());
+        Assert.assertEquals(300L, (long) g.V(bitcoinId).outE("sends").where(__.inV().hasId(42L)).values("amount").next());
+        Assert.assertEquals(400L, (long) g.V(42L).outE("sends").where(__.inV().hasId(bitcoinId)).values("amount").next());
     }
 
     @Test

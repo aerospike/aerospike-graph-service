@@ -81,6 +81,10 @@ public class FireflyCountGlobalLocalStrategy extends FireflyStrategyBase {
 
                 if (i > stepsToRemove && traversal.getSteps().get(i - 1 - stepsToRemove) instanceof VertexStep) {
                     final VertexStep vertexStep = (VertexStep) traversal.getSteps().get(i - 1 - stepsToRemove);
+                    // The id filter is applied to adjacent vertex ids, so it cannot be folded in for edge ids.
+                    if (hasStep != null && !vertexStep.returnsVertex()) {
+                        continue;
+                    }
                     if (isSupernodeSteppingValid) {
                         final int idx = i - stepsToRemove - 2;
                         if (idx >= 0 && traversal.getSteps().get(idx) instanceof GraphStep) {

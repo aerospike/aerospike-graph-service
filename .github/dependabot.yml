@@ -19,3 +19,8 @@ updates:
     directory: /
     schedule:
       interval: daily
+
+  - package-ecosystem: docker
+    directory: /graph-service-mcp
+    schedule:
+      interval: weekly

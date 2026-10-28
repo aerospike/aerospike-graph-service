@@ -60,14 +60,16 @@ gcloud_list() {
 }
 
 # aerolab gives up on the first failed instance insert while the others can
-# still be running, and those instances may not be listed yet. The API rejects
-# regex filters on targetLink, so that part is matched locally.
-wait_for_pending_inserts() {
+# still be running, and those instances may not be listed yet. Deleting an
+# instance mid-insert cancels the insert, which can take minutes to settle, and
+# a delete aerolab already started makes ours fail until it finishes. The API
+# rejects regex filters on targetLink, so that part is matched locally.
+wait_for_pending_operations() {
   local target_regex="/instances/aerolab4-(${names_alternation})-[0-9]+\$"
   local ops pending waited=0
   while true; do
-    if ! ops=$(gcloud_list compute operations list "${gcloud_args[@]}" --filter="operationType=insert AND status!=DONE" --format="value(name,targetLink)"); then
-      echo "Error: could not list pending insert operations, so instances still being created cannot be ruled out" >&2
+    if ! ops=$(gcloud_list compute operations list "${gcloud_args[@]}" --filter="(operationType=insert OR operationType=delete) AND status!=DONE" --format="value(name,operationType,targetLink)"); then
+      echo "Error: could not list pending instance operations, so instances still being created cannot be ruled out" >&2
       return 1
     fi
     pending=$(grep -E "$target_regex" <<< "$ops" || true)
@@ -75,11 +77,11 @@ wait_for_pending_inserts() {
       return 0
     fi
     if (( waited >= 600 )); then
-      echo "Error: insert operations still pending after ${waited}s; their instances must be checked and removed manually:" >&2
+      echo "Error: instance operations still pending after ${waited}s; their instances must be checked and removed manually:" >&2
       echo "$pending" >&2
       return 1
     fi
-    echo "Waiting for pending insert operations to finish:"
+    echo "Waiting for pending instance operations to finish:"
     echo "$pending"
     sleep 15
     waited=$((waited + 15))
@@ -122,11 +124,11 @@ delete_leftovers() {
   fi
 }
 
-pending_inserts_resolved=true
-wait_for_pending_inserts || pending_inserts_resolved=false
+pending_operations_resolved=true
+wait_for_pending_operations || pending_operations_resolved=false
 delete_leftovers instances "$instance_filter" "$@"
 delete_leftovers disks "$disk_filter" "$@"
-if [[ "$pending_inserts_resolved" != true ]]; then
+if [[ "$pending_operations_resolved" != true ]]; then
   echo "Error: removed the instances that exist so far for [$*], but more may still be created" >&2
   exit 1
 fi

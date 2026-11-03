@@ -34,7 +34,6 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;

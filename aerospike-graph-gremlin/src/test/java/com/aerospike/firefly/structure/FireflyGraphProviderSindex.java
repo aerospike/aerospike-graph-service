@@ -16,6 +16,7 @@
 
 package com.aerospike.firefly.structure;
 
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.FireflyTestListener;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -84,6 +85,19 @@ public class FireflyGraphProviderSindex extends AbstractGraphProvider {
             try (final FireflyGraph fireflyGraph = FireflyGraph.open(configuration)) {
                 fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             }
+        }
+    }
+
+    /**
+     * {@link #clear} keeps indexes between tests so they don't have to be rebuilt every time. Call this once the suite
+     * is done to drop them for every graph id the suite used, so later test classes see a clean namespace.
+     */
+    public static void dropAllIndexes() {
+        final AerospikeConnection db = AerospikeConnection.connect(config);
+        try {
+            db.clearNamespace();
+        } finally {
+            db.close();
         }
     }
 

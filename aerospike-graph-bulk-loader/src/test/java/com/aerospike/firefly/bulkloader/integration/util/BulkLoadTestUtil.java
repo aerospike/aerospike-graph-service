@@ -28,31 +28,34 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTo
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.PROGRESS_COMPLETE;
 
 public class BulkLoadTestUtil {
+    private static final long BULK_LOAD_TIMEOUT_MS = 5 * 60 * 1000;
 
     static public void waitForBulkLoad(final GraphTraversalSource g) {
-        Map<String, Object> status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
-        while (!(boolean)status.get(PROGRESS_COMPLETE)) {
-            status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
-            try {
-                Thread.sleep(200);
-            } catch (final InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        final Map<String, Object> status = waitForCompletion(g);
         Assert.assertEquals(BULK_LOAD_STATUS_SUCCESS, status.get(BULK_LOAD_STATUS_KEY));
     }
 
     static public String waitForBulkLoadFail(final GraphTraversalSource g) {
+        final Map<String, Object> status = waitForCompletion(g);
+        Assert.assertEquals(BULK_LOAD_STATUS_ERROR, status.get(BULK_LOAD_STATUS_KEY));
+        return (String) status.get(BULK_LOAD_EXCEPTION_MESSAGE);
+    }
+
+    private static Map<String, Object> waitForCompletion(final GraphTraversalSource g) {
+        final long deadline = System.currentTimeMillis() + BULK_LOAD_TIMEOUT_MS;
         Map<String, Object> status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
-        while (!(boolean)status.get(PROGRESS_COMPLETE)) {
-            status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
+        while (!(boolean) status.get(PROGRESS_COMPLETE)) {
+            if (System.currentTimeMillis() > deadline) {
+                Assert.fail("Timed out after " + BULK_LOAD_TIMEOUT_MS + " ms waiting for bulk load to complete. " +
+                        "Last status: " + status);
+            }
             try {
                 Thread.sleep(200);
             } catch (final InterruptedException e) {
                 throw new RuntimeException(e);
             }
+            status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
         }
-        Assert.assertEquals(BULK_LOAD_STATUS_ERROR, status.get(BULK_LOAD_STATUS_KEY));
-        return (String) status.get(BULK_LOAD_EXCEPTION_MESSAGE);
+        return status;
     }
 }

@@ -17,11 +17,13 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.runtime.FireflyServer;
+import com.aerospike.firefly.util.ReflectionHelper;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.Result;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.server.GremlinServer;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -42,12 +44,15 @@ import static org.junit.Assert.assertEquals;
 public class TestSpecialPropertiesRemotely {
 
     private static FireflyServer server;
+    private static FireflyGraph serverGraph;
     private static Cluster cluster;
     private static GraphTraversalSource g;
 
     @BeforeClass
     static public void setup() throws NoSuchFieldException, IllegalAccessException {
         server = FireflyServer.start(new String[]{"../conf/firefly-gremlin-server-github-actions.yaml"});
+        final GremlinServer gremlinServer = (GremlinServer) ReflectionHelper.getFieldValue(server, "gremlinServer");
+        serverGraph = (FireflyGraph) gremlinServer.getServerGremlinExecutor().getGraphManager().getGraph("graph");
         cluster = Cluster.build().addContactPoint("localhost").port(8182).create();
         g = traversal().withRemote(DriverRemoteConnection.using(cluster, "g"));
     }
@@ -59,6 +64,12 @@ public class TestSpecialPropertiesRemotely {
         } catch (final Exception e) {
             System.out.println("Exception occurred in AfterClass of TestSpecialPropertiesRemotely: " + e.getMessage());
         } finally {
+            // DriverRemoteConnection.using(cluster, ...) does not own the cluster, so g.close() leaves it running
+            // and its driver retries the stopped server for the rest of the JVM's life.
+            cluster.close();
+            // The server's graph config creates vertex property and label indexes in the shared test namespace;
+            // drop them so later test classes see a clean namespace.
+            serverGraph.db.dropDatabase(serverGraph, true);
             server.stop().join();
         }
     }

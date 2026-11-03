@@ -17,9 +17,12 @@
 package com.aerospike.firefly.runtime.server;
 
 import com.aerospike.firefly.runtime.FireflyServer;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.ReflectionHelper;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.server.GremlinServer;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Test;
@@ -50,10 +53,18 @@ public class TestFireflyServer {
     @Test
     public void testServer() throws Exception {
         server = FireflyServer.start(new String[] {"../conf/firefly-gremlin-server-local.yaml"});
-        HEAP_REPORTING_TIMER.schedule(new HeapReport(), 0, 5000);
-        runManyQueries();
-        uploadHeapUsage();
-        server.stop().join();
+        try {
+            HEAP_REPORTING_TIMER.schedule(new HeapReport(), 0, 5000);
+            runManyQueries();
+            uploadHeapUsage();
+        } finally {
+            // The server's graph config creates vertex property and label indexes in the shared test namespace.
+            final GremlinServer gremlinServer = (GremlinServer) ReflectionHelper.getFieldValue(server, "gremlinServer");
+            final FireflyGraph serverGraph =
+                    (FireflyGraph) gremlinServer.getServerGremlinExecutor().getGraphManager().getGraph("graph");
+            serverGraph.getBaseGraph().dropDatabase(serverGraph, true);
+            server.stop().join();
+        }
     }
 
     private static final Timer HEAP_REPORTING_TIMER = new Timer(true);

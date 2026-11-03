@@ -35,6 +35,7 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -872,7 +873,11 @@ public class AlgorithmTest {
     }
 
     private void waitForSummaryUpdate(final FireflyGraph graph) {
+        final long deadline = System.currentTimeMillis() + 60_000;
         while (graph.fireflySummaryUpdater.getFireflyStatistics().totalVertexCount() == 0) {
+            if (System.currentTimeMillis() > deadline) {
+                Assert.fail("Timed out waiting for the summary to report a non-zero vertex count");
+            }
             graph.fireflySummaryUpdater.forceWrite();
             try {
                 Thread.sleep(10);

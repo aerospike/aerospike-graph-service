@@ -18,11 +18,14 @@ package com.aerospike.firefly.admin;
 
 import com.aerospike.firefly.runtime.FireflyServer;
 import com.aerospike.firefly.security.UserContext;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.ReflectionHelper;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.server.GremlinServer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -30,7 +33,9 @@ import org.junit.Test;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -43,6 +48,7 @@ import static org.junit.Assert.fail;
 public class TestAdminCallHttpJwt {
 
     private static FireflyServer server;
+    private static final List<Cluster> clusters = new ArrayList<>();
 
     final static String validRead = JWT.create()
             .withClaim("role", "READ")
@@ -80,27 +86,15 @@ public class TestAdminCallHttpJwt {
 
     @Test
     public void testJwtGenerateCallStep() {
-        final Cluster cluster = Cluster.build()
-                .addContactPoint("localhost")
-                .port(8182)
-                .credentials("lyndon_username", validAdmin)
-                .create();
+        final Cluster cluster = connect("lyndon_username", validAdmin);
         final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
         final GraphTraversalSource g = traversal().withRemote(connection);
         final String adminToken = (String) g.call("aerospike.graph.admin.rbac-jwt.issue-token").with("username", "lyndon_admin").with("role", "ADMIN").next();
-        final Cluster cluster2 = Cluster.build()
-                .addContactPoint("localhost")
-                .port(8182)
-                .credentials("lyndon_admin", adminToken)
-                .create();
+        final Cluster cluster2 = connect("lyndon_admin", adminToken);
         final DriverRemoteConnection connection2 = DriverRemoteConnection.using(cluster2);
         final GraphTraversalSource g2 = traversal().withRemote(connection2);
         String readWriteToken = (String) g2.call("aerospike.graph.admin.rbac-jwt.issue-token").with("username", "lyndon_readwrite").with("role", "READ_WRITE").next();
-        Cluster cluster3 = Cluster.build()
-                .addContactPoint("localhost")
-                .port(8182)
-                .credentials("lyndon_readwrite", readWriteToken)
-                .create();
+        Cluster cluster3 = connect("lyndon_readwrite", readWriteToken);
         final DriverRemoteConnection connection3 = DriverRemoteConnection.using(cluster3);
         final GraphTraversalSource g3 = traversal().withRemote(connection3);
         assertThrows(Exception.class, () -> {
@@ -110,11 +104,7 @@ public class TestAdminCallHttpJwt {
         g3.V().drop().iterate();
 
         final String readToken = (String) g.call("aerospike.graph.admin.rbac-jwt.issue-token").with("username", "lyndon_read").with("role", "READ").next();
-        final Cluster cluster4 = Cluster.build()
-                .addContactPoint("localhost")
-                .port(8182)
-                .credentials("lyndon_read", readToken)
-                .create();
+        final Cluster cluster4 = connect("lyndon_read", readToken);
         final DriverRemoteConnection connection4 = DriverRemoteConnection.using(cluster4);
         final GraphTraversalSource g4 = traversal().withRemote(connection4);
         assertThrows(Exception.class, () -> {
@@ -128,19 +118,11 @@ public class TestAdminCallHttpJwt {
 
     @Test
     public void testExpiry() throws InterruptedException {
-        final Cluster cluster = Cluster.build()
-                .addContactPoint("localhost")
-                .port(8182)
-                .credentials("lyndon_username", validAdmin)
-                .create();
+        final Cluster cluster = connect("lyndon_username", validAdmin);
         final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
         final GraphTraversalSource g = traversal().withRemote(connection);
         final String adminToken = (String) g.call("aerospike.graph.admin.rbac-jwt.issue-token").with("username", "lyndon_admin").with("role", "ADMIN").with("expiry", 10).next();
-        final Cluster cluster2 = Cluster.build()
-                .addContactPoint("localhost")
-                .port(8182)
-                .credentials("lyndon_admin", adminToken)
-                .create();
+        final Cluster cluster2 = connect("lyndon_admin", adminToken);
         final DriverRemoteConnection connection2 = DriverRemoteConnection.using(cluster2);
         final GraphTraversalSource g2 = traversal().withRemote(connection2);
         g2.V().count().next();
@@ -148,11 +130,7 @@ public class TestAdminCallHttpJwt {
         assertThrows(Exception.class, () -> {
             g2.V().count().next();
         });
-        final Cluster cluster3 = Cluster.build()
-                .addContactPoint("localhost")
-                .port(8182)
-                .credentials("lyndon_admin", adminToken)
-                .create();
+        final Cluster cluster3 = connect("lyndon_admin", adminToken);
         final DriverRemoteConnection connection3 = DriverRemoteConnection.using(cluster3);
         final GraphTraversalSource g3 = traversal().withRemote(connection3);
         assertThrows(Exception.class, () -> {
@@ -350,11 +328,7 @@ public class TestAdminCallHttpJwt {
     }
 
     public String adminMetadataSetConfig(final String userCredentials) {
-        final Cluster cluster = Cluster.build()
-                .addContactPoint("localhost")
-                .port(8182)
-                .credentials("lyndon_username", userCredentials)
-                .create();
+        final Cluster cluster = connect("lyndon_username", userCredentials);
         final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
         final GraphTraversalSource g = traversal().withRemote(connection);
 
@@ -378,11 +352,7 @@ public class TestAdminCallHttpJwt {
         } catch (final Exception e) {
             assertEquals("java.io.IOException: Server returned HTTP response code: 401 for URL: http://localhost:9091/0/admin/index/list", e.getMessage());
         }
-        final Cluster cluster = Cluster.build()
-                .addContactPoint("localhost")
-                .port(8182)
-                .credentials("lyndon_username", noRole)
-                .create();
+        final Cluster cluster = connect("lyndon_username", noRole);
         final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
         final GraphTraversalSource g = traversal().withRemote(connection);
         try {
@@ -496,11 +466,7 @@ public class TestAdminCallHttpJwt {
 
     @Test
     public void jwtIssueToken_adminCanMakeAnyToken() {
-        final Cluster cluster = Cluster.build()
-                .addContactPoint("localhost")
-                .port(8182)
-                .credentials("lyndon_username", validAdmin)
-                .create();
+        final Cluster cluster = connect("lyndon_username", validAdmin);
         final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
         final GraphTraversalSource g = traversal().withRemote(connection);
 
@@ -512,11 +478,7 @@ public class TestAdminCallHttpJwt {
 
     @Test
     public void jwtIssueToken_graphAdminCanMakeTokenForHisGraph() {
-        final Cluster cluster = Cluster.build()
-                .addContactPoint("localhost")
-                .port(8182)
-                .credentials("lyndon_username", validGraph0AdminGraph1Read)
-                .create();
+        final Cluster cluster = connect("lyndon_username", validGraph0AdminGraph1Read);
         final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
         final GraphTraversalSource g = traversal().withRemote(connection);
 
@@ -528,11 +490,7 @@ public class TestAdminCallHttpJwt {
 
     @Test
     public void jwtIssueToken_graphAdminCantMakeTokenForOtherGraph() {
-        final Cluster cluster = Cluster.build()
-                .addContactPoint("localhost")
-                .port(8182)
-                .credentials("lyndon_username", validGraph0AdminGraph1Read)
-                .create();
+        final Cluster cluster = connect("lyndon_username", validGraph0AdminGraph1Read);
         final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
         final GraphTraversalSource g = traversal().withRemote(connection);
 
@@ -549,11 +507,7 @@ public class TestAdminCallHttpJwt {
 
     @Test
     public void jwtIssueToken_graphAdminCantMakeTokenForOtherGraph_simplifiedSyntax() {
-        final Cluster cluster = Cluster.build()
-                .addContactPoint("localhost")
-                .port(8182)
-                .credentials("lyndon_username", validGraph0AdminGraph1Read)
-                .create();
+        final Cluster cluster = connect("lyndon_username", validGraph0AdminGraph1Read);
         final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
         final GraphTraversalSource g = traversal().withRemote(connection);
 
@@ -570,11 +524,7 @@ public class TestAdminCallHttpJwt {
 
     @Test
     public void adminRbacJwtIssueTokenForMultiTenantGraph() {
-        final Cluster cluster = Cluster.build()
-                .addContactPoint("localhost")
-                .port(8182)
-                .credentials("lyndon_username", validAdmin)
-                .create();
+        final Cluster cluster = connect("lyndon_username", validAdmin);
         final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
         final GraphTraversalSource g = traversal().withRemote(connection);
 
@@ -587,11 +537,7 @@ public class TestAdminCallHttpJwt {
 
     @Test
     public void adminRbacJwtIssueTokenForMultiTenantGraphWithSimplifiedSyntax() {
-        final Cluster cluster = Cluster.build()
-                .addContactPoint("localhost")
-                .port(8182)
-                .credentials("lyndon_username", validAdmin)
-                .create();
+        final Cluster cluster = connect("lyndon_username", validAdmin);
         final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
         final GraphTraversalSource g = traversal().withRemote(connection);
 
@@ -607,8 +553,28 @@ public class TestAdminCallHttpJwt {
         server = FireflyServer.start(new String[]{"../conf/credentials-config/gremlin-server-authenticator.yaml"});
     }
 
+    private static Cluster connect(final String username, final String token) {
+        final Cluster cluster = Cluster.build()
+                .addContactPoint("localhost")
+                .port(8182)
+                .credentials(username, token)
+                .create();
+        clusters.add(cluster);
+        return cluster;
+    }
+
     @AfterClass
     public static void teardown() {
+        // DriverRemoteConnection.using(cluster, ...) does not own the cluster, and an open cluster keeps retrying the
+        // stopped server for the rest of the JVM's life.
+        clusters.forEach(Cluster::close);
+        clusters.clear();
+        // The server's graph config creates vertex property indexes in the shared test namespace; drop them so later
+        // test classes see a clean namespace.
+        final GremlinServer gremlinServer = (GremlinServer) ReflectionHelper.getFieldValue(server, "gremlinServer");
+        final FireflyGraph serverGraph =
+                (FireflyGraph) gremlinServer.getServerGremlinExecutor().getGraphManager().getGraph("graph");
+        serverGraph.getBaseGraph().dropDatabase(serverGraph, true);
         server.stop().join();
     }
 }

@@ -28,15 +28,11 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTo
 public class BulkLoadTestUtil {
 
     static public void waitForBulkLoad(final GraphTraversalSource g) {
-        Map<String, Object> status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
-        while (!(boolean)status.get(PROGRESS_COMPLETE)) {
-            status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
-            try {
-                Thread.sleep(200);
-            } catch (final InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        Assert.assertEquals(BULK_LOAD_STATUS_SUCCESS, status.get(BULK_LOAD_STATUS_KEY));
+        WaitUtil.waitUntil("bulk load to complete", () -> (boolean) bulkLoadStatus(g).get(PROGRESS_COMPLETE));
+        Assert.assertEquals(BULK_LOAD_STATUS_SUCCESS, bulkLoadStatus(g).get(BULK_LOAD_STATUS_KEY));
+    }
+
+    private static Map<String, Object> bulkLoadStatus(final GraphTraversalSource g) {
+        return (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
     }
 }

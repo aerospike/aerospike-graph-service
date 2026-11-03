@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -33,13 +34,23 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.WaitUtil.vertexIndexStatus;
+import static com.aerospike.firefly.util.WaitUtil.waitForVertexIndexesBuilt;
 
 @Ignore("TODO: GRAPH-1576")
 public class TestAdminCallHttp {
+
+    @AfterClass
+    public static void tearDown() {
+        // Drop the indexes the tests create through the admin calls so later test classes see a clean namespace.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, true);
+        }
+    }
 
     public String adminIndexList() {
         try {
@@ -202,32 +213,7 @@ public class TestAdminCallHttp {
             g.call("aerospike.graph.admin.index.create").
                     with("property_key", "~label").
                     with("element_type", "vertex").next();
-            Map<String, Long> nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                    with("property_key", "nameB").
-                    with("element_type", "vertex").next();
-            Map<String, Long> nameCStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                    with("property_key", "nameC").
-                    with("element_type", "vertex").next();
-            Map<String, Long> labelStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                    with("property_key", "~label").
-                    with("element_type", "vertex").next();
-            while (nameBStatus.get("percent_complete") < 100 || nameCStatus.get("percent_complete") < 100 ||
-                    labelStatus.get("percent_complete") < 100) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                        with("property_key", "nameB").
-                        with("element_type", "vertex").next();
-                nameCStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                        with("property_key", "nameC").
-                        with("element_type", "vertex").next();
-                labelStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                        with("property_key", "~label").
-                        with("element_type", "vertex").next();
-            }
+            waitForVertexIndexesBuilt(g, "nameB", "nameC", "~label");
             final String indexListAfterCreate = adminIndexList();
             final Set<String> indexes = convertStringListToSet(indexListAfterCreate);
             Assert.assertEquals(Set.of("\"nameB\"", "\"nameC\"", "\"vertex.~label\""), indexes);
@@ -251,20 +237,8 @@ public class TestAdminCallHttp {
             fireflyGraph.getBaseGraph().dropGraphIndices();
             Assert.assertTrue(((List<String>) g.call("aerospike.graph.admin.index.list").next()).isEmpty());
             adminIndexCreate("nameA", "vertex");
-            Map<String, Long> nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                    with("property_key", "nameA").
-                    with("element_type", "vertex").next();
-            while (nameAStatus.get("percent_complete") < 100) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                        with("property_key", "nameA").
-                        with("element_type", "vertex").next();
-            }
-            Assert.assertEquals(100L, nameAStatus.get("percent_complete").longValue());
+            waitForVertexIndexesBuilt(g, "nameA");
+            Assert.assertEquals(100L, vertexIndexStatus(g, "nameA").get("percent_complete").longValue());
         }
     }
 
@@ -279,19 +253,7 @@ public class TestAdminCallHttp {
             g.call("aerospike.graph.admin.index.create").
                     with("property_key", "nameB").
                     with("element_type", "vertex").next();
-            Map<String, Long> nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                    with("property_key", "nameB").
-                    with("element_type", "vertex").next();
-            while (nameBStatus.get("percent_complete") < 100) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                        with("property_key", "nameB").
-                        with("element_type", "vertex").next();
-            }
+            waitForVertexIndexesBuilt(g, "nameB");
             adminIndexDrop("nameB", "vertex");
             final List<String> indexesAfterDrop2 = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             Assert.assertTrue(indexesAfterDrop2.isEmpty());
@@ -322,25 +284,7 @@ public class TestAdminCallHttp {
             g.call("aerospike.graph.admin.index.create").
                     with("property_key", "nameB").
                     with("element_type", "vertex").next();
-            Map<String, Long> nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                    with("property_key", "nameA").
-                    with("element_type", "vertex").next();
-            Map<String, Long> nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                    with("property_key", "nameB").
-                    with("element_type", "vertex").next();
-            while (nameAStatus.get("percent_complete") < 100 || nameBStatus.get("percent_complete") < 100) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                        with("property_key", "nameA").
-                        with("element_type", "vertex").next();
-                nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                        with("property_key", "nameB").
-                        with("element_type", "vertex").next();
-            }
+            waitForVertexIndexesBuilt(g, "nameA", "nameB");
             final String cardinality = adminIndexCardinality();
             final String[] cardinalityArray = cardinality.substring(1, cardinality.length() - 1).split(",");
             final Set<String> cardinalitySet = new HashSet<>();
@@ -375,25 +319,7 @@ public class TestAdminCallHttp {
             g.call("aerospike.graph.admin.index.create").
                     with("property_key", "nameB").
                     with("element_type", "vertex").next();
-            Map<String, Long> nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                    with("property_key", "nameA").
-                    with("element_type", "vertex").next();
-            Map<String, Long> nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                    with("property_key", "nameB").
-                    with("element_type", "vertex").next();
-            while (nameAStatus.get("percent_complete") < 100 || nameBStatus.get("percent_complete") < 100) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                        with("property_key", "nameA").
-                        with("element_type", "vertex").next();
-                nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                        with("property_key", "nameB").
-                        with("element_type", "vertex").next();
-            }
+            waitForVertexIndexesBuilt(g, "nameA", "nameB");
             final String cardinality = adminIndexCardinality();
             final String[] cardinalityArray = cardinality.substring(1, cardinality.length() - 1).split(",");
             final Set<String> cardinalitySet = new HashSet<>();

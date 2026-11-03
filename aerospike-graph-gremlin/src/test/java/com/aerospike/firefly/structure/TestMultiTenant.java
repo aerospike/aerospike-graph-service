@@ -69,38 +69,45 @@ public class TestMultiTenant {
     @Test
     public void testDifferentGraphsOnSameServer() throws Exception {
         final Cluster cluster = Cluster.build().addContactPoint("localhost").port(8182).create();
+        try {
+            final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(cluster, "g"));
+            final GraphTraversalSource gModern = traversal().withRemote(DriverRemoteConnection.using(cluster, "gmodern"));
 
-        final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(cluster, "g"));
-        final GraphTraversalSource gModern = traversal().withRemote(DriverRemoteConnection.using(cluster, "gmodern"));
+            g.V().drop().iterate();
+            assertEquals(0L, g.V().count().next().longValue());
+            assertEquals(6L, gModern.V().count().next().longValue());
 
-        g.V().drop().iterate();
-        assertEquals(0L, g.V().count().next().longValue());
-        assertEquals(6L, gModern.V().count().next().longValue());
+            g.addV("test").iterate();
+            assertEquals(1L, g.V().count().next().longValue());
+            assertEquals(6L, gModern.V().count().next().longValue());
 
-        g.addV("test").iterate();
-        assertEquals(1L, g.V().count().next().longValue());
-        assertEquals(6L, gModern.V().count().next().longValue());
-
-        g.V().drop().iterate();
-        assertEquals(0L, g.V().count().next().longValue());
-        assertEquals(6L, gModern.V().count().next().longValue());
+            g.V().drop().iterate();
+            assertEquals(0L, g.V().count().next().longValue());
+            assertEquals(6L, gModern.V().count().next().longValue());
+        } finally {
+            cluster.close();
+        }
     }
 
     @Test
     public void testAdminAPI() throws Exception {
         final Cluster cluster = Cluster.build().addContactPoint("localhost").port(8182).create();
-        final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(cluster, "g"));
+        try {
+            final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(cluster, "g"));
 
-        g.V().drop().iterate();
-        waitForExpectedResult("0/admin/metadata/summary", 0);
-        waitForExpectedResult("modern/admin/metadata/summary", 6);
+            g.V().drop().iterate();
+            waitForExpectedResult("0/admin/metadata/summary", 0);
+            waitForExpectedResult("modern/admin/metadata/summary", 6);
 
-        g.addV("test").iterate();
-        Thread.sleep(100);
-        waitForExpectedResult("0/admin/metadata/summary", 1);
-        waitForExpectedResult("modern/admin/metadata/summary", 6);
+            g.addV("test").iterate();
+            Thread.sleep(100);
+            waitForExpectedResult("0/admin/metadata/summary", 1);
+            waitForExpectedResult("modern/admin/metadata/summary", 6);
 
-        g.V().drop().iterate();
+            g.V().drop().iterate();
+        } finally {
+            cluster.close();
+        }
     }
 
     private void waitForExpectedResult(final String path, final int expected) throws IOException, InterruptedException {

@@ -18,9 +18,14 @@ package com.aerospike.firefly.structure;
 
 import org.apache.tinkerpop.gremlin.GraphProviderClass;
 import org.apache.tinkerpop.gremlin.structure.StructureStandardSuite;
+import org.junit.AfterClass;
 import org.junit.runner.RunWith;
 
 @RunWith(StructureStandardSuite.class)
 @GraphProviderClass(provider = FireflyGraphProviderSindex.class, graph = FireflyGraph.class)
 public class FireflyGraphSindexStructureStandardTest {
+    @AfterClass
+    public static void dropIndexes() {
+        FireflyGraphProviderSindex.dropAllIndexes();
+    }
 }

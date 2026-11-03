@@ -18,6 +18,7 @@ package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphFilterStrategy;
 import com.aerospike.firefly.util.AbstractFireflySuite;
+import com.aerospike.firefly.util.WaitUtil;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.TraversalVertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.strategy.optimization.GraphFilterStrategy;
@@ -36,7 +37,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -123,19 +123,7 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
         System.out.println(g.call("aerospike.graph.admin.index.create").
                 with("property_key", property).
                 with("element_type", "vertex").next());
-        Map<String, Long> status = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                with("property_key", property).
-                with("element_type", "vertex").next();
-        while (status.get("percent_complete") < 100) {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            status = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
-                    with("property_key", property).
-                    with("element_type", "vertex").next();
-        }
+        WaitUtil.waitForVertexIndexesBuilt(g, property);
         try {
             Thread.sleep(1000);
         } catch (final InterruptedException e) {

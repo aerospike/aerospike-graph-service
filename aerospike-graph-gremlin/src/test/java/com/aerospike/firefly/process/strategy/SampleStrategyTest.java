@@ -39,6 +39,7 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -98,6 +99,13 @@ public class SampleStrategyTest {
     @Before
     public void before() {
         // Force drop each time so that config changes don"t cause issues.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        AerospikeConnection.connect(config).dropDatabase(null, true);
+    }
+
+    @AfterClass
+    public static void afterClass() {
+        // Drop the "indexed" property index so later test classes see a clean namespace.
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         AerospikeConnection.connect(config).dropDatabase(null, true);
     }

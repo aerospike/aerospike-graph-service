@@ -872,7 +872,11 @@ public class TestDistributedGraphComputer {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.fireflyIndexMetadata.updateMetadata();
             List<FireflyIndexMetadata.IndexInfo> indexes = graph.fireflyIndexMetadata.getPropertyIndexInfos();
+            final long deadline = System.currentTimeMillis() + 60_000;
             while (indexes.size() == 0) {
+                if (System.currentTimeMillis() > deadline) {
+                    Assert.fail("Timed out waiting for the vertex label index to appear");
+                }
                 try {
                     graph.fireflyIndexMetadata.updateMetadata();
                     indexes = graph.fireflyIndexMetadata.getPropertyIndexInfos();

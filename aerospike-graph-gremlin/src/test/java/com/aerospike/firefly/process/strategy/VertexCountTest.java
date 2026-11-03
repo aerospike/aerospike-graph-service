@@ -51,10 +51,10 @@ public class VertexCountTest {
 
     @AfterClass
     public static void afterClass() {
-        // Remove everything from the graph.
+        // Remove everything from the graph, including the label and property indexes the fast count tests create.
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            graph.traversal().V().drop().iterate();
+            graph.getBaseGraph().dropDatabase(graph, true);
         }
     }
 

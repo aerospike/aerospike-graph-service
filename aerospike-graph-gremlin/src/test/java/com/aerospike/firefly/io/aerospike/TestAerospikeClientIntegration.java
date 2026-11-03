@@ -40,6 +40,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
+import com.aerospike.firefly.util.WaitUtil;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import org.apache.commons.configuration2.Configuration;
@@ -377,8 +378,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         config.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "false");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
-            while (AerospikeConnection.InfoOps.getNonEmptySetList(db).size() == 0)
-                sleep(1000);
+            WaitUtil.waitUntil("a non-empty set after loading the modern graph",
+                    () -> !AerospikeConnection.InfoOps.getNonEmptySetList(db).isEmpty());
             // Add extra long sleep since metadata task sometimes is busy or sleeping and comes in late
             // and isn't removed.
             sleep(5000);

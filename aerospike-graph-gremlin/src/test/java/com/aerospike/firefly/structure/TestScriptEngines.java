@@ -68,67 +68,75 @@ public class TestScriptEngines {
     @Test
     public void gremlinLang() {
         final Cluster cluster = Cluster.build().addContactPoint("localhost").port(8182).create();
-        final Client client = cluster.connect();
-
-        // should handle traversal
-        final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(cluster, "gmodern"));
-        long count = g.V().count().next();
-        assertEquals(6, count);
-
-        // should handle script
-        final RequestOptions noLang = RequestOptions.build().addAlias("g", "gmodern").create();
-        count = client.submit("g.V().count().next()", noLang).one().getLong();
-        assertEquals(6, count);
-
-        // should handle script with explicit engine name
-        final RequestOptions requestOptions = RequestOptions.build().language("gremlin-lang").addAlias("g", "gmodern").create();
-        count = client.submit("g.V().count().next()", requestOptions).one().getLong();
-        assertEquals(6, count);
-
-        // should not allow suspicious queries
         try {
-            client.submit("2+2", requestOptions).one().getLong();
-            fail("should throw exception");
-        } catch (final CompletionException e) {
-            final Throwable inner = e.getCause();
-            assertTrue(inner instanceof ResponseException);
-            assertEquals(ResponseStatusCode.SERVER_ERROR_EVALUATION, ((ResponseException) inner).getResponseStatusCode());
-        }
+            final Client client = cluster.connect();
 
-        // in gremlin-groovy '1g' is valid BigDecimal value, but in gremlin-lang should be '1m';
-        // the easiest way to determine which script engine the request was executed on
-        try {
-            client.submit("g.inject(1g)", requestOptions).one().getLong();
-            fail("should throw exception");
-        } catch (final CompletionException e) {
-            final Throwable inner = e.getCause();
-            assertTrue(inner instanceof ResponseException);
-            assertEquals(ResponseStatusCode.SERVER_ERROR_EVALUATION, ((ResponseException) inner).getResponseStatusCode());
-        }
+            // should handle traversal
+            final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(cluster, "gmodern"));
+            long count = g.V().count().next();
+            assertEquals(6, count);
 
-        final BigDecimal one = (BigDecimal)client.submit("g.inject(1m)", requestOptions).one().getObject();
-        assertEquals(BigDecimal.ONE, one);
+            // should handle script
+            final RequestOptions noLang = RequestOptions.build().addAlias("g", "gmodern").create();
+            count = client.submit("g.V().count().next()", noLang).one().getLong();
+            assertEquals(6, count);
+
+            // should handle script with explicit engine name
+            final RequestOptions requestOptions = RequestOptions.build().language("gremlin-lang").addAlias("g", "gmodern").create();
+            count = client.submit("g.V().count().next()", requestOptions).one().getLong();
+            assertEquals(6, count);
+
+            // should not allow suspicious queries
+            try {
+                client.submit("2+2", requestOptions).one().getLong();
+                fail("should throw exception");
+            } catch (final CompletionException e) {
+                final Throwable inner = e.getCause();
+                assertTrue(inner instanceof ResponseException);
+                assertEquals(ResponseStatusCode.SERVER_ERROR_EVALUATION, ((ResponseException) inner).getResponseStatusCode());
+            }
+
+            // in gremlin-groovy '1g' is valid BigDecimal value, but in gremlin-lang should be '1m';
+            // the easiest way to determine which script engine the request was executed on
+            try {
+                client.submit("g.inject(1g)", requestOptions).one().getLong();
+                fail("should throw exception");
+            } catch (final CompletionException e) {
+                final Throwable inner = e.getCause();
+                assertTrue(inner instanceof ResponseException);
+                assertEquals(ResponseStatusCode.SERVER_ERROR_EVALUATION, ((ResponseException) inner).getResponseStatusCode());
+            }
+
+            final BigDecimal one = (BigDecimal)client.submit("g.inject(1m)", requestOptions).one().getObject();
+            assertEquals(BigDecimal.ONE, one);
+        } finally {
+            cluster.close();
+        }
     }
 
     public void demo() {
         final Cluster cluster = Cluster.build().addContactPoint("localhost").port(8182).create();
-        final Client client = cluster.connect();
-
-        final long sum = client.submit("System.out.println(\"hello\");2+2").one().getLong();
-        assertEquals(4, sum);
-
         try {
-            final RequestOptions requestOptions = RequestOptions.build().language("gremlin-lang").create();
-            client.submit("System.out.println(\"hello\");2+2", requestOptions).one().getLong();
-            fail("should throw exception");
-        } catch (final CompletionException e) {
-            final Throwable inner = e.getCause();
-            assertTrue(inner instanceof ResponseException);
-            assertEquals(ResponseStatusCode.SERVER_ERROR_EVALUATION, ((ResponseException) inner).getResponseStatusCode());
-        }
+            final Client client = cluster.connect();
 
-        final RequestOptions requestOptions = RequestOptions.build().language("gremlin-lang").addAlias("g", "gmodern").create();
-        final long count = client.submit("g.V().count().next()", requestOptions).one().getLong();
-        assertEquals(6, count);
+            final long sum = client.submit("System.out.println(\"hello\");2+2").one().getLong();
+            assertEquals(4, sum);
+
+            try {
+                final RequestOptions requestOptions = RequestOptions.build().language("gremlin-lang").create();
+                client.submit("System.out.println(\"hello\");2+2", requestOptions).one().getLong();
+                fail("should throw exception");
+            } catch (final CompletionException e) {
+                final Throwable inner = e.getCause();
+                assertTrue(inner instanceof ResponseException);
+                assertEquals(ResponseStatusCode.SERVER_ERROR_EVALUATION, ((ResponseException) inner).getResponseStatusCode());
+            }
+
+            final RequestOptions requestOptions = RequestOptions.build().language("gremlin-lang").addAlias("g", "gmodern").create();
+            final long count = client.submit("g.V().count().next()", requestOptions).one().getLong();
+            assertEquals(6, count);
+        } finally {
+            cluster.close();
+        }
     }
 }

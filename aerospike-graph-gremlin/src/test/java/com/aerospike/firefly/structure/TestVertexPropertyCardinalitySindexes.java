@@ -16,6 +16,7 @@
 
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -32,13 +33,17 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Calendar;
+import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.DateTimeUtil.getDate;
 
 public class TestVertexPropertyCardinalitySindexes {
+    private static final long INDEX_WAIT_TIMEOUT_MS = 60_000;
     private static FireflyGraph graph = null;
     private static GraphTraversalSource g = null;
 
@@ -48,7 +53,7 @@ public class TestVertexPropertyCardinalitySindexes {
         config.setProperty("aerospike.graph.index.vertex.properties", "name,age,date");
         graph = FireflyGraph.open(config);
         g = graph.traversal();
-        waitForAllIndexes(3);
+        waitForAllIndexes("name", "age", "date");
     }
 
     @AfterClass
@@ -217,13 +222,29 @@ public class TestVertexPropertyCardinalitySindexes {
         Assert.assertEquals(actualVertex, sixthDateVertex);
     }
 
-    private static void waitForAllIndexes(int numOfIndexedProperties) throws InterruptedException {
-        // We always create 1 string and 1 numeric index for each property.
-        int numOfIndexes = numOfIndexedProperties * 2;
-        while (graph.fireflyIndexMetadata.getPropertyIndexInfos().size() != numOfIndexes) {
-            Thread.sleep(100);
+    private static void waitForAllIndexes(final String... propertyKeys) throws InterruptedException {
+        // We always create 1 string and 1 numeric index for each property. The namespace may also hold
+        // indexes left behind by other test classes, so match on the expected indexes rather than a count.
+        final Set<String> expected = new HashSet<>();
+        for (final String propertyKey : propertyKeys) {
+            expected.add(propertyKey + ":" + IndexType.STRING);
+            expected.add(propertyKey + ":" + IndexType.NUMERIC);
+        }
+        final long deadline = System.currentTimeMillis() + INDEX_WAIT_TIMEOUT_MS;
+        Set<String> present = Set.of();
+        while (System.currentTimeMillis() < deadline) {
             // updateMetadata once sometimes doesn't help.
             graph.fireflyIndexMetadata.updateMetadata();
+            present = graph.fireflyIndexMetadata.getPropertyIndexInfos().stream()
+                    .filter(info -> graph.db.getConfig().vertexAeroSet.equals(info.setName))
+                    .map(info -> info.key + ":" + info.indexType)
+                    .collect(Collectors.toSet());
+            if (present.containsAll(expected)) {
+                return;
+            }
+            Thread.sleep(100);
         }
+        Assert.fail("Timed out after " + INDEX_WAIT_TIMEOUT_MS + " ms waiting for vertex property indexes " +
+                expected + ". Present: " + present);
     }
 }

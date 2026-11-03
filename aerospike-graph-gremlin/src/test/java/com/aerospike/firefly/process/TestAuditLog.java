@@ -17,12 +17,15 @@
 package com.aerospike.firefly.process;
 
 import com.aerospike.firefly.runtime.FireflyServer;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.ReflectionHelper;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
+import org.apache.tinkerpop.gremlin.server.GremlinServer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
@@ -58,11 +61,27 @@ public class TestAuditLog {
             .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
     private static FireflyServer server;
+    private static final List<Cluster> clusters = new ArrayList<>();
     private static final String auditLogWithJWT = "../conf/credentials-config/firefly-gremlin-server-audit-log-jwt.yaml";
     private static final String noAuditLogJWT = "../conf/credentials-config/firefly-gremlin-server-no-audit-log-jwt.yaml";
 
+    private static Cluster connect(final String username, final String token) {
+        final Cluster cluster = Cluster.build().addContactPoint("localhost").port(8182).
+                credentials(username, token).create();
+        clusters.add(cluster);
+        return cluster;
+    }
+
+    // DriverRemoteConnection.using(cluster) does not own the cluster, and an open cluster keeps retrying the stopped
+    // server for the rest of the JVM's life.
+    private static void closeClusters() {
+        clusters.forEach(Cluster::close);
+        clusters.clear();
+    }
+
     private void createServerWithAuth(final boolean auditLogEnabled) {
         if (server != null) {
+            closeClusters();
             server.stop().join();
         }
         if (auditLogEnabled) {
@@ -79,9 +98,7 @@ public class TestAuditLog {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baos));
             createServerWithAuth(false);
-            Cluster cluster = Cluster.build().addContactPoint("localhost").port(8182).
-                    credentials("lyndon_username", validAdmin).create();
-            final DriverRemoteConnection drc = DriverRemoteConnection.using(cluster);
+            final DriverRemoteConnection drc = DriverRemoteConnection.using(connect("lyndon_username", validAdmin));
             final GraphTraversalSource g = traversal().withRemote(drc);
             g.V().drop().iterate();
             Vertex v = g.addV("foo").next();
@@ -147,9 +164,7 @@ public class TestAuditLog {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baos));
             createServerWithAuth(true);
-            Cluster cluster = Cluster.build().addContactPoint("localhost").port(8182).
-                    credentials("lyndon_username", validAdmin).create();
-            final DriverRemoteConnection drc = DriverRemoteConnection.using(cluster);
+            final DriverRemoteConnection drc = DriverRemoteConnection.using(connect("lyndon_username", validAdmin));
             final GraphTraversalSource g = traversal().withRemote(drc);
             g.V().drop().iterate();
             Vertex v = g.addV("foo").next();
@@ -222,9 +237,7 @@ public class TestAuditLog {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baos));
             createServerWithAuth(true);
-            Cluster cluster = Cluster.build().addContactPoint("localhost").port(8182).
-                    credentials("lyndon_loser", validRead).create();
-            final DriverRemoteConnection drc = DriverRemoteConnection.using(cluster);
+            final DriverRemoteConnection drc = DriverRemoteConnection.using(connect("lyndon_loser", validRead));
             final GraphTraversalSource g = traversal().withRemote(drc);
             try {
                 g.V().drop().iterate();
@@ -366,7 +379,14 @@ public class TestAuditLog {
 
     @AfterClass
     public static void tearDown() {
+        closeClusters();
         if (server != null) {
+            // The server's graph config creates vertex property indexes in the shared test namespace; drop them so
+            // later test classes see a clean namespace.
+            final GremlinServer gremlinServer = (GremlinServer) ReflectionHelper.getFieldValue(server, "gremlinServer");
+            final FireflyGraph serverGraph =
+                    (FireflyGraph) gremlinServer.getServerGremlinExecutor().getGraphManager().getGraph("graph");
+            serverGraph.getBaseGraph().dropDatabase(serverGraph, true);
             server.stop().join();
         }
     }

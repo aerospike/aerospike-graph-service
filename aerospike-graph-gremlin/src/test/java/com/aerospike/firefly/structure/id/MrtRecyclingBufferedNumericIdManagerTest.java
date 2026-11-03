@@ -18,6 +18,7 @@ package com.aerospike.firefly.structure.id;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.WaitUtil;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.AfterClass;
@@ -217,9 +218,8 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
                 break;
             }
         }
-        while (recycleStorageId.get() == Long.MAX_VALUE) {
-            Thread.sleep(10);
-        }
+        WaitUtil.waitUntil("the recycling thread to take a storage id", 60_000, 10,
+                () -> recycleStorageId.get() != Long.MAX_VALUE);
         Assert.assertTrue(ID_MANAGER.getInUseEdgeRecordIds().contains(recycleStorageId.get()));
         Assert.assertTrue(ID_MANAGER.getRecycledPackIds().containsKey(recycleStorageId.get()));
         // Cycle until new pack and make sure we don't get the Record ID even though there's a key in the recycling map

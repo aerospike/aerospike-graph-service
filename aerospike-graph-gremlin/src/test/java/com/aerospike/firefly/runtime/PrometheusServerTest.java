@@ -81,6 +81,7 @@ public class PrometheusServerTest {
     @Test
     public void testQueueSizeMetric() {
         FireflyServer server = null;
+        Cluster cluster = null;
         GraphTraversalSource g;
         try {
             server = FireflyServer.start(new String[]{"../conf/test-metrics/firefly-gremlin-server-metrics-test.yaml"});
@@ -93,7 +94,7 @@ public class PrometheusServerTest {
             assertTrue(output.contains("aerospike_graph_service_gremlin_queue_size 0.0"));
 
             // lets create simple loop for infinite traversal
-            final Cluster cluster = Cluster.build("localhost").maxInProcessPerConnection(100).port(8181).create();
+            cluster = Cluster.build("localhost").maxInProcessPerConnection(100).port(8181).create();
             g = traversal().withRemote(DriverRemoteConnection.using(cluster));
             g.V().drop().iterate();
             final Vertex v1 = g.addV("test").next();
@@ -143,8 +144,15 @@ public class PrometheusServerTest {
         } catch (InterruptedException | IOException e) {
             throw new RuntimeException(e);
         } finally {
-            traversal().withRemote(DriverRemoteConnection.using(Cluster.build("localhost").port(8181).create()))
-                    .V().drop().iterate();
+            if (cluster != null) {
+                cluster.close();
+            }
+            final Cluster cleanupCluster = Cluster.build("localhost").port(8181).create();
+            try {
+                traversal().withRemote(DriverRemoteConnection.using(cleanupCluster)).V().drop().iterate();
+            } finally {
+                cleanupCluster.close();
+            }
 
             if (server != null) {
                 server.stop().join();

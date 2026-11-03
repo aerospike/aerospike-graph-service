@@ -95,9 +95,13 @@ public abstract class AbstractFireflySuite {
 
     @AfterClass
     public static void closeGraphClearData() {
-        Util.cleanAndVerifyGraph(graph);
-        db.clearNamespace();
-        graph.close();
+        try {
+            Util.cleanAndVerifyGraph(graph);
+        } finally {
+            // Clear and close even if verification fails, so a dirty graph can't leak indexes into later classes.
+            db.clearNamespace();
+            graph.close();
+        }
     }
 
     public static boolean exited = false;

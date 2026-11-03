@@ -21,9 +21,12 @@ import com.auth0.jwt.algorithms.Algorithm;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletionException;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
@@ -82,11 +85,20 @@ public class JwtAuthenticationDockerTest {
             .withIssuer("aerospike")
             .sign(Algorithm.HMAC256("your-jwt-secret-here"));
 
+    private static final List<Cluster> clusters = new ArrayList<>();
+
+    @AfterClass
+    public static void closeClusters() {
+        clusters.forEach(Cluster::close);
+        clusters.clear();
+    }
+
     private static GraphTraversalSource getGraphTraversalSource(final String username, final String jwt) {
         final Cluster cluster = Cluster.build()
                 .addContactPoint("localhost").port(8182)
                 .credentials(username, jwt)
                 .create();
+        clusters.add(cluster);
         final DriverRemoteConnection drc = DriverRemoteConnection.using(cluster, "g");
         return traversal().withRemote(drc);
     }

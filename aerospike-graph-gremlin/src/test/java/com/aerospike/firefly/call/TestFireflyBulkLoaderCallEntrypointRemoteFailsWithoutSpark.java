@@ -20,6 +20,7 @@ import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import com.aerospike.firefly.util.RemoteDockerTestHost;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -30,6 +31,11 @@ public class TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark {
     private static final int PORT = 8182;
     private static final Cluster.Builder BUILDER = Cluster.build().addContactPoint(HOST).port(PORT).enableSsl(false);
     private static final Cluster CLUSTER = BUILDER.create();
+
+    @AfterClass
+    public static void closeCluster() {
+        CLUSTER.close();
+    }
 
     @Test
     public void testRemoteEntryPoint() throws Exception {

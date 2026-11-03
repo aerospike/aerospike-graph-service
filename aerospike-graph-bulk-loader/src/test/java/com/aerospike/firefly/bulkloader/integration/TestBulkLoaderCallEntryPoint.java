@@ -45,12 +45,9 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.bulkloader.integration.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil.waitForBulkLoad;
+import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil.waitForBulkLoadFail;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_EXCEPTION_MESSAGE;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_ERROR;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_KEY;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.PROGRESS_COMPLETE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.structure.FireflyGraph.BULK_LOAD_VERTEX_ADD_KEY;
 
@@ -98,12 +95,8 @@ public class TestBulkLoaderCallEntryPoint {
                     with("edges").
                     with("clear_existing_data").
                     with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
-            Map<String, Object> status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
-            while (!(boolean)status.get(PROGRESS_COMPLETE)) {
-                status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
-            }
-            Assert.assertEquals(status.get(BULK_LOAD_STATUS_KEY), BULK_LOAD_STATUS_ERROR);
-            Assert.assertTrue(((String)status.get(BULK_LOAD_EXCEPTION_MESSAGE)).contains("Cannot clear existing data when database is empty and no recovery information is present."));
+            final String exceptionMessage = waitForBulkLoadFail(g);
+            Assert.assertTrue(exceptionMessage.contains("Cannot clear existing data when database is empty and no recovery information is present."));
         }
     }
 

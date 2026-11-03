@@ -20,6 +20,7 @@ import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.util.WaitUtil;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
@@ -355,9 +356,7 @@ public class ConcurrentFireflyInstanceTest {
             boolean wereVpsRemovedBySingle = false;
             int lastVpCount = 0;
             while (successes < 1000) {
-                while (!firstPropertyAdded.get()) {
-                    // Wait until this happens
-                }
+                WaitUtil.waitUntil("a writer thread to add the first property", 60_000, 1, firstPropertyAdded::get);
                 final GraphTraversal properties = g.V(id).properties("test");
                 boolean isMulti = false;
                 long singleVpId = Long.MAX_VALUE;

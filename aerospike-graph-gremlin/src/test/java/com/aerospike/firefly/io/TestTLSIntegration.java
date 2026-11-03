@@ -47,6 +47,8 @@ public class TestTLSIntegration {
             g.addV("test-tls").iterate();
             Assert.assertEquals(1, (long) g.V().hasLabel("test-tls").count().next());
             g.V().drop().iterate();
+        } finally {
+            cluster.close();
         }
     }
 }

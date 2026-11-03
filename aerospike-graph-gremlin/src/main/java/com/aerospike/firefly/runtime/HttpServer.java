@@ -58,7 +58,7 @@ public class HttpServer {
     private final AtomicInteger started = new AtomicInteger();
     private final static Vertx vertx = Vertx.vertx(new VertxOptions().setUseDaemonThread(true));
     private io.vertx.core.http.HttpServer vertxHttpServer;
-    private Router router;
+    private volatile Router router;
     private static FireflyMetricCollector fireflyMetricCollector;
     private static long serverStartTime;
 
@@ -143,9 +143,16 @@ public class HttpServer {
                         .orElse(DEFAULT_HEALTHCHECK_PATH);
 
         try {
-            // wait for router
-            while (router == null) Thread.sleep(1);
-        } catch (final Exception e) {
+            // wait for router; init may have failed on another thread, so don't wait forever
+            final long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(60);
+            while (router == null) {
+                if (System.currentTimeMillis() > deadline) {
+                    throw new IllegalStateException("Timed out waiting for HttpServer router to be initialized.");
+                }
+                Thread.sleep(1);
+            }
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
 

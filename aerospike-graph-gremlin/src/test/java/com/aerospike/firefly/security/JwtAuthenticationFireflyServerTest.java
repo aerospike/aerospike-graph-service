@@ -17,17 +17,22 @@
 package com.aerospike.firefly.security;
 
 import com.aerospike.firefly.runtime.FireflyServer;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.ReflectionHelper;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.server.GremlinServer;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
 
@@ -35,6 +40,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 
 public class JwtAuthenticationFireflyServerTest {
     private static FireflyServer server;
+    private static final List<Cluster> clusters = new ArrayList<>();
 
     final String validAdmin = JWT.create()
             .withClaim("role", "ADMIN")
@@ -118,24 +124,35 @@ public class JwtAuthenticationFireflyServerTest {
 
     @AfterClass
     public static void teardown() {
+        // DriverRemoteConnection.using(cluster, ...) does not own the cluster, and an open cluster keeps retrying the
+        // stopped server for the rest of the JVM's life.
+        clusters.forEach(Cluster::close);
+        clusters.clear();
+        // The server's graph config creates vertex property indexes in the shared test namespace; drop them so later
+        // test classes see a clean namespace.
+        final GremlinServer gremlinServer = (GremlinServer) ReflectionHelper.getFieldValue(server, "gremlinServer");
+        final FireflyGraph serverGraph =
+                (FireflyGraph) gremlinServer.getServerGremlinExecutor().getGraphManager().getGraph("graph");
+        serverGraph.getBaseGraph().dropDatabase(serverGraph, true);
         server.stop().join();
     }
 
-    private static GraphTraversalSource getGraphTraversalSource(final String username, final String jwt) {
+    private static Cluster newCluster(final String username, final String jwt) {
         final Cluster cluster = Cluster.build()
                 .addContactPoint("localhost").port(8182)
                 .credentials(username, jwt)
                 .create();
-        final DriverRemoteConnection drc = DriverRemoteConnection.using(cluster, "g");
+        clusters.add(cluster);
+        return cluster;
+    }
+
+    private static GraphTraversalSource getGraphTraversalSource(final String username, final String jwt) {
+        final DriverRemoteConnection drc = DriverRemoteConnection.using(newCluster(username, jwt), "g");
         return traversal().withRemote(drc);
     }
 
     private static Client getClient(final String username, final String jwt) {
-        final Cluster cluster = Cluster.build()
-                .addContactPoint("localhost").port(8182)
-                .credentials(username, jwt)
-                .create();
-        return cluster.connect();
+        return newCluster(username, jwt).connect();
     }
 
     @Test

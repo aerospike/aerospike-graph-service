@@ -19,6 +19,7 @@ package com.aerospike.firefly.runtime;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -37,6 +38,15 @@ public class TestWaitsForSindexComplete {
     private static final Random RANDOM = new Random();
     private static final int INSERT_COUNT = 100000;
 
+    @After
+    public void tearDown() {
+        // Drop the str1-str5 indexes and the loaded vertices so later test classes see a clean namespace.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.getBaseGraph().dropDatabase(graph, true);
+        }
+    }
+
     @Test
     public void testWaitsForSindexComplete() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
@@ -47,29 +57,11 @@ public class TestWaitsForSindexComplete {
 
             // Load graph.
             final ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT);
-            for (int i = 0; i < THREAD_COUNT; i++) {
-                executorService.submit(() -> {
-                    for (int j = 0; j < INSERT_COUNT; j++) {
-                        final StringBuilder stringBuilder = new StringBuilder();
-                        while (stringBuilder.length() < STRING_LENGTH) {
-                            int idx = (int) (RANDOM.nextFloat() * CHARACTERS.length());
-                            stringBuilder.append(CHARACTERS.charAt(idx));
-                        }
-                        graph.traversal().addV("vertex").
-                                property("str1", stringBuilder.toString()).
-                                property("str2", stringBuilder.toString()).
-                                property("str3", stringBuilder.toString()).
-                                property("str4", stringBuilder.toString()).
-                                property("str5", stringBuilder.toString()).
-                                iterate();
-                    }
-                });
-            }
-
-            executorService.shutdown();
-            boolean completed = executorService.awaitTermination(2, TimeUnit.MINUTES);
-            if (!completed) {
-                throw new RuntimeException("Failed to complete within 2 minutes");
+            try {
+                loadGraph(graph, executorService);
+            } finally {
+                // Writers left running after a timeout would keep inserting into later test classes.
+                executorService.shutdownNow();
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
@@ -85,6 +77,34 @@ public class TestWaitsForSindexComplete {
                     with("property_key", "str5").
                     with("element_type", "vertex").next();
             Assert.assertTrue(info.get("percent_complete") < 100L);
+        }
+    }
+
+    private static void loadGraph(final FireflyGraph graph, final ExecutorService executorService)
+            throws InterruptedException {
+        for (int i = 0; i < THREAD_COUNT; i++) {
+            executorService.submit(() -> {
+                for (int j = 0; j < INSERT_COUNT && !Thread.currentThread().isInterrupted(); j++) {
+                    final StringBuilder stringBuilder = new StringBuilder();
+                    while (stringBuilder.length() < STRING_LENGTH) {
+                        int idx = (int) (RANDOM.nextFloat() * CHARACTERS.length());
+                        stringBuilder.append(CHARACTERS.charAt(idx));
+                    }
+                    graph.traversal().addV("vertex").
+                            property("str1", stringBuilder.toString()).
+                            property("str2", stringBuilder.toString()).
+                            property("str3", stringBuilder.toString()).
+                            property("str4", stringBuilder.toString()).
+                            property("str5", stringBuilder.toString()).
+                            iterate();
+                }
+            });
+        }
+
+        executorService.shutdown();
+        boolean completed = executorService.awaitTermination(2, TimeUnit.MINUTES);
+        if (!completed) {
+            throw new RuntimeException("Failed to complete within 2 minutes");
         }
     }
 }

@@ -12,7 +12,7 @@ baseline and optional feature requirements.
 | Apache TinkerPop / Gremlin | 3.7.3                         | Drivers should use the 3.7.x line.        |
 | Aerospike Java Client      | 10.5.0                        |                                           |
 | Spark Dependencies         | 3.5.9, Scala 2.12             | Used by the bulk loader and OLAP modules. |
-| Container Base             | Alpine 3.24.2 with OpenJDK 17 | Used by the full and slim Docker images.  |
+| Container Base             | Alpine 3.24.3 with OpenJDK 17 | Used by the full and slim Docker images.  |
 
 ## Aerospike Database
 

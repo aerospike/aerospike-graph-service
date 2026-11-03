@@ -19,6 +19,7 @@ package com.aerospike.firefly.bulkloader.integration.util;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Assert;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_EXCEPTION_MESSAGE;
@@ -28,7 +29,9 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTo
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.PROGRESS_COMPLETE;
 
 public class BulkLoadTestUtil {
-    private static final long BULK_LOAD_TIMEOUT_MS = 5 * 60 * 1000;
+    // Most load steps report only their step name, and recovery-failure configs deliberately sleep up to 5 minutes
+    // inside a partition, so the status can legitimately stay unchanged for several minutes.
+    private static final long BULK_LOAD_STALL_TIMEOUT_MS = 30 * 60 * 1000;
 
     static public void waitForBulkLoad(final GraphTraversalSource g) {
         final Map<String, Object> status = waitForCompletion(g);
@@ -42,11 +45,12 @@ public class BulkLoadTestUtil {
     }
 
     private static Map<String, Object> waitForCompletion(final GraphTraversalSource g) {
-        final long deadline = System.currentTimeMillis() + BULK_LOAD_TIMEOUT_MS;
         Map<String, Object> status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
+        Map<String, Object> lastSeen = new HashMap<>(status);
+        long lastChange = System.currentTimeMillis();
         while (!(boolean) status.get(PROGRESS_COMPLETE)) {
-            if (System.currentTimeMillis() > deadline) {
-                Assert.fail("Timed out after " + BULK_LOAD_TIMEOUT_MS + " ms waiting for bulk load to complete. " +
+            if (System.currentTimeMillis() - lastChange > BULK_LOAD_STALL_TIMEOUT_MS) {
+                Assert.fail("Bulk load status unchanged for " + BULK_LOAD_STALL_TIMEOUT_MS + " ms. " +
                         "Last status: " + status);
             }
             try {
@@ -55,6 +59,10 @@ public class BulkLoadTestUtil {
                 throw new RuntimeException(e);
             }
             status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
+            if (!lastSeen.equals(status)) {
+                lastSeen = new HashMap<>(status);
+                lastChange = System.currentTimeMillis();
+            }
         }
         return status;
     }

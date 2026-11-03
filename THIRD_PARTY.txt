@@ -1,5 +1,5 @@
 
-Lists of 386 third-party dependencies.
+Lists of 384 third-party dependencies.
      (BSD 3-Clause "New" or "Revised" License (BSD-3-Clause)) abego TreeLayout Core (org.abego.treelayout:org.abego.treelayout.core:1.0.3 - http://treelayout.sourceforge.net)
      (Apache License, Version 2.0) Aerospike :: Graph (com.aerospike:aerospike-graph-gremlin:3.3.4-SNAPSHOT - https://github.com/aerospike/aerospike-graph-service/aerospike-graph-gremlin)
      (The Apache License, Version 2.0) Aerospike Java Client BC (com.aerospike:aerospike-client-bc-jdk8:10.5.0 - https://github.com/aerospike/aerospike-client-java)
@@ -274,7 +274,6 @@ Lists of 386 third-party dependencies.
      (Apache License, Version 2.0) Netty/Transport/SCTP (io.netty:netty-transport-sctp:4.2.19.Final - https://netty.io/netty-transport-sctp/)
      (Apache License, Version 2.0) Netty/Transport/UDT (io.netty:netty-transport-udt:4.2.19.Final - https://netty.io/netty-transport-udt/)
      (Apache 2) Objenesis (org.objenesis:objenesis:2.5.1 - http://objenesis.org)
-     (Apache License, Version 2.0) Objenesis (org.objenesis:objenesis:3.2 - http://objenesis.org/objenesis)
      (The Apache Software License, Version 2.0) okhttp (com.squareup.okhttp3:okhttp:4.12.0 - https://square.github.io/okhttp/)
      (The Apache Software License, Version 2.0) okio (com.squareup.okio:okio:3.6.0 - https://github.com/square/okio/)
      (The Apache Software License, Version 2.0) okio (com.squareup.okio:okio-jvm:3.6.0 - https://github.com/square/okio/)
@@ -349,7 +348,6 @@ Lists of 386 third-party dependencies.
      (EPL 2.0) (GPL2 w/ CPE) ServiceLocator Default Implementation (org.glassfish.hk2:hk2-locator:2.6.1 - https://github.com/eclipse-ee4j/glassfish-hk2/hk2-locator)
      (Apache-2.0) SLF4J 2 Provider for Log4j API (org.apache.logging.log4j:log4j-slf4j2-impl:2.26.1 - https://logging.apache.org/log4j/2.x/)
      (MIT) SLF4J API Module (org.slf4j:slf4j-api:2.0.20 - http://www.slf4j.org)
-     (Apache License, Version 2.0) SnakeYAML (org.yaml:snakeyaml:2.0 - https://bitbucket.org/snakeyaml/snakeyaml)
      (Apache License, Version 2.0) SnakeYAML (org.yaml:snakeyaml:2.4 - https://bitbucket.org/snakeyaml/snakeyaml)
      (Apache-2.0) snappy-java (org.xerial.snappy:snappy-java:1.1.10.11 - https://github.com/xerial/snappy-java)
      (Apache-2.0) Spark Project Catalyst (org.apache.spark:spark-catalyst_2.12:3.5.9 - https://spark.apache.org/)

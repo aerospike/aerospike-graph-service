@@ -106,7 +106,34 @@ echo "###################################"
 echo "running job ${name}"
 echo "###################################"
 
-{ gcloud dataproc jobs submit spark --class=com.aerospike.firefly.bulkloader.SparkBulkLoader --jars=${bulk_jar_uri} --id ${name}-job --cluster=${name} --region=${region} -- -c ${properties_file_uri} -validate_input_data -verify_output_data; } &
-{ echo "sleeping 9 minutes"; sleep 9m; echo "Killing ci-pe-w-3"; gcloud compute instances delete ${name}-w-3 --zone=${zone} --quiet; echo "Killing ci-pe-w-4"; gcloud compute instances delete ${name}-w-4 --zone=${zone} --quiet; } &
+job_log=$(mktemp)
+trap 'rm -f "${job_log}"' EXIT
 
-wait
+gcloud dataproc jobs submit spark --class=com.aerospike.firefly.bulkloader.SparkBulkLoader --jars=${bulk_jar_uri} --id ${name}-job --cluster=${name} --region=${region} -- -c ${properties_file_uri} -validate_input_data -verify_output_data > >(tee "${job_log}") 2>&1 &
+job_pid=$!
+
+# Two workers are killed once the edge write is underway, so the load has to
+# recover from losing executors mid-write. The loader reports edge progress
+# about every 10 seconds, so they are killed at the first report of 5% or more.
+edge_progress_regex='edges complete \(([5-9]|[1-9][0-9]+)\.[0-9]+%\)'
+echo "Waiting for edge writing to reach 5% before killing ${name}-w-3 and ${name}-w-4"
+until grep -qE "${edge_progress_regex}" "${job_log}"; do
+  if ! kill -0 ${job_pid} 2> /dev/null; then
+    echo "Error: ${name}-job ended before edge writing reached 5%, so no workers were killed"
+    exit 1
+  fi
+  sleep 2
+done
+if ! kill -0 ${job_pid} 2> /dev/null; then
+  echo "Error: ${name}-job ended before its workers could be killed"
+  exit 1
+fi
+echo "Killing ${name}-w-3 and ${name}-w-4 at: $(grep -oE "${edge_progress_regex}" "${job_log}" | head -n 1)"
+gcloud compute instances delete ${name}-w-3 ${name}-w-4 --zone=${zone} --quiet
+
+wait ${job_pid}
+
+if ! grep -q 'Lost executor' "${job_log}"; then
+  echo "Error: ${name}-job lost no executors, so killing ${name}-w-3 and ${name}-w-4 did not affect the load"
+  exit 1
+fi

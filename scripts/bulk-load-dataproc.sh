@@ -21,9 +21,10 @@ Help() {
 
    # Display Help
    echo "
-   Syntax: ${0##*/} -j <bulk loader jar> -c <firefly config> [-n <job name>] [-w <number of workers>] [-z <zone>]
+   Syntax: ${0##*/} -j <bulk loader jar> -c <firefly config> [-n <job name>] [-w <number of workers>] [-z <zone>] [-e]
 
    The Spark cluster is created in <zone> (default us-central1-a) so it sits next to the Aerospike cluster it loads.
+   -e runs the job on an existing Spark cluster named <job name> instead of creating one.
 
    Example: ${0##*/} -j gs://jarbucket/jar/aerospike-graph-bulk-loader-<version>.jar
    -c gs://configbucket/fireflyconfig/bulk.properties -n check1 -w 10
@@ -51,8 +52,9 @@ workers=${2:-20}
 bulk_jar_uri=XXX
 properties_file_uri=XXX
 zone=us-central1-a
+use_existing_cluster=false
 
-parsed=$(getopt -a -n minimal-spark.sh -o j:c:n:w:z: -- "$@")
+parsed=$(getopt -a -n minimal-spark.sh -o j:c:n:w:z:e -- "$@")
 eval set -- "$parsed"
 
 while :
@@ -73,6 +75,8 @@ do
         -z) #zone for the spark cluster
             echo "for $1 = $2"
             zone=$2; shift 2;;
+        -e) # use an existing spark cluster
+            use_existing_cluster=true; shift;;
         -h)
             Help
             exit;;
@@ -92,16 +96,11 @@ then
     exit
 fi
 
-gcp_project_id=${GCP_PROJECT_ID:?GCP_PROJECT_ID must be set}
 region=${zone%-*}
 
-echo "###################################"
-echo "creating spark cluster ${name} in ${zone}"
-echo "###################################"
-
-#TODO GRAPH-897: Replace with commented line for JDK 17 bulk loading if GCP images still don't support JDK 17 natively
-#gcloud dataproc clusters create ${name} --enable-component-gateway --region ${region} --zone ${zone} --initialization-actions=gs://gha-ci-firefly-bulkloader/scripts/install-jdk-17.sh --properties 'spark-env:JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64,spark:spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64' --master-machine-type c3d-standard-4 --master-boot-disk-type pd-ssd --master-boot-disk-size 500 --num-workers ${workers} --worker-machine-type c3d-standard-4 --worker-boot-disk-type pd-ssd --worker-boot-disk-size 500 --image-version 2.2-debian12 --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE --project "${gcp_project_id}"
-gcloud dataproc clusters create ${name} --tags=aerolab-client --enable-component-gateway --region ${region} --zone ${zone} --master-machine-type c3d-standard-4 --master-boot-disk-type pd-ssd --master-boot-disk-size 500 --num-workers ${workers} --worker-machine-type c3d-standard-4 --worker-boot-disk-type pd-ssd --worker-boot-disk-size 500 --image-version 2.2-debian12 --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE --project "${gcp_project_id}"
+if [[ "${use_existing_cluster}" != true ]]; then
+  bash "$(dirname "${BASH_SOURCE[0]}")/create-dataproc-cluster-gcp.sh" -n ${name} -z ${zone} -w ${workers}
+fi
 
 echo "###################################"
 echo "running job ${name}"

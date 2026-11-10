@@ -100,9 +100,11 @@ import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLContext;
 import java.io.Closeable;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -210,7 +212,26 @@ public class AerospikeConnection implements AutoCloseable {
         final boolean tlsEnabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TLS, conf);
         if (tlsEnabled) {
             clientPolicy.tlsPolicy = new TlsPolicy();
-
+            // Without an explicit context, client 10.5.0 and earlier builds its async Netty TLS context with Netty 4.2's
+            // default HTTPS hostname check and no peer host, so every async handshake fails. The client still validates
+            // the server certificate against tlsName after the handshake.
+            //
+            // TODO: Remove this try/catch and the SSLContext and NoSuchAlgorithmException imports once
+            //  aerospike-client.version in the root pom.xml is a release containing the client fix,
+            //  https://github.com/aerospike/aerospike-client-java/pull/705. Before removing, confirm the new release's
+            //  com.aerospike.client.async.NettyTlsContext builds with
+            //  SslContextBuilder.forClient().endpointIdentificationAlgorithm(null).
+            //  - Keep the "Test TLS Docker" job in .github/workflows/test-pull-request.yml without
+            //    -Dio.netty.handler.ssl.defaultEndpointVerificationAlgorithm=NONE. It is the regression test for this.
+            //  - Keep that property in TestTLSIntegration. It covers the test's Gremlin driver connecting to AGS
+            //    (certificate CN=test-tls with no SAN, reached via localhost), not AGS connecting to Aerospike.
+            //  - Removing this restores OpenSSL and TlsPolicy.protocols (TLSv1.2 only) for async connections. With
+            //    this context set, async connections use the JDK engine with its default protocols.
+            try {
+                clientPolicy.tlsPolicy.context = SSLContext.getDefault();
+            } catch (final NoSuchAlgorithmException e) {
+                throw new IllegalStateException("Unable to load the default SSLContext for Aerospike TLS.", e);
+            }
         }
         clientPolicy.maxErrorRate = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MAX_ERROR_RATE, conf);
         clientPolicy.authMode = AuthMode.valueOf(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AUTH_MODE, conf).toUpperCase());

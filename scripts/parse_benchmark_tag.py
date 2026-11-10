@@ -32,6 +32,22 @@ default_instance_type = {
     '128g': 'c3d-highmem-180-lssd'
 }
 
+# Tried when the default instance type above has no capacity in any zone. "-lssd" capacity
+# often runs out, so these are N2/N2D types with separately attached local SSDs, matching
+# the default's memory as closely as possible. Each must accept size_to_ssd_count local SSDs:
+# https://cloud.google.com/compute/docs/disks/local-ssd#lssd_disk_options
+# No N2/N2D type has 128g's 1440 GB of memory; n2-highmem-128 has 864 GB.
+default_fallback_instance_type = {
+    '1g': 'n2d-standard-4',
+    '2g': 'n2d-standard-4',
+    '4g': 'n2d-standard-4',
+    '8g': 'n2d-highmem-8',
+    '16g': 'n2d-highmem-32',
+    '32g': 'n2d-highmem-64',
+    '64g': 'n2d-highmem-96',
+    '128g': 'n2-highmem-128'
+}
+
 # Expansion factor of 10 and 50% overhead. Each disk is fixed at 400 GB.
 # Must match the fixed local SSD count baked into the corresponding "-lssd"
 # instance type in default_instance_type above.
@@ -70,8 +86,11 @@ def main(argv):
         instance_offset_max = instance_offset_max + 1
 
     benchmark_instance = default_instance_type[benchmark_size]
+    fallback_instance = default_fallback_instance_type[benchmark_size]
     if len(split_tag) == (benchmark_index + instance_offset_max):
         benchmark_instance = '-'.join(split_tag[benchmark_index + instance_offset_min:])
+        # An instance type named in the tag is used as is.
+        fallback_instance = ''
     elif len(split_tag) != (benchmark_index + instance_offset_min):
         raise ValueError('Specified instance type ' + '-'.join(split_tag[benchmark_index + instance_offset_min:])
                          + ' is invalid')
@@ -79,6 +98,7 @@ def main(argv):
     data_size = 'data-size=' + benchmark_size
     server_instances = 'server-instances=3'
     instance_type = 'instance-type=' + benchmark_instance
+    fallback_instance_type = 'fallback-instance-type=' + fallback_instance
     benchmark = 'benchmark=' + benchmark_name
     ssd_count = 'ssd-count=' + size_to_ssd_count[benchmark_size]
     storage_type = 'storage-type=' + storage_type
@@ -88,6 +108,7 @@ def main(argv):
         properties.write(f'{data_size}\n')
         properties.write(f'{server_instances}\n')
         properties.write(f'{instance_type}\n')
+        properties.write(f'{fallback_instance_type}\n')
         properties.write(f'{benchmark}\n')
         properties.write(f'{ssd_count}\n')
         properties.write(f'{storage_type}\n')
